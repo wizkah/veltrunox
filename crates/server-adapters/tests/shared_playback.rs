@@ -57,6 +57,8 @@ async fn concurrent_intents_give_every_client_the_same_final_state() {
     first
         .connection
         .send_intent(Intent::SelectRecording(RECORDING));
+    // Without a selection the server would reject the seeks and fewer intents apply.
+    second.state_where(|state| state.recording.is_some());
 
     first.connection.send_intent(Intent::Seek {
         position: Millis::new(1_000),
