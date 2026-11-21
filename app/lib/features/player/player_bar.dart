@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'player_analysis.dart';
 import 'player_controller.dart';
 import 'player_state.dart';
 import 'player_texts.dart';
@@ -10,7 +11,10 @@ import 'transport_controls.dart';
 
 /// The shared player: what is playing, transport and settings.
 class PlayerBar extends ConsumerWidget {
-  const PlayerBar({super.key});
+  const PlayerBar({this.analysis, super.key});
+
+  /// Analysis of the loaded recording, if it has one.
+  final PlayerAnalysis? analysis;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,16 +32,17 @@ class PlayerBar extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: state?.recordingId == null
             ? const Text(PlayerTexts.nothingSelected)
-            : _LoadedPlayer(state: state!),
+            : _LoadedPlayer(state: state!, analysis: analysis),
       ),
     );
   }
 }
 
 class _LoadedPlayer extends ConsumerWidget {
-  const _LoadedPlayer({required this.state});
+  const _LoadedPlayer({required this.state, required this.analysis});
 
   final PlayerState state;
+  final PlayerAnalysis? analysis;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,9 +59,14 @@ class _LoadedPlayer extends ConsumerWidget {
         ),
         SettingsControls(
           state: state,
+          analysis: analysis,
           onSpeed: controller.setSpeed,
           onTuning: controller.setTuning,
           onKey: controller.setKey,
+          onTargetTempo: (bpm) => controller.setTargetTempo(
+            targetBpm: bpm,
+            recordingBpm: analysis?.tempoBpm ?? bpm,
+          ),
         ),
       ],
     );

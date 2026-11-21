@@ -14,8 +14,9 @@ test('lists the recordings and shows the connection status', async ({ page }) =>
   await page.goto('/');
   await enableAccessibility(page);
 
-  await expect(page.getByText('Soundcheck')).toBeVisible();
-  await expect(page.getByText('Verse and chorus run-through')).toBeVisible();
+  // A tile is one button named after the recording; it holds the re-analyse button.
+  await expect(page.getByRole('button', { name: 'Soundcheck', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Verse and chorus run-through', exact: true })).toBeVisible();
   await expect(page.getByText('Verbunden')).toBeVisible();
   expect(errors).toEqual([]);
 });

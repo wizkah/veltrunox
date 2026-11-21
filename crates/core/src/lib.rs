@@ -1,11 +1,16 @@
 //! Domain types and pure operations shared by server and client.
 
+mod analysis;
 mod bookmark;
 mod playback;
 mod recording;
 mod tempo_pitch;
 mod units;
 
+pub use analysis::{
+    AnalysisInfo, AnalysisProgress, Confidence, KeyMode, LibraryEntry, MusicalKey, PitchClass,
+    RecordingAnalysis,
+};
 pub use bookmark::{
     BookmarkId, BookmarkName, Bookmarks, Label, Region, Version, VersionConflict, check_version,
 };

@@ -1,5 +1,6 @@
 import '../features/player/player_source.dart';
 import '../features/player/player_state.dart';
+import '../features/player/target_tempo.dart';
 import 'bridge_session.dart';
 import 'generated/api.dart' as rust;
 
@@ -44,6 +45,18 @@ class BridgePlayerSource implements PlayerSource {
   @override
   Future<void> setKey(int semitones) =>
       _send(rust.PlayerCommand.setKey(keyShiftSemitones: semitones));
+
+  @override
+  Future<TargetTempo> speedForTargetTempo({
+    required double targetBpm,
+    required double recordingBpm,
+  }) async {
+    final target = await rust.speedForTargetBpm(
+      targetBpm: targetBpm,
+      recordingBpm: recordingBpm,
+    );
+    return TargetTempo(speed: target.speed, supported: target.supported);
+  }
 
   Future<void> _send(rust.PlayerCommand command) => _session.send(command);
 }

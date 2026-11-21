@@ -35,6 +35,16 @@ impl Pcm {
         self.samples.len() / CHANNELS
     }
 
+    /// Both channels averaged into one.
+    pub fn mono(&self) -> Vec<f32> {
+        self.samples
+            .as_chunks::<CHANNELS>()
+            .0
+            .iter()
+            .map(|frame| frame.iter().sum::<f32>() / CHANNELS as f32)
+            .collect()
+    }
+
     /// Length in milliseconds.
     pub fn duration_ms(&self) -> u64 {
         self.frames() as u64 * 1_000 / u64::from(self.sample_rate)

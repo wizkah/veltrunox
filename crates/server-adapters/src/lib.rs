@@ -1,5 +1,7 @@
 //! Server adapters: persistence and the HTTP and real-time endpoints.
 
+mod analysis;
+mod analysis_worker;
 mod audio;
 mod clock;
 mod end_watch;
@@ -11,6 +13,8 @@ mod import;
 mod sqlite;
 mod state;
 
+pub use analysis::{AnalysisError, analyse};
+pub use analysis_worker::{AnalysisQueue, FileAnalyzer};
 pub use audio::{AudioPlayback, DecodeError, Engine, Pcm, decode_file, list_output_devices};
 pub use clock::SystemClock;
 pub use end_watch::watch_end;

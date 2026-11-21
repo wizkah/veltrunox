@@ -8,14 +8,12 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post, put},
 };
-use veltrunox_core::{
-    BookmarkId, BookmarkName, InvalidValue, Millis, Recording, RecordingId, Version,
-};
+use veltrunox_core::{BookmarkId, BookmarkName, InvalidValue, Millis, RecordingId, Version};
 use veltrunox_protocol::{
-    BOOKMARKS_PATH, BookmarksDto, ConflictDto, EVENTS_PATH, ExpectedVersionQuery, LABEL_PATH,
-    LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto, RECORDINGS_PATH, REGION_PATH, REGIONS_PATH,
-    RecordingListDto, RecordingSummaryDto, RegionDto, UpdateLabelDto, UpdateRegionDto,
-    bookmarks_to_dto, label_to_dto, range_from_dto, region_to_dto,
+    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, EVENTS_PATH, ExpectedVersionQuery,
+    LABEL_PATH, LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto, RECORDINGS_PATH, REGION_PATH,
+    REGIONS_PATH, RecordingListDto, RegionDto, UpdateLabelDto, UpdateRegionDto, bookmarks_to_dto,
+    label_to_dto, library_entry_to_dto, range_from_dto, region_to_dto,
 };
 use veltrunox_server_app::{BookmarkError, list_recordings};
 
@@ -24,6 +22,7 @@ pub fn router(app: AppState) -> Router {
     Router::new()
         .route(RECORDINGS_PATH, get(recordings))
         .route(EVENTS_PATH, get(events))
+        .route(ANALYSIS_PATH, post(analyse_again))
         .route(BOOKMARKS_PATH, get(bookmarks))
         .route(LABELS_PATH, post(add_label))
         .route(REGIONS_PATH, post(add_region))
@@ -80,18 +79,33 @@ async fn blocking<T: Send + 'static>(
 }
 
 async fn recordings(State(app): State<AppState>) -> Result<Json<RecordingListDto>, ApiError> {
-    let listed =
-        blocking(move || list_recordings(app.recordings.as_ref()).map_err(|_| ApiError::Internal))
-            .await?;
+    let entries = blocking(move || {
+        let listed = list_recordings(app.recordings.as_ref()).map_err(|_| ApiError::Internal)?;
+        app.analysis.entries(listed).map_err(|_| ApiError::Internal)
+    })
+    .await?;
     Ok(Json(RecordingListDto {
-        recordings: listed.into_iter().map(into_dto).collect(),
+        recordings: entries.iter().map(library_entry_to_dto).collect(),
     }))
 }
 
-fn into_dto(recording: Recording) -> RecordingSummaryDto {
-    RecordingSummaryDto {
-        id: recording.id.value(),
-        title: recording.title.as_str().to_owned(),
+/// Starts the analysis of a recording again; the result arrives through the library.
+async fn analyse_again(
+    State(app): State<AppState>,
+    Path(recording): Path<u64>,
+) -> Result<StatusCode, ApiError> {
+    let id = RecordingId::new(recording);
+    let exists = blocking(move || {
+        let listed = list_recordings(app.recordings.as_ref()).map_err(|_| ApiError::Internal)?;
+        Ok((listed.iter().any(|known| known.id == id), app))
+    })
+    .await?;
+    match exists {
+        (true, app) => {
+            app.analysis_queue.enqueue(id);
+            Ok(StatusCode::ACCEPTED)
+        }
+        (false, _) => Ok(StatusCode::NOT_FOUND),
     }
 }
 

@@ -1,9 +1,14 @@
 //! Fakes for the ports, shared by the unit tests of this crate.
 
-use crate::ports::{Clock, PlaybackBroadcast, RecordingLengths, RecordingRepository, StorageError};
+use crate::ports::{
+    AnalysisRepository, Clock, MediaCatalog, PlaybackBroadcast, RecordingLengths,
+    RecordingRepository, StorageError,
+};
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use veltrunox_core::{
-    Millis, PlaybackSettings, PlaybackState, Recording, RecordingId, RecordingTitle,
+    Millis, PlaybackSettings, PlaybackState, Recording, RecordingAnalysis, RecordingId,
+    RecordingTitle,
 };
 
 pub struct FakeRecordings {
@@ -99,9 +104,14 @@ impl Clock for FakeClock {
 #[derive(Default)]
 pub struct FakeBroadcast {
     states: Mutex<Vec<PlaybackState>>,
+    analysis: Mutex<Vec<RecordingId>>,
 }
 
 impl FakeBroadcast {
+    pub fn analysis_notices(&self) -> Vec<RecordingId> {
+        self.analysis.lock().unwrap().clone()
+    }
+
     pub fn states(&self) -> Vec<PlaybackState> {
         self.states.lock().unwrap().clone()
     }
@@ -113,4 +123,64 @@ impl PlaybackBroadcast for FakeBroadcast {
     }
 
     fn bookmarks_changed(&self, _recording: RecordingId) {}
+
+    fn analysis_changed(&self, recording: RecordingId) {
+        self.analysis.lock().unwrap().push(recording);
+    }
+}
+
+pub struct FakeMedia(Option<PathBuf>);
+
+impl FakeMedia {
+    pub fn with_file() -> Self {
+        Self(Some(PathBuf::from("song.wav")))
+    }
+
+    pub fn without_file() -> Self {
+        Self(None)
+    }
+}
+
+impl MediaCatalog for FakeMedia {
+    fn media_path(&self, _id: RecordingId) -> Result<Option<PathBuf>, StorageError> {
+        Ok(self.0.clone())
+    }
+
+    fn add_media(
+        &self,
+        _title: RecordingTitle,
+        _path: &Path,
+        _content_hash: &str,
+    ) -> Result<Option<Recording>, StorageError> {
+        Ok(None)
+    }
+}
+
+#[derive(Default)]
+pub struct FakeAnalyses(Mutex<Vec<(RecordingId, RecordingAnalysis)>>);
+
+impl AnalysisRepository for FakeAnalyses {
+    fn analysis(&self, id: RecordingId) -> Result<Option<RecordingAnalysis>, StorageError> {
+        let items = self.0.lock().unwrap();
+        Ok(items.iter().find(|(r, _)| *r == id).map(|(_, a)| *a))
+    }
+
+    fn analyses(&self) -> Result<Vec<(RecordingId, RecordingAnalysis)>, StorageError> {
+        Ok(self.0.lock().unwrap().clone())
+    }
+
+    fn save_analysis(
+        &self,
+        id: RecordingId,
+        analysis: RecordingAnalysis,
+    ) -> Result<(), StorageError> {
+        let mut items = self.0.lock().unwrap();
+        items.retain(|(r, _)| *r != id);
+        items.push((id, analysis));
+        Ok(())
+    }
+
+    fn unanalysed(&self) -> Result<Vec<RecordingId>, StorageError> {
+        Ok(Vec::new())
+    }
 }

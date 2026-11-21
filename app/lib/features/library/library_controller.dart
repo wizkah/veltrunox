@@ -17,8 +17,24 @@ final libraryProvider =
 
 class LibraryController extends AsyncNotifier<List<RecordingSummary>> {
   @override
-  Future<List<RecordingSummary>> build() =>
-      ref.read(recordingSourceProvider).listRecordings();
+  Future<List<RecordingSummary>> build() {
+    final source = ref.read(recordingSourceProvider);
+    // A finished analysis changes the list; it is loaded again without a spinner.
+    final changes = source.analysisChanges().listen((_) => _refresh());
+    ref.onDispose(changes.cancel);
+    return source.listRecordings();
+  }
+
+  Future<void> reanalyse(int recordingId) =>
+      ref.read(recordingSourceProvider).reanalyse(recordingId);
+
+  Future<void> _refresh() async {
+    final refreshed = await AsyncValue.guard(
+      () => ref.read(recordingSourceProvider).listRecordings(),
+    );
+    // A failed refresh keeps what is shown; the next change tries again.
+    if (ref.mounted && !refreshed.hasError) state = refreshed;
+  }
 
   Future<void> reload() async {
     state = const AsyncLoading();

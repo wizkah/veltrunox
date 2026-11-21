@@ -35,7 +35,7 @@ Future<void> main() async {
         ),
         playerSourceProvider.overrideWithValue(BridgePlayerSource(session)),
         recordingSourceProvider.overrideWithValue(
-          BridgeRecordingSource(serverUrl: serverUrl),
+          BridgeRecordingSource(serverUrl: serverUrl, session: session),
         ),
       ],
       child: const VeltrunoxApp(),

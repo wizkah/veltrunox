@@ -9,9 +9,16 @@ abstract final class PlayerTexts {
   static const key = 'Tonart';
   static const keyLower = 'Tonart tiefer';
   static const keyHigher = 'Tonart höher';
+  static const tempo = 'Tempo';
+  static const targetTempo = 'Soll-bpm';
+  static const tempoInvalid = 'Keine Zahl';
+  static const tempoOutOfRange = 'Außerhalb von 0,5× bis 2×';
+  static const resetToAnalysis = 'Auf Analysewert zurücksetzen';
 
   static String speedValue(double factor) => '${factor.toStringAsFixed(2)}×';
   static String tuningValue(double hertz) => '${hertz.round()} Hz';
+  static String tempoValue(double bpm) =>
+      '${bpm.toStringAsFixed(1).replaceAll('.', ',')} bpm';
   static String keyValue(int semitones) =>
       semitones > 0 ? '+$semitones' : '$semitones';
 }

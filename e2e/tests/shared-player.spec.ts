@@ -9,7 +9,7 @@ async function press(button: Locator) {
 // A selection resets the shared state; the controls look the same before and after,
 // so give it a moment to arrive before the next command.
 async function select(page: Page, title: string) {
-  await press(page.getByText(title));
+  await press(page.getByRole('button', { name: title, exact: true }));
   await page.waitForTimeout(500);
 }
 

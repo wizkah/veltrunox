@@ -31,6 +31,7 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
     let mut states = app.hub.subscribe_state();
     let mut audio_output = app.hub.subscribe_audio_output();
     let mut bookmark_notices = app.hub.subscribe_bookmarks();
+    let mut analysis_notices = app.hub.subscribe_analysis();
     let mut pings = tokio::time::interval(PING_INTERVAL);
     let mut last_heard = Instant::now();
 
@@ -87,6 +88,15 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
                     }).await
                 }
                 // Missed notices only mean a reload is due; the next one triggers it.
+                Err(RecvError::Lagged(_)) => Outcome::Continue,
+                Err(RecvError::Closed) => Outcome::Stop,
+            },
+            notice = analysis_notices.recv() => match notice {
+                Ok(recording) => {
+                    forward(&mut socket, ServerEventDto::AnalysisChanged {
+                        recording_id: recording.value(),
+                    }).await
+                }
                 Err(RecvError::Lagged(_)) => Outcome::Continue,
                 Err(RecvError::Closed) => Outcome::Stop,
             },

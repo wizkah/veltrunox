@@ -650,13 +650,14 @@ extension SessionUpdatePatterns on SessionUpdate {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SessionUpdate_Connection value)?  connection,TResult Function( SessionUpdate_Playback value)?  playback,TResult Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult Function( SessionUpdate_Rejected value)?  rejected,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SessionUpdate_Connection value)?  connection,TResult Function( SessionUpdate_Playback value)?  playback,TResult Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult Function( SessionUpdate_AnalysisChanged value)?  analysisChanged,TResult Function( SessionUpdate_Rejected value)?  rejected,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that);case SessionUpdate_Playback() when playback != null:
 return playback(_that);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
-return bookmarksChanged(_that);case SessionUpdate_Rejected() when rejected != null:
+return bookmarksChanged(_that);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
+return analysisChanged(_that);case SessionUpdate_Rejected() when rejected != null:
 return rejected(_that);case _:
   return orElse();
 
@@ -675,13 +676,14 @@ return rejected(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SessionUpdate_Connection value)  connection,required TResult Function( SessionUpdate_Playback value)  playback,required TResult Function( SessionUpdate_BookmarksChanged value)  bookmarksChanged,required TResult Function( SessionUpdate_Rejected value)  rejected,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SessionUpdate_Connection value)  connection,required TResult Function( SessionUpdate_Playback value)  playback,required TResult Function( SessionUpdate_BookmarksChanged value)  bookmarksChanged,required TResult Function( SessionUpdate_AnalysisChanged value)  analysisChanged,required TResult Function( SessionUpdate_Rejected value)  rejected,}){
 final _that = this;
 switch (_that) {
 case SessionUpdate_Connection():
 return connection(_that);case SessionUpdate_Playback():
 return playback(_that);case SessionUpdate_BookmarksChanged():
-return bookmarksChanged(_that);case SessionUpdate_Rejected():
+return bookmarksChanged(_that);case SessionUpdate_AnalysisChanged():
+return analysisChanged(_that);case SessionUpdate_Rejected():
 return rejected(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -696,13 +698,14 @@ return rejected(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SessionUpdate_Connection value)?  connection,TResult? Function( SessionUpdate_Playback value)?  playback,TResult? Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult? Function( SessionUpdate_Rejected value)?  rejected,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SessionUpdate_Connection value)?  connection,TResult? Function( SessionUpdate_Playback value)?  playback,TResult? Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult? Function( SessionUpdate_AnalysisChanged value)?  analysisChanged,TResult? Function( SessionUpdate_Rejected value)?  rejected,}){
 final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that);case SessionUpdate_Playback() when playback != null:
 return playback(_that);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
-return bookmarksChanged(_that);case SessionUpdate_Rejected() when rejected != null:
+return bookmarksChanged(_that);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
+return analysisChanged(_that);case SessionUpdate_Rejected() when rejected != null:
 return rejected(_that);case _:
   return null;
 
@@ -720,12 +723,13 @@ return rejected(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ConnectionState field0)?  connection,TResult Function( PlaybackView field0)?  playback,TResult Function( BigInt recordingId)?  bookmarksChanged,TResult Function( String reason)?  rejected,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ConnectionState field0)?  connection,TResult Function( PlaybackView field0)?  playback,TResult Function( BigInt recordingId)?  bookmarksChanged,TResult Function( BigInt recordingId)?  analysisChanged,TResult Function( String reason)?  rejected,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that.field0);case SessionUpdate_Playback() when playback != null:
 return playback(_that.field0);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
-return bookmarksChanged(_that.recordingId);case SessionUpdate_Rejected() when rejected != null:
+return bookmarksChanged(_that.recordingId);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
+return analysisChanged(_that.recordingId);case SessionUpdate_Rejected() when rejected != null:
 return rejected(_that.reason);case _:
   return orElse();
 
@@ -744,12 +748,13 @@ return rejected(_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ConnectionState field0)  connection,required TResult Function( PlaybackView field0)  playback,required TResult Function( BigInt recordingId)  bookmarksChanged,required TResult Function( String reason)  rejected,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ConnectionState field0)  connection,required TResult Function( PlaybackView field0)  playback,required TResult Function( BigInt recordingId)  bookmarksChanged,required TResult Function( BigInt recordingId)  analysisChanged,required TResult Function( String reason)  rejected,}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection():
 return connection(_that.field0);case SessionUpdate_Playback():
 return playback(_that.field0);case SessionUpdate_BookmarksChanged():
-return bookmarksChanged(_that.recordingId);case SessionUpdate_Rejected():
+return bookmarksChanged(_that.recordingId);case SessionUpdate_AnalysisChanged():
+return analysisChanged(_that.recordingId);case SessionUpdate_Rejected():
 return rejected(_that.reason);}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -764,12 +769,13 @@ return rejected(_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ConnectionState field0)?  connection,TResult? Function( PlaybackView field0)?  playback,TResult? Function( BigInt recordingId)?  bookmarksChanged,TResult? Function( String reason)?  rejected,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ConnectionState field0)?  connection,TResult? Function( PlaybackView field0)?  playback,TResult? Function( BigInt recordingId)?  bookmarksChanged,TResult? Function( BigInt recordingId)?  analysisChanged,TResult? Function( String reason)?  rejected,}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that.field0);case SessionUpdate_Playback() when playback != null:
 return playback(_that.field0);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
-return bookmarksChanged(_that.recordingId);case SessionUpdate_Rejected() when rejected != null:
+return bookmarksChanged(_that.recordingId);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
+return analysisChanged(_that.recordingId);case SessionUpdate_Rejected() when rejected != null:
 return rejected(_that.reason);case _:
   return null;
 
@@ -974,6 +980,74 @@ class _$SessionUpdate_BookmarksChangedCopyWithImpl<$Res>
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') $Res call({Object? recordingId = null,}) {
   return _then(SessionUpdate_BookmarksChanged(
+recordingId: null == recordingId ? _self.recordingId : recordingId // ignore: cast_nullable_to_non_nullable
+as BigInt,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class SessionUpdate_AnalysisChanged extends SessionUpdate {
+  const SessionUpdate_AnalysisChanged({required this.recordingId}): super._();
+  
+
+ final  BigInt recordingId;
+
+/// Create a copy of SessionUpdate
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SessionUpdate_AnalysisChangedCopyWith<SessionUpdate_AnalysisChanged> get copyWith => _$SessionUpdate_AnalysisChangedCopyWithImpl<SessionUpdate_AnalysisChanged>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionUpdate_AnalysisChanged&&(identical(other.recordingId, recordingId) || other.recordingId == recordingId));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,recordingId);
+}
+
+@override
+String toString() {
+    return 'SessionUpdate.analysisChanged(recordingId: $recordingId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SessionUpdate_AnalysisChangedCopyWith<$Res> implements $SessionUpdateCopyWith<$Res> {
+  factory $SessionUpdate_AnalysisChangedCopyWith(SessionUpdate_AnalysisChanged value, $Res Function(SessionUpdate_AnalysisChanged) _then) = _$SessionUpdate_AnalysisChangedCopyWithImpl;
+@useResult
+$Res call({
+ BigInt recordingId
+});
+
+
+
+
+}
+/// @nodoc
+class _$SessionUpdate_AnalysisChangedCopyWithImpl<$Res>
+    implements $SessionUpdate_AnalysisChangedCopyWith<$Res> {
+  _$SessionUpdate_AnalysisChangedCopyWithImpl(this._self, this._then);
+
+  final SessionUpdate_AnalysisChanged _self;
+  final $Res Function(SessionUpdate_AnalysisChanged) _then;
+
+/// Create a copy of SessionUpdate
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? recordingId = null,}) {
+  return _then(SessionUpdate_AnalysisChanged(
 recordingId: null == recordingId ? _self.recordingId : recordingId // ignore: cast_nullable_to_non_nullable
 as BigInt,
   ));

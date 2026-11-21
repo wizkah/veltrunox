@@ -20,6 +20,7 @@ class BridgeSession {
   final _connections = StreamController<ConnectionStatus>.broadcast();
   final _players = StreamController<PlayerState>.broadcast();
   final _rejections = StreamController<String>.broadcast();
+  final _analysisChanges = StreamController<int>.broadcast();
 
   Stream<ConnectionStatus> connection() async* {
     final latest = _connection;
@@ -35,6 +36,9 @@ class BridgeSession {
 
   Stream<String> rejections() => _rejections.stream;
 
+  /// Ids of recordings whose analysis changed on the server.
+  Stream<int> analysisChanges() => _analysisChanges.stream;
+
   /// Sends a command; a failure is reported like a refusal by the server.
   Future<void> send(rust.PlayerCommand command) async {
     try {
@@ -49,6 +53,7 @@ class BridgeSession {
     await _connections.close();
     await _players.close();
     await _rejections.close();
+    await _analysisChanges.close();
   }
 
   void _onUpdate(rust.SessionUpdate update) {
@@ -60,6 +65,8 @@ class BridgeSession {
         _players.add(_player!);
       case rust.SessionUpdate_Rejected(:final reason):
         _rejections.add(reason);
+      case rust.SessionUpdate_AnalysisChanged(:final recordingId):
+        _analysisChanges.add(recordingId.toInt());
       case rust.SessionUpdate_BookmarksChanged():
         // The bookmark feature does not exist yet.
         break;

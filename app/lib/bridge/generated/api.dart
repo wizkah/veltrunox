@@ -9,12 +9,29 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `forward`, `from_state`, `into_intent`, `view`, `with_channel`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `from`
+// These functions are ignored because they are not marked as `pub`: `forward`, `from_state`, `into_intent`, `target_tempo`, `view`, `with_channel`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `from`, `from`
 
 /// Loads the recording list from the server at `server_url`.
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
     RustLib.instance.api.crateApiListRecordings(serverUrl: serverUrl);
+
+/// Asks the server to analyse a recording again; the result arrives as a session update.
+Future<void> reanalyseRecording({
+  required String serverUrl,
+  required BigInt recordingId,
+}) => RustLib.instance.api.crateApiReanalyseRecording(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+);
+
+Future<TargetTempo> speedForTargetBpm({
+  required double targetBpm,
+  required double recordingBpm,
+}) => RustLib.instance.api.crateApiSpeedForTargetBpm(
+  targetBpm: targetBpm,
+  recordingBpm: recordingBpm,
+);
 
 /// Opens the real-time channel and pushes connection changes, playback state,
 /// bookmark notices and rejections to `updates`. The channel reconnects by itself
@@ -30,6 +47,42 @@ Future<BigInt?> playbackPositionMs() =>
 /// and the server rejects them again; the answer arrives as a session update.
 Future<void> sendCommand({required PlayerCommand command}) =>
     RustLib.instance.api.crateApiSendCommand(command: command);
+
+enum AnalysisState { none, queued, running, failed, done }
+
+/// Tuning, key and tempo as estimated from the audio.
+class AnalysisValues {
+  final double tuningHz;
+
+  /// Pitch class of the key's tonic, 0 = C … 11 = B.
+  final int keyTonic;
+  final bool keyMinor;
+  final double tempoBpm;
+
+  const AnalysisValues({
+    required this.tuningHz,
+    required this.keyTonic,
+    required this.keyMinor,
+    required this.tempoBpm,
+  });
+
+  @override
+  int get hashCode =>
+      tuningHz.hashCode ^
+      keyTonic.hashCode ^
+      keyMinor.hashCode ^
+      tempoBpm.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AnalysisValues &&
+          runtimeType == other.runtimeType &&
+          tuningHz == other.tuningHz &&
+          keyTonic == other.keyTonic &&
+          keyMinor == other.keyMinor &&
+          tempoBpm == other.tempoBpm;
+}
 
 /// State of the real-time channel as the user interface needs it.
 enum ConnectionState { connected, disconnected }
@@ -106,11 +159,29 @@ sealed class PlayerCommand with _$PlayerCommand {
 class RecordingItem {
   final BigInt id;
   final String title;
+  final AnalysisState analysisState;
 
-  const RecordingItem({required this.id, required this.title});
+  /// Why the analysis failed; only set in the state `Failed`.
+  final String? analysisFailure;
+
+  /// The estimated values; only set once the analysis is done.
+  final AnalysisValues? analysis;
+
+  const RecordingItem({
+    required this.id,
+    required this.title,
+    required this.analysisState,
+    this.analysisFailure,
+    this.analysis,
+  });
 
   @override
-  int get hashCode => id.hashCode ^ title.hashCode;
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      analysisState.hashCode ^
+      analysisFailure.hashCode ^
+      analysis.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -118,7 +189,10 @@ class RecordingItem {
       other is RecordingItem &&
           runtimeType == other.runtimeType &&
           id == other.id &&
-          title == other.title;
+          title == other.title &&
+          analysisState == other.analysisState &&
+          analysisFailure == other.analysisFailure &&
+          analysis == other.analysis;
 }
 
 @freezed
@@ -131,6 +205,31 @@ sealed class SessionUpdate with _$SessionUpdate {
       SessionUpdate_Playback;
   const factory SessionUpdate.bookmarksChanged({required BigInt recordingId}) =
       SessionUpdate_BookmarksChanged;
+
+  /// The analysis of this recording changed; load the library again.
+  const factory SessionUpdate.analysisChanged({required BigInt recordingId}) =
+      SessionUpdate_AnalysisChanged;
   const factory SessionUpdate.rejected({required String reason}) =
       SessionUpdate_Rejected;
+}
+
+/// The speed that plays a recording of `recording_bpm` at `target_bpm`.
+class TargetTempo {
+  final double speed;
+
+  /// `false` if the speed lies outside the supported range; it must not be set then.
+  final bool supported;
+
+  const TargetTempo({required this.speed, required this.supported});
+
+  @override
+  int get hashCode => speed.hashCode ^ supported.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TargetTempo &&
+          runtimeType == other.runtimeType &&
+          speed == other.speed &&
+          supported == other.supported;
 }

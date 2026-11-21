@@ -37,20 +37,33 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let clock = Arc::new(SystemClock::new());
     let catalog = store.clone();
+    let analyses = store.clone();
     let audio_clock = clock.clone();
     let app = AppState::with_audio(store, clock, |hooks| {
         Arc::new(AudioPlayback::start(
             std::env::var(AUDIO_DEVICE_VARIABLE).ok(),
             catalog,
+            analyses,
             audio_clock,
             hooks,
         ))
     });
     watch_end(app.playback.clone());
+    queue_pending_analyses(&app);
     let listener = tokio::net::TcpListener::bind(&address).await?;
     println!("listening on http://{address}");
     axum::serve(listener, with_web_app(with_cors(router(app)))).await?;
     Ok(())
+}
+
+/// Analyses what has no result yet; they run one after the other in the background.
+fn queue_pending_analyses(app: &AppState) {
+    match app.analysis.unanalysed() {
+        Ok(pending) => pending
+            .into_iter()
+            .for_each(|id| app.analysis_queue.enqueue(id)),
+        Err(error) => eprintln!("cannot list recordings to analyse: {error}"),
+    }
 }
 
 /// Placeholder until upload exists: an empty library would leave nothing to play.

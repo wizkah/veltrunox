@@ -10,6 +10,7 @@ class LabeledSlider extends StatefulWidget {
     required this.max,
     required this.format,
     required this.onChanged,
+    this.trailing,
     super.key,
   });
 
@@ -19,6 +20,9 @@ class LabeledSlider extends StatefulWidget {
   final double max;
   final String Function(double) format;
   final ValueChanged<double> onChanged;
+
+  /// Shown after the value, for example a reset button.
+  final Widget? trailing;
 
   @override
   State<LabeledSlider> createState() => _LabeledSliderState();
@@ -46,6 +50,7 @@ class _LabeledSliderState extends State<LabeledSlider> {
           ),
         ),
         SizedBox(width: 72, child: Text(widget.format(shown))),
+        ?widget.trailing,
       ],
     );
   }

@@ -7,11 +7,15 @@ class KeyStepper extends StatelessWidget {
   const KeyStepper({
     required this.semitones,
     required this.onChanged,
+    this.trailing,
     super.key,
   });
 
   final int semitones;
   final ValueChanged<int> onChanged;
+
+  /// Shown after the buttons, for example a reset button.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -28,6 +32,7 @@ class KeyStepper extends StatelessWidget {
         onPressed: () => onChanged(semitones + 1),
         icon: const Icon(Icons.add),
       ),
+      ?trailing,
     ],
   );
 }

@@ -1,10 +1,13 @@
-import 'package:flutter/widgets.dart';
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:veltrunox_app/app.dart';
 import 'package:veltrunox_app/features/connection/connection_controller.dart';
 import 'package:veltrunox_app/features/connection/connection_source.dart';
 import 'package:veltrunox_app/features/connection/connection_status.dart';
+import 'package:veltrunox_app/features/library/analysis_info.dart';
 import 'package:veltrunox_app/features/library/library_controller.dart';
 import 'package:veltrunox_app/features/library/recording_source.dart';
 import 'package:veltrunox_app/features/library/recording_summary.dart';
@@ -16,9 +19,17 @@ class _FakeSource implements RecordingSource {
   _FakeSource(this.result);
 
   final Future<List<RecordingSummary>> Function() result;
+  final changes = StreamController<int>.broadcast();
+  final reanalysed = <int>[];
 
   @override
   Future<List<RecordingSummary>> listRecordings() => result();
+
+  @override
+  Stream<int> analysisChanges() => changes.stream;
+
+  @override
+  Future<void> reanalyse(int recordingId) async => reanalysed.add(recordingId);
 }
 
 class _FakeConnection implements ConnectionSource {
@@ -81,5 +92,130 @@ void main() {
     await tester.tap(find.text('Soundcheck'));
 
     expect(player.calls, ['select 4']);
+  });
+
+  testWidgets('shows key, tempo and tuning of an analysed recording', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        _FakeSource(
+          () async => [
+            const RecordingSummary(
+              id: 1,
+              title: 'Soundcheck',
+              analysis: AnalysisInfo(
+                status: AnalysisStatus.done,
+                values: AnalysisValues(
+                  tuningHz: 441.2,
+                  keyTonic: 1,
+                  keyMinor: true,
+                  tempoBpm: 148,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('C♯-Moll · 148,0 bpm · 441,2 Hz'), findsOneWidget);
+  });
+
+  testWidgets('shows the state of a pending or failed analysis', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        _FakeSource(
+          () async => [
+            const RecordingSummary(
+              id: 1,
+              title: 'A',
+              analysis: AnalysisInfo(status: AnalysisStatus.running),
+            ),
+            const RecordingSummary(
+              id: 2,
+              title: 'B',
+              analysis: AnalysisInfo(
+                status: AnalysisStatus.failed,
+                failure: 'zu kurz',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Analyse läuft …'), findsOneWidget);
+    expect(find.text('Analyse fehlgeschlagen: zu kurz'), findsOneWidget);
+  });
+
+  testWidgets('a finished analysis shows up without reloading by hand', (
+    tester,
+  ) async {
+    var analysed = false;
+    final source = _FakeSource(
+      () async => [
+        RecordingSummary(
+          id: 1,
+          title: 'Soundcheck',
+          analysis: analysed
+              ? const AnalysisInfo(
+                  status: AnalysisStatus.done,
+                  values: AnalysisValues(
+                    tuningHz: 440,
+                    keyTonic: 9,
+                    keyMinor: true,
+                    tempoBpm: 90,
+                  ),
+                )
+              : const AnalysisInfo(status: AnalysisStatus.running),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(source));
+    await tester.pumpAndSettle();
+    expect(find.text('Analyse läuft …'), findsOneWidget);
+
+    analysed = true;
+    source.changes.add(1);
+    await tester.pumpAndSettle();
+
+    expect(find.text('A-Moll · 90,0 bpm · 440,0 Hz'), findsOneWidget);
+  });
+
+  testWidgets('the refresh button asks for a new analysis', (tester) async {
+    final source = _FakeSource(
+      () async => [const RecordingSummary(id: 5, title: 'Soundcheck')],
+    );
+    await tester.pumpWidget(_app(source));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.refresh));
+
+    expect(source.reanalysed, [5]);
+  });
+
+  testWidgets('no new analysis can be asked for while one is pending', (
+    tester,
+  ) async {
+    final source = _FakeSource(
+      () async => [
+        const RecordingSummary(
+          id: 5,
+          title: 'Soundcheck',
+          analysis: AnalysisInfo(status: AnalysisStatus.queued),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(source));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.refresh));
+
+    expect(source.reanalysed, isEmpty);
   });
 }

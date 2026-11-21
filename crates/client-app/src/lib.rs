@@ -16,7 +16,7 @@ pub enum ChannelEvent {
 }
 
 use std::future::Future;
-use veltrunox_core::{Bookmarks, Recording, RecordingId};
+use veltrunox_core::{Bookmarks, LibraryEntry, RecordingId};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinkError {
@@ -31,15 +31,20 @@ pub enum LinkError {
 /// Port: requests to the server. The future is not required to be `Send`
 /// because the browser target runs single-threaded.
 pub trait ServerLink {
-    fn fetch_recordings(&self) -> impl Future<Output = Result<Vec<Recording>, LinkError>>;
+    fn fetch_recordings(&self) -> impl Future<Output = Result<Vec<LibraryEntry>, LinkError>>;
     fn fetch_bookmarks(
         &self,
         recording: RecordingId,
     ) -> impl Future<Output = Result<Bookmarks, LinkError>>;
+    /// Asks the server to analyse the recording again.
+    fn request_analysis(
+        &self,
+        recording: RecordingId,
+    ) -> impl Future<Output = Result<(), LinkError>>;
 }
 
 /// Use case: load the recording list from the server.
-pub async fn load_library(link: &impl ServerLink) -> Result<Vec<Recording>, LinkError> {
+pub async fn load_library(link: &impl ServerLink) -> Result<Vec<LibraryEntry>, LinkError> {
     link.fetch_recordings().await
 }
 
@@ -49,4 +54,12 @@ pub async fn load_bookmarks(
     recording: RecordingId,
 ) -> Result<Bookmarks, LinkError> {
     link.fetch_bookmarks(recording).await
+}
+
+/// Use case: start the analysis of a recording again; the result arrives as a notice.
+pub async fn analyse_again(
+    link: &impl ServerLink,
+    recording: RecordingId,
+) -> Result<(), LinkError> {
+    link.request_analysis(recording).await
 }

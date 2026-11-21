@@ -50,6 +50,8 @@ pub enum InvalidValue {
     EmptyRange,
     #[error("tempo must be a positive number")]
     TempoNotPositive,
+    #[error("a key's tonic must be a pitch class from 0 to 11")]
+    KeyTonicOutOfRange,
     #[error("a name must not be empty")]
     EmptyName,
 }

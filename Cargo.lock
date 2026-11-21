@@ -2730,6 +2730,7 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
+ "thiserror 2.0.21",
  "veltrunox-core",
 ]
 
@@ -2754,6 +2755,7 @@ dependencies = [
  "ewebsock",
  "reqwest",
  "rusqlite",
+ "rustfft",
  "serde_json",
  "sha2",
  "signalsmith-stretch",

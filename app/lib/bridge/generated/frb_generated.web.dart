@@ -35,7 +35,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AnalysisState dco_decode_analysis_state(dynamic raw);
+
+  @protected
+  AnalysisValues dco_decode_analysis_values(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  AnalysisValues dco_decode_box_autoadd_analysis_values(dynamic raw);
 
   @protected
   PlaybackView dco_decode_box_autoadd_playback_view(dynamic raw);
@@ -65,6 +74,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RecordingItem> dco_decode_list_recording_item(dynamic raw);
 
   @protected
+  String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  AnalysisValues? dco_decode_opt_box_autoadd_analysis_values(dynamic raw);
+
+  @protected
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
 
   @protected
@@ -78,6 +93,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SessionUpdate dco_decode_session_update(dynamic raw);
+
+  @protected
+  TargetTempo dco_decode_target_tempo(dynamic raw);
 
   @protected
   BigInt dco_decode_u_64(dynamic raw);
@@ -100,7 +118,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  AnalysisState sse_decode_analysis_state(SseDeserializer deserializer);
+
+  @protected
+  AnalysisValues sse_decode_analysis_values(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  AnalysisValues sse_decode_box_autoadd_analysis_values(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlaybackView sse_decode_box_autoadd_playback_view(
@@ -136,6 +165,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  AnalysisValues? sse_decode_opt_box_autoadd_analysis_values(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
@@ -149,6 +186,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SessionUpdate sse_decode_session_update(SseDeserializer deserializer);
+
+  @protected
+  TargetTempo sse_decode_target_tempo(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_u_64(SseDeserializer deserializer);
@@ -175,7 +215,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_analysis_state(AnalysisState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_analysis_values(
+    AnalysisValues self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_analysis_values(
+    AnalysisValues self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_playback_view(
@@ -220,6 +275,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_analysis_values(
+    AnalysisValues? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
 
   @protected
@@ -233,6 +297,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_session_update(SessionUpdate self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_target_tempo(TargetTempo self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_64(BigInt self, SseSerializer serializer);

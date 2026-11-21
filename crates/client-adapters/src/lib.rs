@@ -10,10 +10,10 @@ pub use timer::SystemTimer;
 
 use reqwest::Client;
 use veltrunox_client_app::{LinkError, ServerLink};
-use veltrunox_core::{Bookmarks, Recording, RecordingId, RecordingTitle};
+use veltrunox_core::{Bookmarks, LibraryEntry, RecordingId};
 use veltrunox_protocol::{
-    BOOKMARKS_PATH, BookmarksDto, RECORDINGS_PATH, RecordingListDto, RecordingSummaryDto,
-    bookmarks_from_dto,
+    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, RECORDINGS_PATH, RecordingListDto,
+    bookmarks_from_dto, library_entry_from_dto,
 };
 
 pub struct HttpServerLink {
@@ -31,7 +31,7 @@ impl HttpServerLink {
 }
 
 impl ServerLink for HttpServerLink {
-    async fn fetch_recordings(&self) -> Result<Vec<Recording>, LinkError> {
+    async fn fetch_recordings(&self) -> Result<Vec<LibraryEntry>, LinkError> {
         let url = format!("{}{}", self.base_url, RECORDINGS_PATH);
         let response = self
             .client
@@ -44,7 +44,13 @@ impl ServerLink for HttpServerLink {
             .json()
             .await
             .map_err(|error| LinkError::InvalidResponse(error.to_string()))?;
-        list.recordings.into_iter().map(into_recording).collect()
+        list.recordings
+            .iter()
+            .map(|dto| {
+                library_entry_from_dto(dto)
+                    .map_err(|error| LinkError::InvalidResponse(error.to_string()))
+            })
+            .collect()
     }
 
     async fn fetch_bookmarks(&self, recording: RecordingId) -> Result<Bookmarks, LinkError> {
@@ -62,13 +68,15 @@ impl ServerLink for HttpServerLink {
             .map_err(|error| LinkError::InvalidResponse(error.to_string()))?;
         bookmarks_from_dto(&dto).map_err(|error| LinkError::InvalidResponse(error.to_string()))
     }
-}
 
-fn into_recording(dto: RecordingSummaryDto) -> Result<Recording, LinkError> {
-    let title = RecordingTitle::new(&dto.title)
-        .map_err(|error| LinkError::InvalidResponse(error.to_string()))?;
-    Ok(Recording {
-        id: RecordingId::new(dto.id),
-        title,
-    })
+    async fn request_analysis(&self, recording: RecordingId) -> Result<(), LinkError> {
+        let path = ANALYSIS_PATH.replace("{id}", &recording.value().to_string());
+        self.client
+            .post(format!("{}{}", self.base_url, path))
+            .send()
+            .await
+            .and_then(reqwest::Response::error_for_status)
+            .map_err(|error| LinkError::Unreachable(error.to_string()))?;
+        Ok(())
+    }
 }

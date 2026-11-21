@@ -107,6 +107,9 @@ fn channel_event_from(text: &str) -> Option<ChannelEvent> {
         ServerEventDto::BookmarksChanged { recording_id } => Some(ChannelEvent::Server(
             ServerEvent::BookmarksChanged(RecordingId::new(recording_id)),
         )),
+        ServerEventDto::AnalysisChanged { recording_id } => Some(ChannelEvent::Server(
+            ServerEvent::AnalysisChanged(RecordingId::new(recording_id)),
+        )),
         ServerEventDto::AudioOutput { available } => {
             Some(ChannelEvent::Server(ServerEvent::AudioOutput(available)))
         }
@@ -116,6 +119,16 @@ fn channel_event_from(text: &str) -> Option<ChannelEvent> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn analysis_notices_become_server_events() {
+        assert_eq!(
+            channel_event_from(r#"{"type":"analysis_changed","recording_id":6}"#),
+            Some(ChannelEvent::Server(ServerEvent::AnalysisChanged(
+                RecordingId::new(6)
+            )))
+        );
+    }
 
     #[test]
     fn http_urls_become_websocket_urls() {

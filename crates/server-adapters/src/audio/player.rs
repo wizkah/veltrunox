@@ -31,24 +31,33 @@ pub struct PlayerCore {
     loaded: Option<RecordingId>,
     engine_ready: bool,
     last: Option<PlaybackState>,
+    /// The pitch shift the engine was last told, so a changed tuning reference
+    /// (a finished analysis) reaches it although the state did not change.
+    pitch: Option<f64>,
 }
 
 impl PlayerCore {
+    /// The newest state applied, for applying it again after the tuning reference changed.
+    pub fn last_state(&self) -> Option<PlaybackState> {
+        self.last
+    }
+
     /// Brings the engine in line with `state`. `load` supplies the audio of a
-    /// recording (`None` if it has no playable file).
+    /// recording (`None` if it has no playable file); `tuning_of` its own tuning.
     pub fn apply(
         &mut self,
         state: &PlaybackState,
         now: Millis,
         sink: &mut dyn CommandSink,
         load: &mut dyn FnMut(RecordingId) -> Option<Arc<Pcm>>,
+        tuning_of: &dyn Fn(RecordingId) -> TuningHz,
     ) {
         let switched = state.recording != self.loaded;
         if switched {
             self.switch_recording(state.recording, sink, load);
         }
         if self.engine_ready {
-            self.follow(state, now, switched, sink);
+            self.follow(state, now, switched, sink, tuning_of);
         }
         self.last = Some(*state);
     }
@@ -61,6 +70,7 @@ impl PlayerCore {
     ) {
         self.loaded = recording;
         self.engine_ready = false;
+        self.pitch = None;
         match recording.and_then(load) {
             Some(pcm) => {
                 sink.send(Command::Replace(Box::new(Engine::new(
@@ -74,17 +84,19 @@ impl PlayerCore {
     }
 
     fn follow(
-        &self,
+        &mut self,
         state: &PlaybackState,
         now: Millis,
         switched: bool,
         sink: &mut dyn CommandSink,
+        tuning_of: &dyn Fn(RecordingId) -> TuningHz,
     ) {
         let previous = self.last.filter(|_| !switched);
-        let pitch =
-            |state: &PlaybackState| pitch_shift_semitones(&state.settings, TuningHz::CONCERT_PITCH);
-        if previous.is_none_or(|last| pitch(&last) != pitch(state)) {
-            sink.send(Command::Pitch(pitch(state)));
+        let own_tuning = state.recording.map_or(TuningHz::CONCERT_PITCH, tuning_of);
+        let pitch = pitch_shift_semitones(&state.settings, own_tuning);
+        if self.pitch != Some(pitch) {
+            self.pitch = Some(pitch);
+            sink.send(Command::Pitch(pitch));
         }
         if previous.is_none_or(|last| last.settings.speed != state.settings.speed) {
             sink.send(Command::Speed(state.settings.speed.factor()));
@@ -164,7 +176,13 @@ mod tests {
 
     fn apply(core: &mut PlayerCore, state: &PlaybackState, now: u64) -> Vec<Seen> {
         let mut recorder = Recorder::default();
-        core.apply(state, Millis::new(now), &mut recorder, &mut |_| audio());
+        core.apply(
+            state,
+            Millis::new(now),
+            &mut recorder,
+            &mut |_| audio(),
+            &|_| TuningHz::CONCERT_PITCH,
+        );
         recorder.0
     }
 
@@ -239,11 +257,36 @@ mod tests {
     }
 
     #[test]
+    fn the_recordings_own_tuning_sets_the_pitch_and_a_late_analysis_corrects_it() {
+        let mut core = PlayerCore::default();
+        let state = selected();
+        let mut recorder = Recorder::default();
+        let load = &mut |_: RecordingId| audio();
+        // Settings ask for 440 Hz; the recording is analysed at 466.16 Hz (a semitone up).
+        let tuned = |_: RecordingId| TuningHz::new(466.1638).unwrap();
+        core.apply(&state, Millis::ZERO, &mut recorder, load, &tuned);
+        let Some(Seen::Pitch(shift)) = recorder.0.into_iter().find(|s| matches!(s, Seen::Pitch(_)))
+        else {
+            panic!("no pitch command");
+        };
+        assert!((shift + 1.0).abs() < 1e-3, "shift {shift}");
+
+        // The analysis finishes later: the same state is applied again and only the pitch moves.
+        let mut later = Recorder::default();
+        core.apply(&state, Millis::ZERO, &mut later, load, &|_| {
+            TuningHz::CONCERT_PITCH
+        });
+        assert_eq!(later.0, [Seen::Pitch(0.0)]);
+    }
+
+    #[test]
     fn a_recording_without_audio_unloads_and_ignores_the_rest() {
         let mut core = PlayerCore::default();
         let mut recorder = Recorder::default();
         let state = play(&selected(), Millis::ZERO).unwrap();
-        core.apply(&state, Millis::ZERO, &mut recorder, &mut |_| None);
+        core.apply(&state, Millis::ZERO, &mut recorder, &mut |_| None, &|_| {
+            TuningHz::CONCERT_PITCH
+        });
         assert_eq!(recorder.0, [Seen::Unload]);
     }
 }

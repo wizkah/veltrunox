@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use veltrunox_core::{
     BookmarkId, BookmarkName, Bookmarks, Label, Millis, PlaybackSettings, PlaybackState, Recording,
-    RecordingId, RecordingTitle, Region, TimeRange, Version,
+    RecordingAnalysis, RecordingId, RecordingTitle, Region, TimeRange, Version,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -35,6 +35,29 @@ pub trait MediaCatalog: Send + Sync {
         path: &Path,
         content_hash: &str,
     ) -> Result<Option<Recording>, StorageError>;
+}
+
+/// Port: stored analysis results. A new result replaces the old one.
+pub trait AnalysisRepository: Send + Sync {
+    /// `None` if the recording has no result (yet) or does not exist.
+    fn analysis(&self, id: RecordingId) -> Result<Option<RecordingAnalysis>, StorageError>;
+    fn analyses(&self) -> Result<Vec<(RecordingId, RecordingAnalysis)>, StorageError>;
+    fn save_analysis(
+        &self,
+        id: RecordingId,
+        analysis: RecordingAnalysis,
+    ) -> Result<(), StorageError>;
+    /// Recordings with an audio file and no stored result.
+    fn unanalysed(&self) -> Result<Vec<RecordingId>, StorageError>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{0}")]
+pub struct AnalysisFailure(pub String);
+
+/// Port: determines tuning, key and tempo of an audio file. CPU-bound and blocking.
+pub trait RecordingAnalyzer: Send + Sync {
+    fn analyse(&self, path: &Path) -> Result<RecordingAnalysis, AnalysisFailure>;
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -108,4 +131,6 @@ pub trait PlaybackBroadcast: Send + Sync {
     fn state_changed(&self, state: &PlaybackState);
     /// Clients reload the bookmarks of this recording.
     fn bookmarks_changed(&self, recording: RecordingId);
+    /// The analysis result or status of this recording changed; clients reload the library.
+    fn analysis_changed(&self, recording: RecordingId);
 }

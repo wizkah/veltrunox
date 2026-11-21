@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:veltrunox_app/features/player/player_source.dart';
 import 'package:veltrunox_app/features/player/player_state.dart';
+import 'package:veltrunox_app/features/player/target_tempo.dart';
 
 /// Records the commands and lets a test publish player states.
 class FakePlayerSource implements PlayerSource {
@@ -9,6 +10,9 @@ class FakePlayerSource implements PlayerSource {
   final refusals = StreamController<String>.broadcast();
   final calls = <String>[];
   int? currentPosition = 0;
+
+  /// What `speedForTargetTempo` answers: the tempo ratio, supported within 0.5–2.
+  bool failTargetTempo = false;
 
   @override
   Stream<PlayerState> watchState() => states.stream;
@@ -40,4 +44,14 @@ class FakePlayerSource implements PlayerSource {
 
   @override
   Future<void> setKey(int semitones) async => calls.add('key $semitones');
+
+  @override
+  Future<TargetTempo> speedForTargetTempo({
+    required double targetBpm,
+    required double recordingBpm,
+  }) async {
+    if (failTargetTempo) throw Exception('invalid tempo');
+    final speed = targetBpm / recordingBpm;
+    return TargetTempo(speed: speed, supported: speed >= 0.5 && speed <= 2);
+  }
 }

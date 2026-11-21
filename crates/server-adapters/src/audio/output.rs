@@ -9,8 +9,8 @@ use cpal::{FromSample, SampleFormat, SizedSample, Stream, StreamConfig};
 use std::sync::mpsc::{Receiver, Sender, SyncSender, channel, sync_channel};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
-use veltrunox_core::{Millis, PlaybackState, RecordingId};
-use veltrunox_server_app::{Clock, MediaCatalog, PlaybackBroadcast};
+use veltrunox_core::{Millis, PlaybackState, RecordingId, TuningHz};
+use veltrunox_server_app::{AnalysisRepository, Clock, MediaCatalog, PlaybackBroadcast};
 
 /// Commands waiting for the audio thread; a full queue drops the newest, which
 /// a complete state makes up for with the next one.
@@ -188,7 +188,14 @@ impl Renderer {
 /// Plays the shared state on the server's audio device. Without a device the
 /// shared state keeps running silently.
 pub struct AudioPlayback {
-    states: Mutex<Sender<PlaybackState>>,
+    inputs: Mutex<Sender<Input>>,
+}
+
+/// What the playback thread reacts to.
+enum Input {
+    State(PlaybackState),
+    /// The analysis of this recording changed: its tuning may be new.
+    Analysis(RecordingId),
 }
 
 impl AudioPlayback {
@@ -196,39 +203,61 @@ impl AudioPlayback {
     pub fn start(
         device: Option<String>,
         catalog: Arc<dyn MediaCatalog>,
+        analyses: Arc<dyn AnalysisRepository>,
         clock: Arc<dyn Clock>,
         hooks: AudioHooks,
     ) -> Self {
-        let (states, incoming) = channel();
-        thread::spawn(move || run(device.as_deref(), &*catalog, &*clock, &hooks, &incoming));
+        let (inputs, incoming) = channel();
+        thread::spawn(move || {
+            run(
+                device.as_deref(),
+                &*catalog,
+                &*analyses,
+                &*clock,
+                &hooks,
+                &incoming,
+            );
+        });
         Self {
-            states: Mutex::new(states),
+            inputs: Mutex::new(inputs),
         }
+    }
+}
+
+impl AudioPlayback {
+    fn send(&self, input: Input) {
+        let sender = self.inputs.lock().unwrap_or_else(PoisonError::into_inner);
+        // A stopped thread means the server is shutting down.
+        let _ = sender.send(input);
     }
 }
 
 impl PlaybackBroadcast for AudioPlayback {
     fn state_changed(&self, state: &PlaybackState) {
-        let sender = self.states.lock().unwrap_or_else(PoisonError::into_inner);
-        // A stopped thread means the server is shutting down.
-        let _ = sender.send(*state);
+        self.send(Input::State(*state));
     }
 
     fn bookmarks_changed(&self, _recording: RecordingId) {}
+
+    fn analysis_changed(&self, recording: RecordingId) {
+        self.send(Input::Analysis(recording));
+    }
 }
 
 fn run(
     device: Option<&str>,
     catalog: &dyn MediaCatalog,
+    analyses: &dyn AnalysisRepository,
     clock: &dyn Clock,
     hooks: &AudioHooks,
-    incoming: &Receiver<PlaybackState>,
+    incoming: &Receiver<Input>,
 ) {
     let mut load = |id: RecordingId| {
         let pcm = load_audio(catalog, id)?;
         hooks.recording_length(id, Millis::new(pcm.duration_ms()));
         Some(pcm)
     };
+    let tuning_of = |id: RecordingId| recording_tuning(analyses, id);
     let mut output = match DeviceOutput::open(device) {
         Ok(output) => {
             println!("audio output at {} Hz", output.rate);
@@ -242,23 +271,59 @@ fn run(
         }
     };
     let mut core = PlayerCore::default();
-    while let Ok(mut state) = incoming.recv() {
-        // Every state is complete; only the newest matters.
-        while let Ok(newer) = incoming.try_recv() {
-            state = newer;
+    while let Ok(input) = incoming.recv() {
+        let Some(state) = newest_state(input, incoming, &core) else {
+            continue;
+        };
+        core.apply(&state, clock.now(), &mut output, &mut load, &tuning_of);
+    }
+}
+
+/// Every state is complete, so only the newest matters. A change of analysis
+/// applies the last state again, for the sake of a new tuning reference; one
+/// for another recording than the loaded one changes nothing.
+fn newest_state(
+    first: Input,
+    incoming: &Receiver<Input>,
+    core: &PlayerCore,
+) -> Option<PlaybackState> {
+    let mut newest = None;
+    let mut analysed = Vec::new();
+    for input in std::iter::once(first).chain(std::iter::from_fn(|| incoming.try_recv().ok())) {
+        match input {
+            Input::State(state) => newest = Some(state),
+            Input::Analysis(id) => analysed.push(id),
         }
-        core.apply(&state, clock.now(), &mut output, &mut load);
+    }
+    newest.or_else(|| {
+        core.last_state()
+            .filter(|state| state.recording.is_some_and(|id| analysed.contains(&id)))
+    })
+}
+
+/// The tuning found by the analysis; concert pitch until there is one.
+fn recording_tuning(analyses: &dyn AnalysisRepository, id: RecordingId) -> TuningHz {
+    match analyses.analysis(id) {
+        Ok(Some(found)) => found.tuning,
+        Ok(None) => TuningHz::CONCERT_PITCH,
+        Err(error) => {
+            eprintln!("recording {id}: {error}");
+            TuningHz::CONCERT_PITCH
+        }
     }
 }
 
 /// Without a device nothing is played, but the length of each selected
 /// recording is still needed to end the playback and to check positions.
 fn follow_silently(
-    incoming: &Receiver<PlaybackState>,
+    incoming: &Receiver<Input>,
     load: &mut dyn FnMut(RecordingId) -> Option<Arc<Pcm>>,
 ) {
     let mut last = None;
-    while let Ok(state) = incoming.recv() {
+    while let Ok(input) = incoming.recv() {
+        let Input::State(state) = input else {
+            continue;
+        };
         if state.recording != last {
             last = state.recording;
             if let Some(id) = last {

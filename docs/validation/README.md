@@ -105,3 +105,27 @@ Limits:
 - The first Mac run reported a buffer underrun message on stream start; it did not recur in later runs. The Pi's default device (HDMI, nothing attached) produced continuous ALSA errors (`snd_pcm_avail_delay`); the headphone device did not, so the device choice matters on the Pi.
 - Network figures come from one Mac on an unknown link type (Wi-Fi or Ethernet) at one time of day; the spread (p99 above 20 ms) is probably the link, not the server.
 - One measurement run per setup; no repeated runs, no clock offset or drift measurement.
+
+## Phase 4 – Analysis of tuning, key and tempo (2026-11-22)
+
+Environment: macOS (Apple silicon), release build, native only. Not run on the Raspberry Pi.
+
+| Check | Result |
+|---|---|
+| Unit tests on synthetic inputs: tuning at 440, 432, 447.5 and 428 Hz found within 0.5 cent (peak lists); C major and D minor from chord sequences, key follows a given tuning; tempo 97.3, 120, 143.7 and 88 bpm within 0.35 bpm from pulse trains; 65 and 190 bpm fold to 130 and 95 | Pass |
+| End to end on synthesised audio (40 s, chords struck on every beat, A4 435 Hz, C major, 100 bpm): tuning within 3 cents, C major, tempo within 1 bpm; silence gives "no tonal content", a fraction of a second "too short" | Pass |
+| Background analysis, real server, in-memory store, a 30 s synthesised WAV: a client is told about the change, the library shows the result (C major, tempo within 1 bpm, tuning within 1 Hz), the stored result equals the shown one; a recording without audio reports why it failed; an unknown recording gives 404 | Pass (integration test) |
+| Library over HTTP with the real server on the six bounces (release build, file database, no audio device): all six analysed during start-up, results as in the row below | Pass (manual, once) |
+| Playback pitch follows the recording's own tuning; a tuning that arrives while the recording is loaded corrects the pitch without other commands | Pass (unit test of the player logic; not heard) |
+| Flutter widget tests: analysis line, pending and failed states, refresh on a notice, re-analyse button, reset buttons, wanted tempo (valid, out of range, not a number) | Pass |
+| Browser tests (Playwright, Chromium, rebuilt web app): library, two clients sharing the player, reconnect | Pass after adapting the recording locators to the new tile (it now contains a button) |
+| Six real rehearsal bounces (MP3, 73–268 s) | Results plausible, no reference values: *Message in a Bottle* C♯ minor at 148 bpm, A4 440.7 Hz; *Stacy's Mom* E major at 122 bpm, A4 439.2 Hz; three variants of one 73 s take: G♯ minor at 100 bpm, A4 443.5 Hz. Decoding 0.1–0.2 s, analysis 0.1–0.4 s per file on the Mac |
+
+Limits:
+
+- The synthesised audio is one idealised case (clean harmonics, no noise, one tempo, one key). Noisy, dense or detuned mixes, minor keys end to end and other tunings are covered only by the real bounces, which have no known values.
+- The real-recording results were judged from knowledge of the songs, not measured against a reference. Confidence ratios of the key were 1.01–1.03 for all files, so they separate nothing yet.
+- The tempo of one 73 s take came out as exactly 100.0 with the lowest confidence; whether that is the true tempo or a rounding to the search grid is not examined. Tempo changes inside a recording are not covered.
+- Timing on the Raspberry Pi is not measured. The analysis decodes the file a second time next to playback; memory with both at once is not measured.
+- The browser tests do not look at analysis values: the browser server has no audio files. The analysis display is covered by widget tests only.
+- That the tuning shift is audible and right (a recording analysed at 443 Hz played at 440 Hz) was not listened to.

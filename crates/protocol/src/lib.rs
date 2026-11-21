@@ -3,14 +3,19 @@
 mod convert;
 
 pub use convert::{
-    bookmarks_from_dto, bookmarks_to_dto, intent_from_message, intent_to_message, label_to_dto,
-    range_from_dto, range_to_dto, region_to_dto, state_from_dto, state_to_dto,
+    InvalidEntry, analysis_from_dto, analysis_to_dto, bookmarks_from_dto, bookmarks_to_dto,
+    intent_from_message, intent_to_message, label_to_dto, library_entry_from_dto,
+    library_entry_to_dto, range_from_dto, range_to_dto, region_to_dto, state_from_dto,
+    state_to_dto,
 };
 
 use serde::{Deserialize, Serialize};
 
 /// Path of the recording list endpoint.
 pub const RECORDINGS_PATH: &str = "/api/v1/recordings";
+
+/// Path to start the analysis of one recording again; `{id}` is the recording id.
+pub const ANALYSIS_PATH: &str = "/api/v1/recordings/{id}/analysis";
 
 /// Path of the real-time channel (WebSocket).
 pub const EVENTS_PATH: &str = "/api/v1/events";
@@ -65,6 +70,8 @@ pub enum ServerEventDto {
     Rejected { reason: String },
     /// Bookmarks of this recording changed; reload them.
     BookmarksChanged { recording_id: u64 },
+    /// The analysis status or result of this recording changed; reload the library.
+    AnalysisChanged { recording_id: u64 },
     /// Whether the server can play sound; sent to a joining client and on change.
     /// Without an output device the shared state still runs, silently.
     AudioOutput { available: bool },
@@ -147,13 +154,38 @@ pub struct ConflictDto {
     pub current_version: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RecordingSummaryDto {
-    pub id: u64,
-    pub title: String,
+/// Estimated values of a recording; the confidences are ratios of the best to the second-best score.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AnalysisResultDto {
+    pub tuning_hz: f64,
+    pub tuning_confidence: f64,
+    /// Pitch class of the key's tonic, 0 = C … 11 = B.
+    pub key_tonic: u8,
+    pub key_minor: bool,
+    pub key_confidence: f64,
+    pub tempo_bpm: f64,
+    pub tempo_confidence: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum AnalysisProgressDto {
+    None,
+    Queued,
+    Running,
+    Failed { reason: String },
+    Done,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RecordingSummaryDto {
+    pub id: u64,
+    pub title: String,
+    pub analysis_progress: AnalysisProgressDto,
+    pub analysis: Option<AnalysisResultDto>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordingListDto {
     pub recordings: Vec<RecordingSummaryDto>,
 }
@@ -177,10 +209,20 @@ mod tests {
             recordings: vec![RecordingSummaryDto {
                 id: 1,
                 title: "Intro".into(),
+                analysis_progress: AnalysisProgressDto::Failed {
+                    reason: "too short".into(),
+                },
+                analysis: None,
             }],
         };
         let json = serde_json::to_string(&list).unwrap();
-        assert_eq!(json, r#"{"recordings":[{"id":1,"title":"Intro"}]}"#);
+        assert_eq!(
+            json,
+            concat!(
+                r#"{"recordings":[{"id":1,"title":"Intro","#,
+                r#""analysis_progress":{"state":"failed","reason":"too short"},"analysis":null}]}"#
+            )
+        );
         assert_eq!(
             serde_json::from_str::<RecordingListDto>(&json).unwrap(),
             list
@@ -243,6 +285,17 @@ mod tests {
         let event = ServerEventDto::AudioOutput { available: false };
         let json = serde_json::to_string(&event).unwrap();
         assert_eq!(json, r#"{"type":"audio_output","available":false}"#);
+        assert_eq!(
+            serde_json::from_str::<ServerEventDto>(&json).unwrap(),
+            event
+        );
+    }
+
+    #[test]
+    fn analysis_changed_event_has_a_stable_wire_format() {
+        let event = ServerEventDto::AnalysisChanged { recording_id: 4 };
+        let json = serde_json::to_string(&event).unwrap();
+        assert_eq!(json, r#"{"type":"analysis_changed","recording_id":4}"#);
         assert_eq!(
             serde_json::from_str::<ServerEventDto>(&json).unwrap(),
             event

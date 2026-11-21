@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Analysis of tuning, key and tempo (ADR-007): runs in the background after start-up for every recording without a result and can be started again per recording; results are stored with the recording, clients are told when one changes, and the library shows key, tempo and tuning or the state of the analysis.
+- The playback pitch uses the analysed tuning of the recording (concert pitch until it exists).
+- The player shows the tempo the recording plays at, takes a wanted tempo (speed is derived from it) and sets speed, tuning and key back to the analysed values.
+
 - Project set up: architecture, ADRs (technology stack, GUI architecture, server-side audio output), Clean Code and GUI architecture guidelines, logo.
 - Rust workspace with core, protocol, server and client crates; server lists recordings over HTTP, client core fetches them; CI with format, lint, tests and a `wasm32` build check.
 - Flutter web app (`app/`) with a library feature that lists recordings through the Rust client core (`flutter_rust_bridge`).

@@ -34,6 +34,7 @@ class LibraryScreen extends ConsumerWidget {
           recordings: recordings,
           selectedId: selectedId,
           onSelect: onSelect,
+          onReanalyse: ref.read(libraryProvider.notifier).reanalyse,
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => LibraryFailure(

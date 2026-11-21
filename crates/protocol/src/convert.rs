@@ -1,11 +1,93 @@
 //! Translation between wire messages and domain types.
 
-use crate::{BookmarksDto, ClientMessageDto, LabelDto, PlaybackStateDto, RangeDto, RegionDto};
-use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Intent, InvalidValue, KeyShift, Label, Millis,
-    PlaybackSettings, PlaybackState, PositionReference, RecordingId, Region, Speed, TimeRange,
-    TuningHz, Version,
+use crate::{
+    AnalysisProgressDto, AnalysisResultDto, BookmarksDto, ClientMessageDto, LabelDto,
+    PlaybackStateDto, RangeDto, RecordingSummaryDto, RegionDto,
 };
+use veltrunox_core::{
+    AnalysisInfo, AnalysisProgress, BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, Intent,
+    InvalidRecording, InvalidValue, KeyMode, KeyShift, Label, LibraryEntry, Millis, MusicalKey,
+    PitchClass, PlaybackSettings, PlaybackState, PositionReference, Recording, RecordingAnalysis,
+    RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version,
+};
+
+pub fn analysis_to_dto(analysis: &RecordingAnalysis) -> AnalysisResultDto {
+    AnalysisResultDto {
+        tuning_hz: analysis.tuning.hertz(),
+        tuning_confidence: analysis.tuning_confidence.ratio(),
+        key_tonic: analysis.key.tonic.index(),
+        key_minor: analysis.key.mode == KeyMode::Minor,
+        key_confidence: analysis.key_confidence.ratio(),
+        tempo_bpm: analysis.tempo.value(),
+        tempo_confidence: analysis.tempo_confidence.ratio(),
+    }
+}
+
+/// Validates the values of an analysis received from outside.
+pub fn analysis_from_dto(dto: &AnalysisResultDto) -> Result<RecordingAnalysis, InvalidValue> {
+    if dto.key_tonic >= PitchClass::COUNT {
+        return Err(InvalidValue::KeyTonicOutOfRange);
+    }
+    Ok(RecordingAnalysis {
+        tuning: TuningHz::new(dto.tuning_hz)?,
+        tuning_confidence: Confidence::new(dto.tuning_confidence),
+        key: MusicalKey {
+            tonic: PitchClass::from_semitones(i32::from(dto.key_tonic)),
+            mode: if dto.key_minor {
+                KeyMode::Minor
+            } else {
+                KeyMode::Major
+            },
+        },
+        key_confidence: Confidence::new(dto.key_confidence),
+        tempo: Bpm::new(dto.tempo_bpm)?,
+        tempo_confidence: Confidence::new(dto.tempo_confidence),
+    })
+}
+
+pub fn library_entry_to_dto(entry: &LibraryEntry) -> RecordingSummaryDto {
+    RecordingSummaryDto {
+        id: entry.recording.id.value(),
+        title: entry.recording.title.as_str().to_owned(),
+        analysis_progress: match &entry.analysis.progress {
+            AnalysisProgress::None => AnalysisProgressDto::None,
+            AnalysisProgress::Queued => AnalysisProgressDto::Queued,
+            AnalysisProgress::Running => AnalysisProgressDto::Running,
+            AnalysisProgress::Failed(reason) => AnalysisProgressDto::Failed {
+                reason: reason.clone(),
+            },
+            AnalysisProgress::Done => AnalysisProgressDto::Done,
+        },
+        analysis: entry.analysis.result.as_ref().map(analysis_to_dto),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum InvalidEntry {
+    #[error(transparent)]
+    Title(#[from] InvalidRecording),
+    #[error(transparent)]
+    Value(#[from] InvalidValue),
+}
+
+pub fn library_entry_from_dto(dto: &RecordingSummaryDto) -> Result<LibraryEntry, InvalidEntry> {
+    Ok(LibraryEntry {
+        recording: Recording {
+            id: RecordingId::new(dto.id),
+            title: RecordingTitle::new(&dto.title)?,
+        },
+        analysis: AnalysisInfo {
+            progress: match &dto.analysis_progress {
+                AnalysisProgressDto::None => AnalysisProgress::None,
+                AnalysisProgressDto::Queued => AnalysisProgress::Queued,
+                AnalysisProgressDto::Running => AnalysisProgress::Running,
+                AnalysisProgressDto::Failed { reason } => AnalysisProgress::Failed(reason.clone()),
+                AnalysisProgressDto::Done => AnalysisProgress::Done,
+            },
+            result: dto.analysis.as_ref().map(analysis_from_dto).transpose()?,
+        },
+    })
+}
 
 pub fn range_to_dto(range: TimeRange) -> RangeDto {
     RangeDto {
@@ -168,6 +250,56 @@ pub fn bookmarks_from_dto(dto: &BookmarksDto) -> Result<Bookmarks, InvalidValue>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_library_entry_round_trips_through_its_wire_form() {
+        let entry = LibraryEntry {
+            recording: Recording {
+                id: RecordingId::new(7),
+                title: RecordingTitle::new("Intro").unwrap(),
+            },
+            analysis: AnalysisInfo {
+                progress: AnalysisProgress::Done,
+                result: Some(RecordingAnalysis {
+                    tuning: TuningHz::new(441.5).unwrap(),
+                    tuning_confidence: Confidence::new(1.4),
+                    key: MusicalKey {
+                        tonic: PitchClass::from_semitones(9),
+                        mode: KeyMode::Minor,
+                    },
+                    key_confidence: Confidence::new(1.02),
+                    tempo: Bpm::new(96.5).unwrap(),
+                    tempo_confidence: Confidence::new(1.2),
+                }),
+            },
+        };
+        let dto = library_entry_to_dto(&entry);
+        assert_eq!(library_entry_from_dto(&dto).unwrap(), entry);
+    }
+
+    #[test]
+    fn invalid_analysis_values_are_refused() {
+        let mut dto = library_entry_to_dto(&LibraryEntry {
+            recording: Recording {
+                id: RecordingId::new(1),
+                title: RecordingTitle::new("x").unwrap(),
+            },
+            analysis: AnalysisInfo::default(),
+        });
+        dto.analysis = Some(AnalysisResultDto {
+            tuning_hz: 440.0,
+            tuning_confidence: 1.0,
+            key_tonic: 12,
+            key_minor: false,
+            key_confidence: 1.0,
+            tempo_bpm: 100.0,
+            tempo_confidence: 1.0,
+        });
+        assert!(library_entry_from_dto(&dto).is_err());
+        dto.title = "  ".into();
+        dto.analysis = None;
+        assert!(library_entry_from_dto(&dto).is_err());
+    }
 
     #[test]
     fn state_survives_the_round_trip() {

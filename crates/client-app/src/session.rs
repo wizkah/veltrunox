@@ -14,6 +14,8 @@ pub enum ServerEvent {
     },
     Rejected(String),
     BookmarksChanged(RecordingId),
+    /// The analysis status or result of this recording changed.
+    AnalysisChanged(RecordingId),
     /// Whether the server can play sound.
     AudioOutput(bool),
 }
@@ -24,6 +26,7 @@ pub enum ViewChange {
     Nothing,
     PlaybackState,
     BookmarksChanged(RecordingId),
+    AnalysisChanged(RecordingId),
     AudioOutput,
     Rejected(String),
 }
@@ -94,6 +97,7 @@ impl SessionView {
             }
             ServerEvent::Rejected(reason) => ViewChange::Rejected(reason),
             ServerEvent::BookmarksChanged(recording) => ViewChange::BookmarksChanged(recording),
+            ServerEvent::AnalysisChanged(recording) => ViewChange::AnalysisChanged(recording),
             ServerEvent::AudioOutput(available) => {
                 if self.audio_output.replace(available) == Some(available) {
                     ViewChange::Nothing
@@ -204,6 +208,18 @@ mod tests {
             loop_range: None,
             scrubbing: false,
         }
+    }
+
+    #[test]
+    fn an_analysis_notice_reaches_the_interface() {
+        let mut view = SessionView::new();
+        assert_eq!(
+            view.handle(
+                ServerEvent::AnalysisChanged(RecordingId::new(3)),
+                Millis::new(0)
+            ),
+            ViewChange::AnalysisChanged(RecordingId::new(3))
+        );
     }
 
     #[test]

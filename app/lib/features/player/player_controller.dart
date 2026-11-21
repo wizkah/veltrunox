@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'player_source.dart';
 import 'player_state.dart';
+import 'target_tempo.dart';
 
 /// Supplies the [PlayerSource]; overridden at the application root.
 final playerSourceProvider = Provider<PlayerSource>(
@@ -51,4 +52,24 @@ class PlayerController {
   Future<void> setSpeed(double speed) => _source.setSpeed(speed);
   Future<void> setTuning(double hertz) => _source.setTuning(hertz);
   Future<void> setKey(int semitones) => _source.setKey(semitones);
+
+  /// Sets the speed that plays the recording at `targetBpm`. `false` if that
+  /// speed is outside the supported range or the tempo is not usable.
+  Future<bool> setTargetTempo({
+    required double targetBpm,
+    required double recordingBpm,
+  }) async {
+    final TargetTempo target;
+    try {
+      target = await _source.speedForTargetTempo(
+        targetBpm: targetBpm,
+        recordingBpm: recordingBpm,
+      );
+    } on Object {
+      return false;
+    }
+    if (!target.supported) return false;
+    await _source.setSpeed(target.speed);
+    return true;
+  }
 }

@@ -5,11 +5,13 @@ use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, KeyShift, Label, Millis, PlaybackSettings, Recording,
-    RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version, check_version,
+    BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, KeyMode, KeyShift, Label, Millis,
+    MusicalKey, PitchClass, PlaybackSettings, Recording, RecordingAnalysis, RecordingId,
+    RecordingTitle, Region, Speed, TimeRange, TuningHz, Version, check_version,
 };
 use veltrunox_server_app::{
-    BookmarkError, BookmarkRepository, MediaCatalog, Owned, RecordingRepository, StorageError,
+    AnalysisRepository, BookmarkError, BookmarkRepository, MediaCatalog, Owned,
+    RecordingRepository, StorageError,
 };
 
 /// Versioned schema changes; entry `n` upgrades from `user_version` `n` to `n + 1`.
@@ -44,6 +46,15 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE recordings ADD COLUMN media_path TEXT;
     ALTER TABLE recordings ADD COLUMN content_hash TEXT;
     CREATE UNIQUE INDEX recordings_by_hash ON recordings(content_hash);
+",
+    "
+    ALTER TABLE recordings ADD COLUMN analysis_tuning_hz REAL;
+    ALTER TABLE recordings ADD COLUMN analysis_tuning_confidence REAL;
+    ALTER TABLE recordings ADD COLUMN analysis_key_tonic INTEGER;
+    ALTER TABLE recordings ADD COLUMN analysis_key_minor INTEGER;
+    ALTER TABLE recordings ADD COLUMN analysis_key_confidence REAL;
+    ALTER TABLE recordings ADD COLUMN analysis_tempo_bpm REAL;
+    ALTER TABLE recordings ADD COLUMN analysis_tempo_confidence REAL;
 ",
 ];
 
@@ -232,6 +243,131 @@ impl RecordingRepository for SqliteStore {
             )
             .map_err(storage)?;
         Ok(())
+    }
+}
+
+const ANALYSIS_COLUMNS: &str = "id, analysis_tuning_hz, analysis_tuning_confidence, \
+    analysis_key_tonic, analysis_key_minor, analysis_key_confidence, \
+    analysis_tempo_bpm, analysis_tempo_confidence";
+
+/// One row of `ANALYSIS_COLUMNS`; `None` while the recording has no result.
+fn read_analysis(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<Result<Option<(RecordingId, RecordingAnalysis)>, StorageError>> {
+    let id: i64 = row.get(0)?;
+    let Some(tuning) = row.get::<_, Option<f64>>(1)? else {
+        return Ok(Ok(None));
+    };
+    let (tuning_confidence, tonic, minor, key_confidence, tempo, tempo_confidence): (
+        f64,
+        i32,
+        bool,
+        f64,
+        f64,
+        f64,
+    ) = (
+        row.get(2)?,
+        row.get(3)?,
+        row.get(4)?,
+        row.get(5)?,
+        row.get(6)?,
+        row.get(7)?,
+    );
+    Ok((|| {
+        Ok(Some((
+            RecordingId::new(unsigned(id)?),
+            RecordingAnalysis {
+                tuning: TuningHz::new(tuning).map_err(|error| corrupt("analysed tuning", error))?,
+                tuning_confidence: Confidence::new(tuning_confidence),
+                key: MusicalKey {
+                    tonic: PitchClass::from_semitones(tonic),
+                    mode: if minor {
+                        KeyMode::Minor
+                    } else {
+                        KeyMode::Major
+                    },
+                },
+                key_confidence: Confidence::new(key_confidence),
+                tempo: Bpm::new(tempo).map_err(|error| corrupt("analysed tempo", error))?,
+                tempo_confidence: Confidence::new(tempo_confidence),
+            },
+        )))
+    })())
+}
+
+impl AnalysisRepository for SqliteStore {
+    fn analysis(&self, id: RecordingId) -> Result<Option<RecordingAnalysis>, StorageError> {
+        let row = self
+            .connection()
+            .query_row(
+                &format!("SELECT {ANALYSIS_COLUMNS} FROM recordings WHERE id = ?1"),
+                params![sql_int(id.value())?],
+                read_analysis,
+            )
+            .optional()
+            .map_err(storage)?;
+        Ok(row.transpose()?.flatten().map(|(_, analysis)| analysis))
+    }
+
+    fn analyses(&self) -> Result<Vec<(RecordingId, RecordingAnalysis)>, StorageError> {
+        let connection = self.connection();
+        let mut statement = connection
+            .prepare(&format!(
+                "SELECT {ANALYSIS_COLUMNS} FROM recordings ORDER BY id"
+            ))
+            .map_err(storage)?;
+        let rows = statement.query_map([], read_analysis).map_err(storage)?;
+        let mut found = Vec::new();
+        for row in rows {
+            if let Some(entry) = row.map_err(storage)?? {
+                found.push(entry);
+            }
+        }
+        Ok(found)
+    }
+
+    fn save_analysis(
+        &self,
+        id: RecordingId,
+        analysis: RecordingAnalysis,
+    ) -> Result<(), StorageError> {
+        let changed = self
+            .connection()
+            .execute(
+                "UPDATE recordings SET analysis_tuning_hz = ?2, analysis_tuning_confidence = ?3, \
+                 analysis_key_tonic = ?4, analysis_key_minor = ?5, analysis_key_confidence = ?6, \
+                 analysis_tempo_bpm = ?7, analysis_tempo_confidence = ?8 WHERE id = ?1",
+                params![
+                    sql_int(id.value())?,
+                    analysis.tuning.hertz(),
+                    analysis.tuning_confidence.ratio(),
+                    analysis.key.tonic.index(),
+                    analysis.key.mode == KeyMode::Minor,
+                    analysis.key_confidence.ratio(),
+                    analysis.tempo.value(),
+                    analysis.tempo_confidence.ratio(),
+                ],
+            )
+            .map_err(storage)?;
+        if changed == 0 {
+            return Err(StorageError("recording does not exist".into()));
+        }
+        Ok(())
+    }
+
+    fn unanalysed(&self) -> Result<Vec<RecordingId>, StorageError> {
+        let connection = self.connection();
+        let mut statement = connection
+            .prepare(
+                "SELECT id FROM recordings \
+                 WHERE media_path IS NOT NULL AND analysis_tuning_hz IS NULL ORDER BY id",
+            )
+            .map_err(storage)?;
+        let ids = statement
+            .query_map([], |row| row.get::<_, i64>(0))
+            .map_err(storage)?;
+        ids.map(|id| Ok(RecordingId::new(unsigned(id.map_err(storage)?)?)))
+            .collect()
     }
 }
 
@@ -690,5 +826,74 @@ mod tests {
             BookmarkRepository::list(&store, id).unwrap().regions.len(),
             2
         );
+    }
+
+    fn sample_analysis(tempo: f64) -> RecordingAnalysis {
+        RecordingAnalysis {
+            tuning: TuningHz::new(442.5).unwrap(),
+            tuning_confidence: Confidence::new(1.4),
+            key: MusicalKey {
+                tonic: PitchClass::from_semitones(1),
+                mode: KeyMode::Minor,
+            },
+            key_confidence: Confidence::new(1.02),
+            tempo: Bpm::new(tempo).unwrap(),
+            tempo_confidence: Confidence::new(1.3),
+        }
+    }
+
+    #[test]
+    fn analysis_results_are_stored_and_replaced() {
+        let (store, id) = store_with_recording();
+        assert_eq!(store.analysis(id).unwrap(), None);
+        store.save_analysis(id, sample_analysis(148.0)).unwrap();
+        assert_eq!(store.analysis(id).unwrap(), Some(sample_analysis(148.0)));
+        store.save_analysis(id, sample_analysis(120.0)).unwrap();
+        assert_eq!(store.analyses().unwrap(), [(id, sample_analysis(120.0))]);
+    }
+
+    #[test]
+    fn analysis_of_a_missing_recording_is_an_error() {
+        let (store, _) = store_with_recording();
+        assert!(
+            store
+                .save_analysis(RecordingId::new(99), sample_analysis(100.0))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn only_recordings_with_audio_and_no_result_are_unanalysed() {
+        let store = SqliteStore::in_memory().unwrap();
+        let title = |text: &str| RecordingTitle::new(text).unwrap();
+        store.add(title("no audio")).unwrap();
+        let first = store
+            .add_media(title("one"), Path::new("/a.wav"), "h1")
+            .unwrap()
+            .unwrap();
+        let second = store
+            .add_media(title("two"), Path::new("/b.wav"), "h2")
+            .unwrap()
+            .unwrap();
+        store
+            .save_analysis(first.id, sample_analysis(90.0))
+            .unwrap();
+        assert_eq!(store.unanalysed().unwrap(), [second.id]);
+    }
+
+    #[test]
+    fn analysis_survives_reopening_the_file() {
+        let path =
+            std::env::temp_dir().join(format!("veltrunox-analysis-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let id = {
+            let store = SqliteStore::open(&path).unwrap();
+            let id = store.add(RecordingTitle::new("x").unwrap()).unwrap().id;
+            store.save_analysis(id, sample_analysis(97.5)).unwrap();
+            id
+        };
+        let reopened = SqliteStore::open(&path).unwrap();
+        assert_eq!(reopened.analysis(id).unwrap(), Some(sample_analysis(97.5)));
+        std::fs::remove_file(&path).unwrap();
     }
 }

@@ -9,12 +9,14 @@ class RecordingList extends StatelessWidget {
     required this.recordings,
     required this.selectedId,
     required this.onSelect,
+    required this.onReanalyse,
     super.key,
   });
 
   final List<RecordingSummary> recordings;
   final int? selectedId;
   final ValueChanged<int> onSelect;
+  final ValueChanged<int> onReanalyse;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +31,7 @@ class RecordingList extends StatelessWidget {
           recording: recording,
           selected: recording.id == selectedId,
           onTap: () => onSelect(recording.id),
+          onReanalyse: () => onReanalyse(recording.id),
         );
       },
     );

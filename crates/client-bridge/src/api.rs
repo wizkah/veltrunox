@@ -9,29 +9,111 @@ use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
 use veltrunox_client_adapters::{EventChannel, HttpServerLink, SystemTimer, open_channel};
 use veltrunox_client_app::{
     ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkEvent, ServerEvent, SessionView,
-    ViewChange, load_library,
+    ViewChange, analyse_again, load_library,
 };
-use veltrunox_core::{Intent, KeyShift, Millis, RecordingId, Speed, TuningHz};
+use veltrunox_core::{
+    AnalysisProgress, Bpm, Intent, KeyMode, KeyShift, LibraryEntry, Millis, RecordingId, Speed,
+    TargetSpeed, TuningHz, speed_for_target_tempo,
+};
 
 /// A recording as the user interface needs it.
 pub struct RecordingItem {
     pub id: u64,
     pub title: String,
+    pub analysis_state: AnalysisState,
+    /// Why the analysis failed; only set in the state `Failed`.
+    pub analysis_failure: Option<String>,
+    /// The estimated values; only set once the analysis is done.
+    pub analysis: Option<AnalysisValues>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum AnalysisState {
+    None,
+    Queued,
+    Running,
+    Failed,
+    Done,
+}
+
+/// Tuning, key and tempo as estimated from the audio.
+#[derive(Clone)]
+pub struct AnalysisValues {
+    pub tuning_hz: f64,
+    /// Pitch class of the key's tonic, 0 = C … 11 = B.
+    pub key_tonic: u8,
+    pub key_minor: bool,
+    pub tempo_bpm: f64,
 }
 
 /// Loads the recording list from the server at `server_url`.
 pub async fn list_recordings(server_url: String) -> Result<Vec<RecordingItem>, String> {
     let link = HttpServerLink::new(&server_url);
-    let recordings = load_library(&link)
+    let entries = load_library(&link)
         .await
         .map_err(|error| error.to_string())?;
-    Ok(recordings
-        .into_iter()
-        .map(|recording| RecordingItem {
-            id: recording.id.value(),
-            title: recording.title.as_str().to_owned(),
-        })
-        .collect())
+    Ok(entries.iter().map(RecordingItem::from).collect())
+}
+
+impl From<&LibraryEntry> for RecordingItem {
+    fn from(entry: &LibraryEntry) -> Self {
+        let (analysis_state, analysis_failure) = match &entry.analysis.progress {
+            AnalysisProgress::None => (AnalysisState::None, None),
+            AnalysisProgress::Queued => (AnalysisState::Queued, None),
+            AnalysisProgress::Running => (AnalysisState::Running, None),
+            AnalysisProgress::Failed(reason) => (AnalysisState::Failed, Some(reason.clone())),
+            AnalysisProgress::Done => (AnalysisState::Done, None),
+        };
+        Self {
+            id: entry.recording.id.value(),
+            title: entry.recording.title.as_str().to_owned(),
+            analysis_state,
+            analysis_failure,
+            analysis: entry.analysis.result.map(|found| AnalysisValues {
+                tuning_hz: found.tuning.hertz(),
+                key_tonic: found.key.tonic.index(),
+                key_minor: found.key.mode == KeyMode::Minor,
+                tempo_bpm: found.tempo.value(),
+            }),
+        }
+    }
+}
+
+/// Asks the server to analyse a recording again; the result arrives as a session update.
+pub async fn reanalyse_recording(server_url: String, recording_id: u64) -> Result<(), String> {
+    let link = HttpServerLink::new(&server_url);
+    analyse_again(&link, RecordingId::new(recording_id))
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// The speed that plays a recording of `recording_bpm` at `target_bpm`.
+pub struct TargetTempo {
+    pub speed: f64,
+    /// `false` if the speed lies outside the supported range; it must not be set then.
+    pub supported: bool,
+}
+
+pub async fn speed_for_target_bpm(
+    target_bpm: f64,
+    recording_bpm: f64,
+) -> Result<TargetTempo, String> {
+    target_tempo(target_bpm, recording_bpm)
+}
+
+fn target_tempo(target_bpm: f64, recording_bpm: f64) -> Result<TargetTempo, String> {
+    let target = Bpm::new(target_bpm).map_err(|error| error.to_string())?;
+    let recording = Bpm::new(recording_bpm).map_err(|error| error.to_string())?;
+    Ok(match speed_for_target_tempo(target, recording) {
+        TargetSpeed::Supported(speed) => TargetTempo {
+            speed: speed.factor(),
+            supported: true,
+        },
+        TargetSpeed::OutOfRange { factor } => TargetTempo {
+            speed: factor,
+            supported: false,
+        },
+    })
 }
 
 /// State of the real-time channel as the user interface needs it.
@@ -60,8 +142,16 @@ pub struct PlaybackView {
 pub enum SessionUpdate {
     Connection(ConnectionState),
     Playback(PlaybackView),
-    BookmarksChanged { recording_id: u64 },
-    Rejected { reason: String },
+    BookmarksChanged {
+        recording_id: u64,
+    },
+    /// The analysis of this recording changed; load the library again.
+    AnalysisChanged {
+        recording_id: u64,
+    },
+    Rejected {
+        reason: String,
+    },
 }
 
 /// What the user asks the shared player to do.
@@ -138,6 +228,9 @@ fn forward(event: ServerEvent, updates: &StreamSink<SessionUpdate>) {
             SessionUpdate::Playback(PlaybackView::from_state(state, view.server_time(now)))
         }),
         ViewChange::BookmarksChanged(recording) => Some(SessionUpdate::BookmarksChanged {
+            recording_id: recording.value(),
+        }),
+        ViewChange::AnalysisChanged(recording) => Some(SessionUpdate::AnalysisChanged {
             recording_id: recording.value(),
         }),
         ViewChange::Rejected(reason) => Some(SessionUpdate::Rejected { reason }),
@@ -225,6 +318,16 @@ mod tests {
                 scrubbing: false
             })
         );
+    }
+
+    #[test]
+    fn a_target_tempo_gives_the_speed() {
+        let target = target_tempo(90.0, 120.0).unwrap();
+        assert!(target.supported);
+        assert!((target.speed - 0.75).abs() < 1e-12);
+        let too_fast = target_tempo(300.0, 100.0).unwrap();
+        assert!(!too_fast.supported);
+        assert!(target_tempo(0.0, 100.0).is_err());
     }
 
     #[test]

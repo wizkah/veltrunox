@@ -1,16 +1,19 @@
 //! Server use cases and the ports they need.
 
+mod analysis;
 mod bookmarks;
 mod playback;
 mod ports;
 #[cfg(test)]
 mod testing;
 
+pub use analysis::AnalysisService;
 pub use bookmarks::BookmarkService;
 pub use playback::{IntentError, PlaybackService};
 pub use ports::{
-    BookmarkError, BookmarkRepository, Clock, MediaCatalog, Owned, PlaybackBroadcast,
-    RecordingLengths, RecordingRepository, StorageError,
+    AnalysisFailure, AnalysisRepository, BookmarkError, BookmarkRepository, Clock, MediaCatalog,
+    Owned, PlaybackBroadcast, RecordingAnalyzer, RecordingLengths, RecordingRepository,
+    StorageError,
 };
 
 use veltrunox_core::Recording;
