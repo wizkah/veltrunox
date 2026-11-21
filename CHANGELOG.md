@@ -8,3 +8,4 @@
 - Real-time channel (WebSocket) with a server greeting; the client core turns link events into connection status with `rxrust`; the web app shows it.
 - `scripts/build-web.sh` builds the client core for the browser and the Flutter web app; CI builds it and checks the generated bridge code.
 - Licensed under GPL-3.0-only.
+- Automated browser test (Playwright) for the web app; CI caches the build tools.

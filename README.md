@@ -37,7 +37,13 @@ Web app (needs Flutter, `wasm-pack`, `flutter_rust_bridge_codegen` 2.13.0 and th
 scripts/build-web.sh
 ```
 
-Serve `build/web` and start the server with `VELTRUNOX_ALLOWED_ORIGIN=<origin of the web app>`; the app reads the server URL from `--dart-define=VELTRUNOX_SERVER_URL=...` (default `http://127.0.0.1:8080`).
+Browser test (after `scripts/build-web.sh`; needs Node):
+
+```sh
+cd e2e && npm ci && npx playwright install chromium && npx playwright test
+```
+
+To run the app by hand, serve `build/web` and start the server with `VELTRUNOX_ALLOWED_ORIGIN=<origin of the web app>`; the app reads the server URL from `--dart-define=VELTRUNOX_SERVER_URL=...` (default `http://127.0.0.1:8080`).
 
 ## Documentation
 
