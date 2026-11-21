@@ -8,6 +8,9 @@ import 'package:veltrunox_app/features/connection/connection_status.dart';
 import 'package:veltrunox_app/features/library/library_controller.dart';
 import 'package:veltrunox_app/features/library/recording_source.dart';
 import 'package:veltrunox_app/features/library/recording_summary.dart';
+import 'package:veltrunox_app/features/player/player_controller.dart';
+
+import 'fake_player_source.dart';
 
 class _FakeSource implements RecordingSource {
   _FakeSource(this.result);
@@ -23,13 +26,15 @@ class _FakeConnection implements ConnectionSource {
   Stream<ConnectionStatus> watch() => Stream.value(ConnectionStatus.connected);
 }
 
-Widget _app(RecordingSource source) => ProviderScope(
-  overrides: [
-    recordingSourceProvider.overrideWithValue(source),
-    connectionSourceProvider.overrideWithValue(_FakeConnection()),
-  ],
-  child: const VeltrunoxApp(),
-);
+Widget _app(RecordingSource source, [FakePlayerSource? player]) =>
+    ProviderScope(
+      overrides: [
+        playerSourceProvider.overrideWithValue(player ?? FakePlayerSource()),
+        recordingSourceProvider.overrideWithValue(source),
+        connectionSourceProvider.overrideWithValue(_FakeConnection()),
+      ],
+      child: const VeltrunoxApp(),
+    );
 
 void main() {
   testWidgets('shows the connection status', (tester) async {
@@ -59,5 +64,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Erneut versuchen'), findsOneWidget);
+  });
+
+  testWidgets('selecting a recording sends the select command', (tester) async {
+    final player = FakePlayerSource();
+    await tester.pumpWidget(
+      _app(
+        _FakeSource(
+          () async => [const RecordingSummary(id: 4, title: 'Soundcheck')],
+        ),
+        player,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Soundcheck'));
+
+    expect(player.calls, ['select 4']);
   });
 }

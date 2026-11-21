@@ -1,0 +1,203 @@
+//! Bookmarks over HTTP with versions, change notices, and persistence across restarts (AC-009).
+
+mod support;
+
+use std::sync::Arc;
+use support::{TestClient, start_server, store_with_recording};
+use veltrunox_client_adapters::HttpServerLink;
+use veltrunox_client_app::{ChannelEvent, ServerEvent, load_bookmarks, load_library};
+use veltrunox_core::{Intent, KeyShift, Millis, RecordingId, Speed};
+use veltrunox_protocol::{
+    BookmarksDto, ConflictDto, LabelDto, NewLabelDto, NewRegionDto, RangeDto, UpdateLabelDto,
+};
+use veltrunox_server_adapters::SqliteStore;
+
+const RECORDING: RecordingId = RecordingId::new(1);
+
+fn labels_url(base: &str) -> String {
+    format!("{base}/api/v1/recordings/1/labels")
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_new_label_is_announced_and_can_be_loaded_by_another_client() {
+    let url = start_server(store_with_recording()).await;
+    let mut watcher = TestClient::connect(&url);
+
+    let response = reqwest::Client::new()
+        .post(labels_url(&url))
+        .json(&NewLabelDto {
+            name: "Verse".into(),
+            position_ms: 12_000,
+        })
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 201);
+
+    let announced = watcher.next_matching(|event| match event {
+        ChannelEvent::Server(ServerEvent::BookmarksChanged(id)) => Some(*id),
+        _ => None,
+    });
+    assert_eq!(announced, RECORDING);
+
+    let loaded = load_bookmarks(&HttpServerLink::new(&url), announced)
+        .await
+        .unwrap();
+    assert_eq!(loaded.labels.len(), 1);
+    assert_eq!(loaded.labels[0].name.as_str(), "Verse");
+}
+
+#[tokio::test]
+async fn a_stale_edit_is_a_conflict_and_loses_nothing() {
+    let url = start_server(store_with_recording()).await;
+    let http = reqwest::Client::new();
+    let label: LabelDto = http
+        .post(labels_url(&url))
+        .json(&NewLabelDto {
+            name: "Verse".into(),
+            position_ms: 1_000,
+        })
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let edit = |name: &str, version: u64| UpdateLabelDto {
+        expected_version: version,
+        name: name.into(),
+        position_ms: 1_000,
+    };
+    let label_url = format!("{url}/api/v1/labels/{}", label.id);
+
+    let first = http
+        .put(&label_url)
+        .json(&edit("Verse 1", 1))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(first.status(), 200);
+    let second = http
+        .put(&label_url)
+        .json(&edit("Verse 2", 1))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(second.status(), 409);
+    let conflict: ConflictDto = second.json().await.unwrap();
+    assert_eq!(conflict.current_version, 2);
+
+    let all: BookmarksDto = http
+        .get(format!("{url}/api/v1/recordings/1/bookmarks"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(all.labels[0].name, "Verse 1");
+}
+
+#[tokio::test]
+async fn invalid_bookmarks_and_unknown_recordings_are_refused() {
+    let url = start_server(store_with_recording()).await;
+    let http = reqwest::Client::new();
+
+    let blank = http
+        .post(labels_url(&url))
+        .json(&NewLabelDto {
+            name: "  ".into(),
+            position_ms: 1,
+        })
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(blank.status(), 400);
+
+    let backwards = http
+        .post(format!("{url}/api/v1/recordings/1/regions"))
+        .json(&NewRegionDto {
+            name: "Chorus".into(),
+            range: RangeDto {
+                start_ms: 9,
+                end_ms: 3,
+            },
+        })
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(backwards.status(), 400);
+
+    let unknown = http
+        .post(format!("{url}/api/v1/recordings/99/labels"))
+        .json(&NewLabelDto {
+            name: "Verse".into(),
+            position_ms: 1,
+        })
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(unknown.status(), 404);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn recordings_bookmarks_and_settings_survive_a_restart() {
+    let directory = std::env::temp_dir().join(format!("veltrunox-restart-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    let database = directory.join("veltrunox.db");
+
+    {
+        let store = Arc::new(SqliteStore::open(&database).unwrap());
+        veltrunox_server_app::RecordingRepository::add(
+            store.as_ref(),
+            veltrunox_core::RecordingTitle::new("Soundcheck").unwrap(),
+        )
+        .unwrap();
+        let url = start_server(store).await;
+        reqwest::Client::new()
+            .post(labels_url(&url))
+            .json(&NewLabelDto {
+                name: "Verse".into(),
+                position_ms: 5_000,
+            })
+            .send()
+            .await
+            .unwrap();
+        let mut client = TestClient::connect(&url);
+        client
+            .connection
+            .send_intent(Intent::SelectRecording(RECORDING));
+        client
+            .connection
+            .send_intent(Intent::SetSpeed(Speed::new(0.8).unwrap()));
+        client
+            .connection
+            .send_intent(Intent::SetKey(KeyShift::new(-2).unwrap()));
+        client.connection.send_intent(Intent::Seek {
+            position: Millis::new(30_000),
+            scrubbing: false,
+        });
+        client.state_where(|state| state.reference.position == Millis::new(30_000));
+    }
+
+    // A new store and a new server over the same file: the restart.
+    let url = start_server(Arc::new(SqliteStore::open(&database).unwrap())).await;
+    let link = HttpServerLink::new(&url);
+    assert_eq!(load_library(&link).await.unwrap().len(), 1);
+    assert_eq!(
+        load_bookmarks(&link, RECORDING).await.unwrap().labels.len(),
+        1
+    );
+
+    let mut client = TestClient::connect(&url);
+    let initial = client.state_where(|_| true);
+    assert_eq!(initial.recording, None, "a restarted server is idle");
+    client
+        .connection
+        .send_intent(Intent::SelectRecording(RECORDING));
+    let restored = client.state_where(|state| state.recording.is_some());
+    assert_eq!(restored.settings.speed.factor(), 0.8);
+    assert_eq!(restored.settings.key.semitones(), -2);
+    assert!(!restored.running);
+    std::fs::remove_dir_all(&directory).unwrap();
+}

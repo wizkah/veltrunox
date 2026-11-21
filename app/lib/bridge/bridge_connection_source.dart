@@ -1,20 +1,13 @@
 import '../features/connection/connection_source.dart';
 import '../features/connection/connection_status.dart';
-import 'generated/api.dart' as rust;
+import 'bridge_session.dart';
 
 /// Adapter: reports the real-time channel state from the Rust client core.
 class BridgeConnectionSource implements ConnectionSource {
-  BridgeConnectionSource({required this.serverUrl});
+  BridgeConnectionSource(this._session);
 
-  final String serverUrl;
+  final BridgeSession _session;
 
   @override
-  Stream<ConnectionStatus> watch() => rust
-      .watchConnection(serverUrl: serverUrl)
-      .map(
-        (state) => switch (state) {
-          rust.ConnectionState.connected => ConnectionStatus.connected,
-          rust.ConnectionState.disconnected => ConnectionStatus.disconnected,
-        },
-      );
+  Stream<ConnectionStatus> watch() => _session.connection();
 }

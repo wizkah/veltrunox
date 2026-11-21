@@ -16,3 +16,6 @@ veltrunox-core.workspace = true
 veltrunox-client-app.workspace = true
 veltrunox-client-adapters.workspace = true
 flutter_rust_bridge = "=2.13.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"

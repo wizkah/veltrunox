@@ -16,7 +16,10 @@ axum = { workspace = true, features = ["ws"] }
 tokio.workspace = true
 tower-http = { version = "0.6", features = ["cors"] }
 serde_json = "1"
+rusqlite = { version = "0.43", features = ["bundled"] }
 
 [dev-dependencies]
+reqwest = { workspace = true, features = ["json"] }
+ewebsock = "0.8"
 veltrunox-client-adapters.workspace = true
 veltrunox-client-app.workspace = true

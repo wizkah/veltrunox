@@ -9,6 +9,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+veltrunox-core.workspace = true
 serde.workspace = true
 
 [dev-dependencies]

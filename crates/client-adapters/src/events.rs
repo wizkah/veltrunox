@@ -2,32 +2,58 @@
 
 use ewebsock::{Options, WsEvent, WsMessage, WsSender};
 use std::ops::ControlFlow;
-use veltrunox_client_app::{LinkError, LinkEvent};
-use veltrunox_protocol::{EVENTS_PATH, PROTOCOL_VERSION, ServerEventDto};
+use veltrunox_client_app::{ChannelEvent, LinkError, LinkEvent, ServerEvent};
+use veltrunox_core::{Intent, Millis, RecordingId};
+use veltrunox_protocol::{
+    ClientMessageDto, EVENTS_PATH, PROTOCOL_VERSION, ServerEventDto, intent_to_message,
+    state_from_dto,
+};
 
 /// Keeps the real-time channel open; dropping it closes the connection.
 pub struct EventConnection {
-    _sender: WsSender,
+    sender: WsSender,
+}
+
+impl EventConnection {
+    /// Sends an intent; the server answers with the new state or a rejection.
+    pub fn send_intent(&mut self, intent: Intent) {
+        self.send(&intent_to_message(intent));
+    }
+
+    /// Asks the server for its time; the answer feeds the clock estimate.
+    pub fn send_ping(&mut self, client_time: Millis) {
+        self.send(&ClientMessageDto::Ping {
+            client_time_ms: client_time.value(),
+        });
+    }
+
+    fn send(&mut self, message: &ClientMessageDto) {
+        // Serialising these plain messages cannot fail; a closed connection
+        // is reported through the event callback, not here.
+        if let Ok(text) = serde_json::to_string(message) {
+            self.sender.send(WsMessage::Text(text));
+        }
+    }
 }
 
 /// Opens the channel and reports what happens on it to `on_event`.
 pub fn connect_events(
     base_url: &str,
-    on_event: impl Fn(LinkEvent) + Send + 'static,
+    on_event: impl Fn(ChannelEvent) + Send + 'static,
 ) -> Result<EventConnection, LinkError> {
     let url = websocket_url(base_url);
     let sender = ewebsock::ws_connect(
         url,
         Options::default(),
         Box::new(move |event| {
-            if let Some(link_event) = into_link_event(&event) {
-                on_event(link_event);
+            if let Some(channel_event) = into_channel_event(&event) {
+                on_event(channel_event);
             }
             ControlFlow::Continue(())
         }),
     )
     .map_err(LinkError::Unreachable)?;
-    Ok(EventConnection { _sender: sender })
+    Ok(EventConnection { sender })
 }
 
 fn websocket_url(base_url: &str) -> String {
@@ -43,23 +69,44 @@ fn websocket_url(base_url: &str) -> String {
     format!("{base}{EVENTS_PATH}")
 }
 
-fn into_link_event(event: &WsEvent) -> Option<LinkEvent> {
+fn into_channel_event(event: &WsEvent) -> Option<ChannelEvent> {
     match event {
-        WsEvent::Opened => None,
-        WsEvent::Message(WsMessage::Text(text)) => greeting_from(text),
+        WsEvent::Opened | WsEvent::Message(WsMessage::Binary(_)) => None,
+        WsEvent::Message(WsMessage::Text(text)) => channel_event_from(text),
         WsEvent::Message(_) => None,
-        WsEvent::Error(_) => Some(LinkEvent::Failed),
-        WsEvent::Closed => Some(LinkEvent::Closed),
+        WsEvent::Error(_) => Some(ChannelEvent::Link(LinkEvent::Failed)),
+        WsEvent::Closed => Some(ChannelEvent::Link(LinkEvent::Closed)),
     }
 }
 
-/// A greeting counts only if it speaks the protocol version this client knows.
-fn greeting_from(text: &str) -> Option<LinkEvent> {
-    match serde_json::from_str(text) {
-        Ok(ServerEventDto::Hello { protocol_version }) if protocol_version == PROTOCOL_VERSION => {
-            Some(LinkEvent::Greeted)
+/// A greeting counts only if it speaks the protocol version this client knows;
+/// a message that cannot be understood means the channel cannot be trusted.
+fn channel_event_from(text: &str) -> Option<ChannelEvent> {
+    let Ok(event) = serde_json::from_str::<ServerEventDto>(text) else {
+        return Some(ChannelEvent::Link(LinkEvent::Failed));
+    };
+    match event {
+        ServerEventDto::Hello { protocol_version } if protocol_version == PROTOCOL_VERSION => {
+            Some(ChannelEvent::Link(LinkEvent::Greeted))
         }
-        _ => None,
+        ServerEventDto::Hello { .. } => Some(ChannelEvent::Link(LinkEvent::Failed)),
+        ServerEventDto::State(dto) => Some(match state_from_dto(&dto) {
+            Ok(state) => ChannelEvent::Server(ServerEvent::State(state)),
+            Err(_) => ChannelEvent::Link(LinkEvent::Failed),
+        }),
+        ServerEventDto::Pong {
+            client_time_ms,
+            server_time_ms,
+        } => Some(ChannelEvent::Server(ServerEvent::Pong {
+            client_time: Millis::new(client_time_ms),
+            server_time: Millis::new(server_time_ms),
+        })),
+        ServerEventDto::Rejected { reason } => {
+            Some(ChannelEvent::Server(ServerEvent::Rejected(reason)))
+        }
+        ServerEventDto::BookmarksChanged { recording_id } => Some(ChannelEvent::Server(
+            ServerEvent::BookmarksChanged(RecordingId::new(recording_id)),
+        )),
     }
 }
 
@@ -80,8 +127,40 @@ mod tests {
     fn only_a_matching_greeting_counts() {
         let hello = r#"{"type":"hello","protocol_version":1}"#;
         let other_version = r#"{"type":"hello","protocol_version":99}"#;
-        assert_eq!(greeting_from(hello), Some(LinkEvent::Greeted));
-        assert_eq!(greeting_from(other_version), None);
-        assert_eq!(greeting_from("garbage"), None);
+        assert_eq!(
+            channel_event_from(hello),
+            Some(ChannelEvent::Link(LinkEvent::Greeted))
+        );
+        assert_eq!(
+            channel_event_from(other_version),
+            Some(ChannelEvent::Link(LinkEvent::Failed))
+        );
+        assert_eq!(
+            channel_event_from("garbage"),
+            Some(ChannelEvent::Link(LinkEvent::Failed))
+        );
+    }
+
+    #[test]
+    fn notices_and_rejections_become_server_events() {
+        assert_eq!(
+            channel_event_from(r#"{"type":"bookmarks_changed","recording_id":4}"#),
+            Some(ChannelEvent::Server(ServerEvent::BookmarksChanged(
+                RecordingId::new(4)
+            )))
+        );
+        assert_eq!(
+            channel_event_from(r#"{"type":"rejected","reason":"nope"}"#),
+            Some(ChannelEvent::Server(ServerEvent::Rejected("nope".into())))
+        );
+    }
+
+    #[test]
+    fn a_state_with_invalid_values_fails_the_channel() {
+        let bad = r#"{"type":"state","revision":1,"recording_id":null,"position_ms":0,"position_server_time_ms":0,"running":false,"speed":9.0,"tuning_hz":440.0,"key_shift_semitones":0,"loop_range":null,"scrubbing":false}"#;
+        assert_eq!(
+            channel_event_from(bad),
+            Some(ChannelEvent::Link(LinkEvent::Failed))
+        );
     }
 }

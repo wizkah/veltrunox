@@ -5,7 +5,7 @@ use std::fmt;
 pub struct RecordingId(u64);
 
 impl RecordingId {
-    pub fn new(value: u64) -> Self {
+    pub const fn new(value: u64) -> Self {
         Self(value)
     }
 

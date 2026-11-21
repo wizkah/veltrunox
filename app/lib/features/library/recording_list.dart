@@ -5,9 +5,16 @@ import 'recording_summary.dart';
 import 'recording_tile.dart';
 
 class RecordingList extends StatelessWidget {
-  const RecordingList({required this.recordings, super.key});
+  const RecordingList({
+    required this.recordings,
+    required this.selectedId,
+    required this.onSelect,
+    super.key,
+  });
 
   final List<RecordingSummary> recordings;
+  final int? selectedId;
+  final ValueChanged<int> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -16,8 +23,14 @@ class RecordingList extends StatelessWidget {
     }
     return ListView.builder(
       itemCount: recordings.length,
-      itemBuilder: (context, index) =>
-          RecordingTile(recording: recordings[index]),
+      itemBuilder: (context, index) {
+        final recording = recordings[index];
+        return RecordingTile(
+          recording: recording,
+          selected: recording.id == selectedId,
+          onTap: () => onSelect(recording.id),
+        );
+      },
     );
   }
 }

@@ -1,15 +1,19 @@
 //! Server use cases and the ports they need.
 
+mod bookmarks;
+mod playback;
+mod ports;
+#[cfg(test)]
+mod testing;
+
+pub use bookmarks::BookmarkService;
+pub use playback::{IntentError, PlaybackService};
+pub use ports::{
+    BookmarkError, BookmarkRepository, Clock, Owned, PlaybackBroadcast, RecordingRepository,
+    StorageError,
+};
+
 use veltrunox_core::Recording;
-
-#[derive(Debug, thiserror::Error)]
-#[error("recording storage failed: {0}")]
-pub struct StorageError(pub String);
-
-/// Port: read access to stored recordings.
-pub trait RecordingRepository: Send + Sync {
-    fn list(&self) -> Result<Vec<Recording>, StorageError>;
-}
 
 /// Use case: list the recordings of the library.
 pub fn list_recordings(
@@ -21,23 +25,12 @@ pub fn list_recordings(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use veltrunox_core::{RecordingId, RecordingTitle};
-
-    struct Fixed(Vec<Recording>);
-
-    impl RecordingRepository for Fixed {
-        fn list(&self) -> Result<Vec<Recording>, StorageError> {
-            Ok(self.0.clone())
-        }
-    }
+    use crate::testing::FakeRecordings;
 
     #[test]
-    fn returns_what_the_repository_holds() {
-        let recording = Recording {
-            id: RecordingId::new(1),
-            title: RecordingTitle::new("Intro").unwrap(),
-        };
-        let listed = list_recordings(&Fixed(vec![recording.clone()])).unwrap();
-        assert_eq!(listed, vec![recording]);
+    fn lists_what_the_repository_holds() {
+        let listed = list_recordings(&FakeRecordings::with_one()).unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].title.as_str(), "Intro");
     }
 }

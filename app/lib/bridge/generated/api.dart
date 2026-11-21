@@ -6,20 +6,103 @@
 import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `keep_open`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`
+// These functions are ignored because they are not marked as `pub`: `forward`, `from_state`, `into_intent`, `view`, `with_channel`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `from`
 
 /// Loads the recording list from the server at `server_url`.
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
     RustLib.instance.api.crateApiListRecordings(serverUrl: serverUrl);
 
-/// Opens the real-time channel and pushes each distinct state change to `states`.
-Stream<ConnectionState> watchConnection({required String serverUrl}) =>
-    RustLib.instance.api.crateApiWatchConnection(serverUrl: serverUrl);
+/// Opens the real-time channel and pushes connection changes, playback state,
+/// bookmark notices and rejections to `updates`.
+Stream<SessionUpdate> watchSession({required String serverUrl}) =>
+    RustLib.instance.api.crateApiWatchSession(serverUrl: serverUrl);
+
+/// The playback position now, extrapolated from the latest state; `None` before the first state.
+Future<BigInt?> playbackPositionMs() =>
+    RustLib.instance.api.crateApiPlaybackPositionMs();
+
+/// Measures the clock offset to the server; call once the channel is connected.
+Future<void> syncClock() => RustLib.instance.api.crateApiSyncClock();
+
+/// Sends a command to the shared player. Out-of-range values are rejected here
+/// and the server rejects them again; the answer arrives as a session update.
+Future<void> sendCommand({required PlayerCommand command}) =>
+    RustLib.instance.api.crateApiSendCommand(command: command);
 
 /// State of the real-time channel as the user interface needs it.
 enum ConnectionState { connected, disconnected }
+
+/// The shared playback state as the user interface needs it.
+class PlaybackView {
+  final BigInt revision;
+  final BigInt? recordingId;
+
+  /// Position at the moment this view was made; use `playback_position_ms` while running.
+  final BigInt positionMs;
+  final bool running;
+  final double speed;
+  final double tuningHz;
+  final int keyShiftSemitones;
+  final bool scrubbing;
+
+  const PlaybackView({
+    required this.revision,
+    this.recordingId,
+    required this.positionMs,
+    required this.running,
+    required this.speed,
+    required this.tuningHz,
+    required this.keyShiftSemitones,
+    required this.scrubbing,
+  });
+
+  @override
+  int get hashCode =>
+      revision.hashCode ^
+      recordingId.hashCode ^
+      positionMs.hashCode ^
+      running.hashCode ^
+      speed.hashCode ^
+      tuningHz.hashCode ^
+      keyShiftSemitones.hashCode ^
+      scrubbing.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlaybackView &&
+          runtimeType == other.runtimeType &&
+          revision == other.revision &&
+          recordingId == other.recordingId &&
+          positionMs == other.positionMs &&
+          running == other.running &&
+          speed == other.speed &&
+          tuningHz == other.tuningHz &&
+          keyShiftSemitones == other.keyShiftSemitones &&
+          scrubbing == other.scrubbing;
+}
+
+@freezed
+sealed class PlayerCommand with _$PlayerCommand {
+  const PlayerCommand._();
+
+  const factory PlayerCommand.selectRecording({required BigInt recordingId}) =
+      PlayerCommand_SelectRecording;
+  const factory PlayerCommand.play() = PlayerCommand_Play;
+  const factory PlayerCommand.pause() = PlayerCommand_Pause;
+  const factory PlayerCommand.seek({required BigInt positionMs}) =
+      PlayerCommand_Seek;
+  const factory PlayerCommand.setSpeed({required double speed}) =
+      PlayerCommand_SetSpeed;
+  const factory PlayerCommand.setTuning({required double tuningHz}) =
+      PlayerCommand_SetTuning;
+  const factory PlayerCommand.setKey({required int keyShiftSemitones}) =
+      PlayerCommand_SetKey;
+}
 
 /// A recording as the user interface needs it.
 class RecordingItem {
@@ -38,4 +121,18 @@ class RecordingItem {
           runtimeType == other.runtimeType &&
           id == other.id &&
           title == other.title;
+}
+
+@freezed
+sealed class SessionUpdate with _$SessionUpdate {
+  const SessionUpdate._();
+
+  const factory SessionUpdate.connection(ConnectionState field0) =
+      SessionUpdate_Connection;
+  const factory SessionUpdate.playback(PlaybackView field0) =
+      SessionUpdate_Playback;
+  const factory SessionUpdate.bookmarksChanged({required BigInt recordingId}) =
+      SessionUpdate_BookmarksChanged;
+  const factory SessionUpdate.rejected({required String reason}) =
+      SessionUpdate_Rejected;
 }

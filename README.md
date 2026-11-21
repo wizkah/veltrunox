@@ -31,6 +31,8 @@ cargo test --workspace
 VELTRUNOX_ADDRESS=127.0.0.1:8080 cargo run -p veltrunox-server
 ```
 
+The server keeps its data in `VELTRUNOX_DATA_DIR` (default `data/`, ignored by Git).
+
 Web app (needs Flutter, `wasm-pack`, `flutter_rust_bridge_codegen` 2.13.0 and the `wasm32-unknown-unknown` target):
 
 ```sh

@@ -30,7 +30,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json"] }
 rxrust = "1.0.0-rc.6"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "sync", "time"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

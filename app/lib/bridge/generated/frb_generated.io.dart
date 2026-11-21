@@ -25,7 +25,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
   @protected
-  RustStreamSink<ConnectionState> dco_decode_StreamSink_connection_state_Sse(
+  RustStreamSink<SessionUpdate> dco_decode_StreamSink_session_update_Sse(
     dynamic raw,
   );
 
@@ -33,10 +33,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  bool dco_decode_bool(dynamic raw);
+
+  @protected
+  PlaybackView dco_decode_box_autoadd_playback_view(dynamic raw);
+
+  @protected
+  PlayerCommand dco_decode_box_autoadd_player_command(dynamic raw);
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
   ConnectionState dco_decode_connection_state(dynamic raw);
 
   @protected
+  double dco_decode_f_64(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
+
+  @protected
+  int dco_decode_i_8(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -45,7 +63,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RecordingItem> dco_decode_list_recording_item(dynamic raw);
 
   @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  PlaybackView dco_decode_playback_view(dynamic raw);
+
+  @protected
+  PlayerCommand dco_decode_player_command(dynamic raw);
+
+  @protected
   RecordingItem dco_decode_recording_item(dynamic raw);
+
+  @protected
+  SessionUpdate dco_decode_session_update(dynamic raw);
 
   @protected
   BigInt dco_decode_u_64(dynamic raw);
@@ -60,7 +90,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
-  RustStreamSink<ConnectionState> sse_decode_StreamSink_connection_state_Sse(
+  RustStreamSink<SessionUpdate> sse_decode_StreamSink_session_update_Sse(
     SseDeserializer deserializer,
   );
 
@@ -68,10 +98,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  PlaybackView sse_decode_box_autoadd_playback_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlayerCommand sse_decode_box_autoadd_player_command(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   ConnectionState sse_decode_connection_state(SseDeserializer deserializer);
 
   @protected
+  double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_i_8(SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -82,7 +134,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  PlaybackView sse_decode_playback_view(SseDeserializer deserializer);
+
+  @protected
+  PlayerCommand sse_decode_player_command(SseDeserializer deserializer);
+
+  @protected
   RecordingItem sse_decode_recording_item(SseDeserializer deserializer);
+
+  @protected
+  SessionUpdate sse_decode_session_update(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_u_64(SseDeserializer deserializer);
@@ -94,22 +158,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
-
-  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
   );
 
   @protected
-  void sse_encode_StreamSink_connection_state_Sse(
-    RustStreamSink<ConnectionState> self,
+  void sse_encode_StreamSink_session_update_Sse(
+    RustStreamSink<SessionUpdate> self,
     SseSerializer serializer,
   );
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_playback_view(
+    PlaybackView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_player_command(
+    PlayerCommand self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_connection_state(
@@ -118,7 +197,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_8(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(
@@ -133,7 +218,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_playback_view(PlaybackView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_player_command(PlayerCommand self, SseSerializer serializer);
+
+  @protected
   void sse_encode_recording_item(RecordingItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_session_update(SessionUpdate self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_64(BigInt self, SseSerializer serializer);
@@ -143,9 +240,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class
