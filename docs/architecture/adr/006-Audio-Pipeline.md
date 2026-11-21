@@ -7,7 +7,7 @@
 
 ADR-003 puts decoding, time stretching, pitch shifting and output on the server, including a Raspberry Pi. Requirements: speed 0.5×–2× without pitch change, tuning and key shifts, a gap-free loop over a region, audible start within 500 ms of choosing a position. Audio must run in real time without allocating or blocking on the audio thread.
 
-An earlier prototype played through LibVLC (output module and ALSA device chosen by environment variables, `--audio-time-stretch`) and, on macOS, through `AVAudioUnitTimePitch`. It had no device list, no defined behaviour without a device, and a loop that depended on the player's seek accuracy.
+An earlier prototype played through LibVLC (output module and ALSA device chosen by environment variables, `--audio-time-stretch`) and, on macOS, through `AVAudioUnitTimePitch`. On the Raspberry Pi it ran as a systemd service with mpv (VLC as fallback) on ALSA, outputting to the headphone jack; no latency, load or quality figures were recorded. It had no device list, no defined behaviour without a device, and a loop that depended on the player's seek accuracy.
 
 ## Decision
 
@@ -26,13 +26,13 @@ An earlier prototype played through LibVLC (output module and ALSA device chosen
 
 **Speed from target tempo** is a pure core operation: `target bpm / recording bpm`, with a hint when the result lies outside 0.5×–2×.
 
-**Device.** Listed and chosen by the admin, stored persistently. Without a device (none present or vanished) the server keeps the shared state running silently and reports "no audio device" to clients; it never refuses transport commands.
+**Device.** Listed and chosen by the admin, stored persistently. The device list shows the Pi's headphone jack first. The service user needs the `audio` group. Without a device (none present or vanished) the server keeps the shared state running silently and reports "no audio device" to clients; it never refuses transport commands.
 
 **Source of audio until upload exists (phase 6).** The server reads a configured directory at start and adds one recording per file not yet known (by content hash). Upload later writes to the same store.
 
 ## Consequences
 
-- All Rust, no C++ toolchain on the Pi; Signalsmith's wrapper compiles C++ and needs a C++ compiler for builds; to be checked in CI and for ARM before it is relied on. Fallback: SoundTouch.
+- No `ffmpeg`, VLC or mpv on the Pi any more; `symphonia` replaces them. All Rust, no C++ toolchain on the Pi; Signalsmith's wrapper compiles C++ and needs a C++ compiler for builds; to be checked in CI and for ARM before it is relied on. Fallback: SoundTouch.
 - Whole-file PCM costs memory (a 10-minute stereo 44.1 kHz recording is about 210 MB as `f32`); to be measured on the Pi, with `i16` or streamed decoding as fallback. The 200 MB upload limit is a different bound.
 - Latency, CPU load and audible quality at the extremes are measured on target hardware and recorded in `docs/validation/`; audible scrubbing is decided from these numbers (ADR-005).
 - Supported formats follow the decoder; the open question on formats in the project memory is answered by it.
