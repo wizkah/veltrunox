@@ -48,7 +48,7 @@ Integrations coordinate operations and pass their results on. Rules such as "may
 
 ### Rust layout
 
-A Cargo workspace with the following boundaries is intended (no code exists yet):
+A Cargo workspace with the following boundaries (all crates exist; some are still thin):
 
 | Crate / program | Content |
 |---|---|
