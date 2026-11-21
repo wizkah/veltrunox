@@ -2,7 +2,7 @@
   "name": "veltrunox-e2e",
   "private": true,
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test && playwright test -c playwright.reconnect.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0"

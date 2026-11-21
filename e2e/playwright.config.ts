@@ -9,6 +9,7 @@ const serverUrl = 'http://127.0.0.1:8080';
 // Needs the web app built first: scripts/build-web.sh
 export default defineConfig({
   testDir: './tests',
+  testIgnore: 'reconnect.spec.ts',
   use: { baseURL: webUrl },
   webServer: [
     {

@@ -75,6 +75,8 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
           npx playwright test
+          cargo build -p veltrunox-server --manifest-path ../Cargo.toml
+          npx playwright test -c playwright.reconnect.config.ts
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

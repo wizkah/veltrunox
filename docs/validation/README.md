@@ -47,5 +47,14 @@ Limits:
 
 - The browser test covers one browser (Chromium), two clients on one machine and the play/pause path; speed, tuning and key controls are covered by widget tests only. Buttons are pressed with `dispatchEvent('click')` because another accessibility node covers them for real clicks.
 - Latency (NFR-001) is not measured; the tests only show correctness.
-- Not covered: server ping timeout, reconnection in the browser (the `wasm32` timer compiles but has not run), the periodic clock measurement (only its start at connection is exercised), clock offset against a real offset, any authentication.
+- Not covered: server ping timeout, the periodic clock measurement (only its start at connection is exercised), clock offset against a real offset, any authentication.
 
+## Phase 2 – Reconnection in the browser (2026-11-21)
+
+Environment: macOS (Apple silicon), headless Chromium (Playwright), real server binary, web app built with `scripts/build-web.sh`.
+
+| Check | Result |
+|---|---|
+| The page shows "Verbunden"; the server process is stopped; the page shows "Getrennt"; the server is started again on the same port and data directory; the page shows "Verbunden" without reload | Pass (repeated; the same test failed against a stale web build without the reconnect code) |
+
+Limits: one browser, one outage of a few seconds (first backoff steps only); the 30 s cap and long outages are covered by the native unit tests only. CI integration of this test is not yet run on GitHub.
