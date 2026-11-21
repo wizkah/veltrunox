@@ -15,7 +15,7 @@ async function startServer() {
       ...process.env,
       VELTRUNOX_ADDRESS: '127.0.0.1:8080',
       VELTRUNOX_DATA_DIR: dataDir,
-      VELTRUNOX_ALLOWED_ORIGIN: 'http://127.0.0.1:8081',
+      VELTRUNOX_WEB_DIR: join(__dirname, '../../app/build/web'),
     },
     stdio: 'ignore',
   });

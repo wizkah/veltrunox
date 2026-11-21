@@ -2,7 +2,7 @@
 
 use axum::{Router, http::HeaderValue};
 use std::{error::Error, path::PathBuf, sync::Arc};
-use tower_http::cors::CorsLayer;
+use tower_http::{cors::CorsLayer, services::ServeDir};
 use veltrunox_core::RecordingTitle;
 use veltrunox_server_adapters::{
     AppState, AudioPlayback, SqliteStore, SystemClock, import_directory, router, watch_end,
@@ -13,6 +13,8 @@ use veltrunox_server_app::RecordingRepository;
 const ALLOWED_ORIGIN_VARIABLE: &str = "VELTRUNOX_ALLOWED_ORIGIN";
 /// Directory whose audio files become recordings (until upload exists).
 const MEDIA_DIRECTORY_VARIABLE: &str = "VELTRUNOX_MEDIA_DIR";
+/// Directory with the built web app (`app/build/web`); served by the server itself if set.
+const WEB_DIRECTORY_VARIABLE: &str = "VELTRUNOX_WEB_DIR";
 /// Output device by name; the default device if unset.
 const AUDIO_DEVICE_VARIABLE: &str = "VELTRUNOX_AUDIO_DEVICE";
 const DEFAULT_ADDRESS: &str = "127.0.0.1:8080";
@@ -47,7 +49,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     watch_end(app.playback.clone());
     let listener = tokio::net::TcpListener::bind(&address).await?;
     println!("listening on http://{address}");
-    axum::serve(listener, with_cors(router(app))).await?;
+    axum::serve(listener, with_web_app(with_cors(router(app)))).await?;
     Ok(())
 }
 
@@ -60,6 +62,14 @@ fn add_sample_recordings_if_empty(store: &dyn RecordingRepository) -> Result<(),
         store.add(RecordingTitle::new(title)?)?;
     }
     Ok(())
+}
+
+/// Serves the web app under `/` when a directory is configured; the API paths keep priority.
+fn with_web_app(router: Router) -> Router {
+    match std::env::var(WEB_DIRECTORY_VARIABLE) {
+        Ok(directory) => router.fallback_service(ServeDir::new(directory)),
+        Err(_) => router,
+    }
 }
 
 /// Allows exactly one browser origin when configured; otherwise no cross-origin access.

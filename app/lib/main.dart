@@ -12,17 +12,15 @@ import 'features/library/library_controller.dart';
 import 'features/player/player_controller.dart';
 
 const _configuredServerUrl = String.fromEnvironment('VELTRUNOX_SERVER_URL');
-const _serverPort = 8080;
 
-/// The configured server, or else the server on the host this page came from,
-/// so `localhost` and `127.0.0.1` each reach the server by the same name.
+/// The server serves this app, so by default it is the origin the page came
+/// from, whatever address and port the server was started with. A separately
+/// served app (for example `flutter run`) names its server at build time.
 String _resolveServerUrl() {
   if (_configuredServerUrl.isNotEmpty) {
     return _configuredServerUrl;
   }
-  final page = Uri.base;
-  final host = page.host.isEmpty ? '127.0.0.1' : page.host;
-  return 'http://$host:$_serverPort';
+  return Uri.base.origin;
 }
 
 Future<void> main() async {

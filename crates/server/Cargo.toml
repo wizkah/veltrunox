@@ -14,4 +14,4 @@ veltrunox-server-app.workspace = true
 tokio.workspace = true
 axum.workspace = true
 veltrunox-core.workspace = true
-tower-http = { version = "0.6", features = ["cors"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
