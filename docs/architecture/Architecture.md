@@ -90,7 +90,7 @@ The Flutter project holds only presentation: feature folders (for example librar
 
 The server holds one playback state: current recording, position, run/pause, speed, tuning, key and loop range. Speed, tuning and key are stored with the recording and restored when it is loaded; analysis results are never overwritten by them. Clients send intents (for example "seek", "play region", "set speed"). The server validates the permission and the intent, applies it, and publishes the new state to all clients. Clients render the published state and do not keep a divergent copy.
 
-Scrubbing sends a throttled stream of position intents; the throttling and the choice between continuous and release-only following are part of the real-time protocol (to be fixed in an ADR). Clients that join or reconnect receive the full current state first, then increments. Position is transmitted as a reference point (position plus server time) so clients can extrapolate while playing.
+Scrubbing sends a throttled stream of position intents that all clients follow continuously; whether the room hears the scrubbed position depends on the server's audio output (ADR-005). Every update carries the complete state with a strictly increasing revision, so joining, reconnecting and lost messages need no separate catch-up. Position is transmitted as a reference point (position plus server time) so clients can extrapolate while playing.
 
 ## 5. Real-time and streams
 

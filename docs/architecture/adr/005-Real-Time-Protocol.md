@@ -1,6 +1,6 @@
 # ADR-005 – Real-time protocol
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-11-21
 
 ## Context
@@ -25,4 +25,4 @@ All clients see and control one shared playback state held by the server. The ch
 
 ## Consequences
 
-Sending the whole state keeps reconnecting, joining and lost messages trivial, at the cost of slightly larger messages; the state is a few dozen bytes. This replaces the "then increments" wording in `Architecture.md` section 4, which needs an explicit update. JSON makes traffic easy to inspect. Throttling and clock estimation live in the client core (`rxrust` operators). Message types and the ping interval are fixed in the implementation and covered by tests in `veltrunox-protocol`.
+Sending the whole state keeps reconnecting, joining and lost messages trivial, at the cost of slightly larger messages; the state is a few dozen bytes. `Architecture.md` section 4 reflects this decision. JSON makes traffic easy to inspect. Throttling and clock estimation live in the client core (`rxrust` operators). Message types and the ping interval are fixed in the implementation and covered by tests in `veltrunox-protocol`.
