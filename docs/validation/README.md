@@ -38,11 +38,12 @@ Environment: macOS (Apple silicon), Rust 1.99.1 stable, native only.
 | Integration, real server and Rust clients: a seek by one client reaches another; a client joining during playback gets the current state first; concurrent intents give every client the same final state; a rejection reaches only its sender; invalid values are refused at the server | Pass |
 | Flutter: `dart format`, `flutter analyze`, `flutter test` (player bar and library with a fake player source) | Pass |
 | Browser (Playwright, headless Chromium, real server, built web app): two clients share select, play and pause; a client joining during playback shows the running state | Pass (two runs) |
+| GitHub Actions CI on `main` (Rust, Flutter, web build), ubuntu-latest | Pass (run of 2026-11-21; the first run failed on a race in one of the new tests, fixed) |
 | Integration: label announced to other clients and loadable; stale edit yields 409 and loses nothing; restart keeps recordings, bookmarks and playback settings, the server starts idle | Pass |
 
 Limits:
 
 - The browser test covers one browser (Chromium), two clients on one machine and the play/pause path; speed, tuning and key controls are covered by widget tests only. Buttons are pressed with `dispatchEvent('click')` because another accessibility node covers them for real clicks.
 - Latency (NFR-001) is not measured; the tests only show correctness.
-- Not covered: server ping timeout, reconnection, clock offset against a real offset, any authentication, and the CI run on GitHub for this change.
+- Not covered: server ping timeout, reconnection, clock offset against a real offset, any authentication.
 
