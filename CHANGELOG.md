@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Release build of the server: settings come from a TOML configuration file (`--config <file>`), which replaces the `VELTRUNOX_*` environment variables (`address`, `data_dir`, `media_dir`, `audio_device`, `allowed_origin`, `web_dir`). The `embedded-web` feature bakes the web app into the binary; `scripts/build-release.sh` builds both, and `dist/install.sh` installs the Pi build as a systemd service. The web app bundles CanvasKit and fonts instead of loading them from Google's CDN (works without internet) and keeps only the CanvasKit variants it uses; the server compresses responses (gzip, Brotli).
 - Analysis of tuning, key and tempo (ADR-007): runs in the background after start-up for every recording without a result and can be started again per recording; results are stored with the recording, clients are told when one changes, and the library shows key, tempo and tuning or the state of the analysis.
 - The playback pitch uses the analysed tuning of the recording (concert pitch until it exists).
 - The player shows the tempo the recording plays at, takes a wanted tempo (speed is derived from it) and sets speed, tuning and key back to the analysed values.

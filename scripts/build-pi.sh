@@ -1,5 +1,6 @@
 #!/bin/sh
 # Cross-builds the server for a 64-bit Raspberry Pi (Debian 12 or newer) on macOS or Linux.
+# Extra arguments go to cargo, for example --features embedded-web (see scripts/build-release.sh).
 # Output: target/aarch64-unknown-linux-gnu/release/veltrunox-server
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -37,5 +38,5 @@ cd "$root"
 PKG_CONFIG_ALLOW_CROSS=1 \
 PKG_CONFIG_SYSROOT_DIR="$sysroot" \
 PKG_CONFIG_LIBDIR="$sysroot/usr/lib/$arch/pkgconfig" \
-cargo zigbuild --release --locked -p veltrunox-server --target "$target.2.36"
+cargo zigbuild --release --locked -p veltrunox-server --target "$target.2.36" "$@"
 echo "Built: $root/target/$target/release/veltrunox-server"

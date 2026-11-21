@@ -1,22 +1,25 @@
 import { expect, test } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // Runs with playwright.reconnect.config.ts: this test starts and stops the server itself.
 const serverBinary = join(__dirname, '../../target/debug/veltrunox-server');
 const dataDir = mkdtempSync(join(tmpdir(), 'veltrunox-e2e-reconnect-'));
+const configFile = join(dataDir, 'veltrunox.toml');
+writeFileSync(
+  configFile,
+  [
+    'address = "127.0.0.1:8080"',
+    `data_dir = ${JSON.stringify(join(dataDir, 'data'))}`,
+    `web_dir = ${JSON.stringify(join(__dirname, '../../app/build/web'))}`,
+  ].join('\n'),
+);
 let server: ChildProcess | undefined;
 
 async function startServer() {
-  server = spawn(serverBinary, [], {
-    env: {
-      ...process.env,
-      VELTRUNOX_ADDRESS: '127.0.0.1:8080',
-      VELTRUNOX_DATA_DIR: dataDir,
-      VELTRUNOX_WEB_DIR: join(__dirname, '../../app/build/web'),
-    },
+  server = spawn(serverBinary, ['--config', configFile], {
     stdio: 'ignore',
   });
   await expect

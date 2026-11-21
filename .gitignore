@@ -12,6 +12,7 @@
 *.db
 *.sqlite
 /data/
+/dist/veltrunox-server-*/
 .env
 
 # Operating system metadata

@@ -15,4 +15,11 @@ RUSTFLAGS="--cfg=web_sys_unstable_apis" wasm-pack build \
   --out-dir "$root/app/web/pkg" --out-name veltrunox_client_bridge \
   "$root/crates/client-bridge"
 rm -f web/pkg/package.json
-flutter build web "$@"
+# The rehearsal room may have no internet, so CanvasKit and fonts are bundled instead of
+# fetched from Google's CDN.
+flutter build web --no-web-resources-cdn --no-source-maps "$@"
+# The app uses the CanvasKit renderer: browsers load only canvaskit/ (Safari, Firefox) or
+# canvaskit/chromium/ (Chrome, Edge). Drop the other renderer variants and debug symbols.
+cd build/web/canvaskit
+rm -rf skwasm* wimp* webparagraph
+find . -name '*.symbols' -delete

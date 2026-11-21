@@ -1,0 +1,21 @@
+# Veltrunox server configuration. Every key is optional; the values shown are the defaults
+# (except where a key is commented out). Relative paths are relative to the working directory.
+
+# Address and port the server listens on. Use 0.0.0.0:8080 to serve the local network.
+address = "127.0.0.1:8080"
+
+# Directory for the database.
+data_dir = "data"
+
+# Directory whose audio files are imported as recordings at start-up.
+# media_dir = "/srv/veltrunox/media"
+
+# Audio output device by name; the default device if unset. On a Raspberry Pi the default
+# may be an unconnected HDMI output, for example "alsa:plughw:CARD=Headphones,DEV=0".
+# audio_device = "alsa:plughw:CARD=Headphones,DEV=0"
+
+# Browser origin allowed to call the API; only needed when the web app is served elsewhere.
+# allowed_origin = "http://localhost:5000"
+
+# Directory with a built web app; replaces the one baked into the binary.
+# web_dir = "app/build/web"

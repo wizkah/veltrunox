@@ -1,36 +1,31 @@
 //! Server entry point: wires adapters and starts the HTTP endpoint.
 
+mod config;
+mod web;
+
 use axum::{Router, http::HeaderValue};
+use config::Config;
 use std::{error::Error, path::PathBuf, sync::Arc};
-use tower_http::{cors::CorsLayer, services::ServeDir};
+use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 use veltrunox_core::RecordingTitle;
 use veltrunox_server_adapters::{
     AppState, AudioPlayback, SqliteStore, SystemClock, import_directory, router, watch_end,
 };
 use veltrunox_server_app::RecordingRepository;
+use web::with_web_app;
 
-/// Origin allowed to call the API from a browser (for example the Flutter dev server).
-const ALLOWED_ORIGIN_VARIABLE: &str = "VELTRUNOX_ALLOWED_ORIGIN";
-/// Directory whose audio files become recordings (until upload exists).
-const MEDIA_DIRECTORY_VARIABLE: &str = "VELTRUNOX_MEDIA_DIR";
-/// Directory with the built web app (`app/build/web`); served by the server itself if set.
-const WEB_DIRECTORY_VARIABLE: &str = "VELTRUNOX_WEB_DIR";
-/// Output device by name; the default device if unset.
-const AUDIO_DEVICE_VARIABLE: &str = "VELTRUNOX_AUDIO_DEVICE";
-const DEFAULT_ADDRESS: &str = "127.0.0.1:8080";
-const DEFAULT_DATA_DIRECTORY: &str = "data";
 const DATABASE_FILE: &str = "veltrunox.db";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let address = std::env::var("VELTRUNOX_ADDRESS").unwrap_or_else(|_| DEFAULT_ADDRESS.to_owned());
-    let data_directory = PathBuf::from(
-        std::env::var("VELTRUNOX_DATA_DIR").unwrap_or_else(|_| DEFAULT_DATA_DIRECTORY.to_owned()),
-    );
-    std::fs::create_dir_all(&data_directory)?;
-    let store = Arc::new(SqliteStore::open(&data_directory.join(DATABASE_FILE))?);
-    if let Ok(directory) = std::env::var(MEDIA_DIRECTORY_VARIABLE) {
-        let added = import_directory(&PathBuf::from(directory), store.as_ref())?;
+    let config = Config::load(config_path_argument()?.as_deref()).unwrap_or_else(|error| {
+        eprintln!("{error}");
+        std::process::exit(2);
+    });
+    std::fs::create_dir_all(&config.data_dir)?;
+    let store = Arc::new(SqliteStore::open(&config.data_dir.join(DATABASE_FILE))?);
+    if let Some(directory) = &config.media_dir {
+        let added = import_directory(directory, store.as_ref())?;
         println!("imported {added} new audio file(s)");
     }
     add_sample_recordings_if_empty(store.as_ref())?;
@@ -41,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let audio_clock = clock.clone();
     let app = AppState::with_audio(store, clock, |hooks| {
         Arc::new(AudioPlayback::start(
-            std::env::var(AUDIO_DEVICE_VARIABLE).ok(),
+            config.audio_device.clone(),
             catalog,
             analyses,
             audio_clock,
@@ -50,9 +45,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
     watch_end(app.playback.clone());
     queue_pending_analyses(&app);
-    let listener = tokio::net::TcpListener::bind(&address).await?;
-    println!("listening on http://{address}");
-    axum::serve(listener, with_web_app(with_cors(router(app)))).await?;
+    let listener = tokio::net::TcpListener::bind(&config.address).await?;
+    println!("listening on http://{}", config.address);
+    let routes = with_web_app(
+        with_cors(router(app), config.allowed_origin.as_deref()),
+        config.web_dir.as_deref(),
+    );
+    axum::serve(listener, routes.layer(CompressionLayer::new())).await?;
     Ok(())
 }
 
@@ -77,20 +76,22 @@ fn add_sample_recordings_if_empty(store: &dyn RecordingRepository) -> Result<(),
     Ok(())
 }
 
-/// Serves the web app under `/` when a directory is configured; the API paths keep priority.
-fn with_web_app(router: Router) -> Router {
-    match std::env::var(WEB_DIRECTORY_VARIABLE) {
-        Ok(directory) => router.fallback_service(ServeDir::new(directory)),
-        Err(_) => router,
+/// Reads `--config <file>` from the command line.
+fn config_path_argument() -> Result<Option<PathBuf>, Box<dyn Error>> {
+    let mut arguments = std::env::args().skip(1);
+    match arguments.next().as_deref() {
+        None => Ok(None),
+        Some("--config") => match (arguments.next(), arguments.next()) {
+            (Some(path), None) => Ok(Some(PathBuf::from(path))),
+            _ => Err("usage: veltrunox-server [--config <file>]".into()),
+        },
+        Some(_) => Err("usage: veltrunox-server [--config <file>]".into()),
     }
 }
 
 /// Allows exactly one browser origin when configured; otherwise no cross-origin access.
-fn with_cors(router: Router) -> Router {
-    match std::env::var(ALLOWED_ORIGIN_VARIABLE)
-        .ok()
-        .and_then(|origin| origin.parse::<HeaderValue>().ok())
-    {
+fn with_cors(router: Router, allowed_origin: Option<&str>) -> Router {
+    match allowed_origin.and_then(|origin| origin.parse::<HeaderValue>().ok()) {
         Some(origin) => router.layer(CorsLayer::new().allow_origin(origin)),
         None => router,
     }

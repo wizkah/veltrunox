@@ -28,10 +28,10 @@ Rust for server and client core, Flutter for the user interface. The browser (We
 
 ```sh
 cargo test --workspace
-VELTRUNOX_ADDRESS=127.0.0.1:8080 cargo run -p veltrunox-server
+cargo run -p veltrunox-server -- --config veltrunox.toml
 ```
 
-The server keeps its data in `VELTRUNOX_DATA_DIR` (default `data/`, ignored by Git).
+The server reads its settings from a TOML file (`--config <file>`; without the option `veltrunox.toml` in the working directory, if present, else the defaults). All keys are optional; `dist/veltrunox.toml` documents them. By default the server keeps its data in `data/` (ignored by Git).
 
 Server for a 64-bit Raspberry Pi (Debian 12 or newer), cross-built on macOS or Linux (needs Rust, `curl` and Homebrew or ready-made Zig and `pkg-config`; the script fetches ALSA packages and checks their hashes):
 
@@ -39,7 +39,7 @@ Server for a 64-bit Raspberry Pi (Debian 12 or newer), cross-built on macOS or L
 scripts/build-pi.sh
 ```
 
-The binary lands in `target/aarch64-unknown-linux-gnu/release/`. On the Pi, name the audio device (for example `VELTRUNOX_AUDIO_DEVICE=alsa:plughw:CARD=Headphones,DEV=0`); the default device may be an unconnected HDMI output.
+The binary lands in `target/aarch64-unknown-linux-gnu/release/`. On the Pi, name the audio device in the configuration (for example `audio_device = "alsa:plughw:CARD=Headphones,DEV=0"`); the default device may be an unconnected HDMI output.
 
 Web app (needs Flutter, `wasm-pack`, `flutter_rust_bridge_codegen` 2.13.0 and the `wasm32-unknown-unknown` target):
 
@@ -53,7 +53,16 @@ Browser test (after `scripts/build-web.sh`; needs Node):
 cd e2e && npm ci && npx playwright install chromium && npx playwright test
 ```
 
-The server can serve the built web app itself: start it with `VELTRUNOX_WEB_DIR=app/build/web` and open its address (default `http://127.0.0.1:8080`). `VELTRUNOX_ADDRESS` (for example `0.0.0.0:9000`) sets address and port; the app uses the address it was loaded from, so nothing needs rebuilding. An app served from elsewhere (for example `flutter run`) needs `--dart-define=VELTRUNOX_SERVER_URL=...` and the server started with `VELTRUNOX_ALLOWED_ORIGIN=<origin of the web app>`.
+Release build (web app baked into the server binary, configuration file, optional installer):
+
+```sh
+scripts/build-release.sh        # for this machine
+scripts/build-release.sh pi     # for a 64-bit Raspberry Pi
+```
+
+The result lands in `dist/veltrunox-server-<target>/`. Copy the Pi folder to the Pi and run `sudo ./install.sh`: it installs the binary to `/usr/local/bin`, the configuration to `/etc/veltrunox/veltrunox.toml` (kept on later runs) and a `veltrunox` systemd service with its data in `/var/lib/veltrunox`. Without the installer, start `veltrunox-server --config veltrunox.toml` directly.
+
+Without the `embedded-web` feature (the default for `cargo run`), the server serves a built web app only if `web_dir` is set (for example `web_dir = "app/build/web"`); `address` sets address and port, and the app uses the address it was loaded from, so nothing needs rebuilding. An app served from elsewhere (for example `flutter run`) needs `--dart-define=VELTRUNOX_SERVER_URL=...` and `allowed_origin = "<origin of the web app>"` in the configuration.
 
 ## Documentation
 

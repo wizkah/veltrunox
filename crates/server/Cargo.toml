@@ -14,4 +14,15 @@ veltrunox-server-app.workspace = true
 tokio.workspace = true
 axum.workspace = true
 veltrunox-core.workspace = true
-tower-http = { version = "0.6", features = ["cors", "fs"] }
+tower-http = { version = "0.6", features = ["cors", "fs", "compression-gzip", "compression-br"] }
+serde = { workspace = true }
+toml = "0.8"
+include_dir = { version = "0.7", optional = true }
+mime_guess = { version = "2", optional = true }
+
+[features]
+# Bakes the built web app (`app/build/web`) into the binary; build the web app first.
+embedded-web = ["dep:include_dir", "dep:mime_guess"]
+
+[dev-dependencies]
+tempfile = "3"
