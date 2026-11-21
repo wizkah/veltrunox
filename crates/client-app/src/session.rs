@@ -14,6 +14,8 @@ pub enum ServerEvent {
     },
     Rejected(String),
     BookmarksChanged(RecordingId),
+    /// Whether the server can play sound.
+    AudioOutput(bool),
 }
 
 /// What changed for the user interface after an event.
@@ -22,6 +24,7 @@ pub enum ViewChange {
     Nothing,
     PlaybackState,
     BookmarksChanged(RecordingId),
+    AudioOutput,
     Rejected(String),
 }
 
@@ -49,6 +52,7 @@ impl ClockOffset {
 pub struct SessionView {
     state: Option<PlaybackState>,
     offset: Option<ClockOffset>,
+    audio_output: Option<bool>,
 }
 
 impl SessionView {
@@ -65,6 +69,12 @@ impl SessionView {
     /// and count its revisions from the start. It sends the current state first.
     pub fn forget_state(&mut self) {
         self.state = None;
+        self.audio_output = None;
+    }
+
+    /// Whether the server can play sound; `None` until it has said so.
+    pub fn audio_output(&self) -> Option<bool> {
+        self.audio_output
     }
 
     /// Applies an event. A state older than the one held is ignored.
@@ -84,6 +94,13 @@ impl SessionView {
             }
             ServerEvent::Rejected(reason) => ViewChange::Rejected(reason),
             ServerEvent::BookmarksChanged(recording) => ViewChange::BookmarksChanged(recording),
+            ServerEvent::AudioOutput(available) => {
+                if self.audio_output.replace(available) == Some(available) {
+                    ViewChange::Nothing
+                } else {
+                    ViewChange::AudioOutput
+                }
+            }
         }
     }
 
@@ -261,6 +278,27 @@ mod tests {
             view.handle(ServerEvent::Rejected("no".into()), ms(0)),
             ViewChange::Rejected("no".into())
         );
+    }
+
+    #[test]
+    fn the_audio_output_is_reported_only_when_it_changes() {
+        let mut view = SessionView::new();
+        assert_eq!(view.audio_output(), None);
+        assert_eq!(
+            view.handle(ServerEvent::AudioOutput(false), ms(0)),
+            ViewChange::AudioOutput
+        );
+        assert_eq!(
+            view.handle(ServerEvent::AudioOutput(false), ms(0)),
+            ViewChange::Nothing
+        );
+        assert_eq!(
+            view.handle(ServerEvent::AudioOutput(true), ms(0)),
+            ViewChange::AudioOutput
+        );
+        assert_eq!(view.audio_output(), Some(true));
+        view.forget_state();
+        assert_eq!(view.audio_output(), None);
     }
 
     #[test]

@@ -5,9 +5,9 @@ use std::{error::Error, path::PathBuf, sync::Arc};
 use tower_http::cors::CorsLayer;
 use veltrunox_core::RecordingTitle;
 use veltrunox_server_adapters::{
-    AppState, AudioPlayback, SqliteStore, SystemClock, import_directory, router,
+    AppState, AudioPlayback, SqliteStore, SystemClock, import_directory, router, watch_end,
 };
-use veltrunox_server_app::{PlaybackBroadcast, RecordingRepository};
+use veltrunox_server_app::RecordingRepository;
 
 /// Origin allowed to call the API from a browser (for example the Flutter dev server).
 const ALLOWED_ORIGIN_VARIABLE: &str = "VELTRUNOX_ALLOWED_ORIGIN";
@@ -34,12 +34,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     add_sample_recordings_if_empty(store.as_ref())?;
 
     let clock = Arc::new(SystemClock::new());
-    let audio: Arc<dyn PlaybackBroadcast> = Arc::new(AudioPlayback::start(
-        std::env::var(AUDIO_DEVICE_VARIABLE).ok(),
-        store.clone(),
-        clock.clone(),
-    ));
-    let app = AppState::with_audio(store, clock, Some(audio));
+    let catalog = store.clone();
+    let audio_clock = clock.clone();
+    let app = AppState::with_audio(store, clock, |hooks| {
+        Arc::new(AudioPlayback::start(
+            std::env::var(AUDIO_DEVICE_VARIABLE).ok(),
+            catalog,
+            audio_clock,
+            hooks,
+        ))
+    });
+    watch_end(app.playback.clone());
     let listener = tokio::net::TcpListener::bind(&address).await?;
     println!("listening on http://{address}");
     axum::serve(listener, with_cors(router(app))).await?;

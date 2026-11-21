@@ -107,6 +107,9 @@ fn channel_event_from(text: &str) -> Option<ChannelEvent> {
         ServerEventDto::BookmarksChanged { recording_id } => Some(ChannelEvent::Server(
             ServerEvent::BookmarksChanged(RecordingId::new(recording_id)),
         )),
+        ServerEventDto::AudioOutput { available } => {
+            Some(ChannelEvent::Server(ServerEvent::AudioOutput(available)))
+        }
     }
 }
 

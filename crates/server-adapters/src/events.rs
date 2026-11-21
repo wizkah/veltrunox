@@ -29,6 +29,7 @@ enum Outcome {
 
 async fn serve_connection(app: AppState, mut socket: WebSocket) {
     let mut states = app.hub.subscribe_state();
+    let mut audio_output = app.hub.subscribe_audio_output();
     let mut bookmark_notices = app.hub.subscribe_bookmarks();
     let mut pings = tokio::time::interval(PING_INTERVAL);
     let mut last_heard = Instant::now();
@@ -48,6 +49,14 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
         return;
     }
 
+    let available = *audio_output.borrow_and_update();
+    if send(&mut socket, &ServerEventDto::AudioOutput { available })
+        .await
+        .is_err()
+    {
+        return;
+    }
+
     loop {
         let outcome = tokio::select! {
             incoming = socket.recv() => match incoming {
@@ -61,6 +70,13 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
                 Ok(()) => {
                     let state = *states.borrow_and_update();
                     forward(&mut socket, ServerEventDto::State(state_to_dto(&state))).await
+                }
+                Err(_) => Outcome::Stop,
+            },
+            changed = audio_output.changed() => match changed {
+                Ok(()) => {
+                    let available = *audio_output.borrow_and_update();
+                    forward(&mut socket, ServerEventDto::AudioOutput { available }).await
                 }
                 Err(_) => Outcome::Stop,
             },

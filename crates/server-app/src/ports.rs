@@ -92,6 +92,12 @@ pub trait BookmarkRepository: Send + Sync {
     ) -> Result<RecordingId, BookmarkError>;
 }
 
+/// Port: how long the recordings are, as far as the server knows yet. A length
+/// is known once the audio has been decoded.
+pub trait RecordingLengths: Send + Sync {
+    fn length(&self, id: RecordingId) -> Option<Millis>;
+}
+
 /// Port: controllable time source in server milliseconds.
 pub trait Clock: Send + Sync {
     fn now(&self) -> Millis;

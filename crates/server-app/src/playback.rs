@@ -1,16 +1,18 @@
 //! Use case: the shared playback state, changed by client intents.
 
-use crate::ports::{Clock, PlaybackBroadcast, RecordingRepository, StorageError};
+use crate::ports::{Clock, PlaybackBroadcast, RecordingLengths, RecordingRepository, StorageError};
 use std::sync::{Arc, Mutex, PoisonError};
 use veltrunox_core::{
-    Intent, PlaybackState, TransportError, pause, play, seek, select_recording, set_key, set_loop,
-    set_speed, set_tuning,
+    Intent, Millis, PlaybackState, TransportError, end_playback, pause, play, seek,
+    select_recording, set_key, set_loop, set_speed, set_tuning,
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum IntentError {
     #[error("recording does not exist")]
     UnknownRecording,
+    #[error("position {position} ms is beyond the end of the recording ({length} ms)")]
+    BeyondEnd { position: u64, length: u64 },
     #[error(transparent)]
     Transport(#[from] TransportError),
     #[error(transparent)]
@@ -22,6 +24,7 @@ pub enum IntentError {
 pub struct PlaybackService {
     state: Mutex<PlaybackState>,
     recordings: Arc<dyn RecordingRepository>,
+    lengths: Arc<dyn RecordingLengths>,
     clock: Arc<dyn Clock>,
     broadcast: Arc<dyn PlaybackBroadcast>,
 }
@@ -29,6 +32,7 @@ pub struct PlaybackService {
 impl PlaybackService {
     pub fn new(
         recordings: Arc<dyn RecordingRepository>,
+        lengths: Arc<dyn RecordingLengths>,
         clock: Arc<dyn Clock>,
         broadcast: Arc<dyn PlaybackBroadcast>,
     ) -> Self {
@@ -36,6 +40,7 @@ impl PlaybackService {
         Self {
             state: Mutex::new(initial),
             recordings,
+            lengths,
             clock,
             broadcast,
         }
@@ -49,16 +54,43 @@ impl PlaybackService {
     /// A rejected intent leaves the state untouched.
     pub fn apply(&self, intent: Intent) -> Result<PlaybackState, IntentError> {
         let mut guard = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        let mut next = self.transition(&guard, intent)?;
+        let next = self.transition(&guard, intent)?;
         if changes_settings(intent)
             && let Some(recording) = next.recording
         {
             self.recordings.save_settings(recording, next.settings)?;
         }
-        next.revision = guard.revision + 1;
-        *guard = next;
+        Ok(self.publish(&mut guard, next))
+    }
+
+    /// Pauses at the end of the recording once playback has reached it; returns
+    /// the published state, or `None` if there was nothing to do. Meant to be
+    /// called regularly: the server, not a client, ends the playback.
+    pub fn stop_at_end(&self) -> Option<PlaybackState> {
+        let mut guard = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        let length = self.lengths.length(guard.recording?)?;
+        let ended = end_playback(&guard, length, self.clock.now())?;
+        Some(self.publish(&mut guard, ended))
+    }
+
+    fn publish(&self, current: &mut PlaybackState, mut next: PlaybackState) -> PlaybackState {
+        next.revision = current.revision + 1;
+        *current = next;
         self.broadcast.state_changed(&next);
-        Ok(next)
+        next
+    }
+
+    /// A position behind the end is refused once the length is known. While the
+    /// audio is still being decoded it is not, and `stop_at_end` catches up.
+    fn check_position(&self, state: &PlaybackState, position: Millis) -> Result<(), IntentError> {
+        let length = state.recording.and_then(|id| self.lengths.length(id));
+        match length {
+            Some(length) if position > length => Err(IntentError::BeyondEnd {
+                position: position.value(),
+                length: length.value(),
+            }),
+            _ => Ok(()),
+        }
     }
 
     fn transition(
@@ -80,7 +112,10 @@ impl PlaybackService {
             Intent::Seek {
                 position,
                 scrubbing,
-            } => seek(state, position, scrubbing, now)?,
+            } => {
+                self.check_position(state, position)?;
+                seek(state, position, scrubbing, now)?
+            }
             Intent::SetSpeed(speed) => set_speed(state, speed, now)?,
             Intent::SetTuning(tuning) => set_tuning(state, tuning)?,
             Intent::SetKey(key) => set_key(state, key)?,
@@ -100,7 +135,7 @@ fn changes_settings(intent: Intent) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{FakeBroadcast, FakeClock, FakeRecordings};
+    use crate::testing::{FakeBroadcast, FakeClock, FakeLengths, FakeRecordings};
     use veltrunox_core::{Millis, RecordingId, Speed};
 
     fn service() -> (
@@ -108,17 +143,24 @@ mod tests {
         Arc<FakeRecordings>,
         Arc<FakeBroadcast>,
         Arc<FakeClock>,
+        Arc<FakeLengths>,
     ) {
         let recordings = Arc::new(FakeRecordings::with_one());
         let clock = Arc::new(FakeClock::default());
         let broadcast = Arc::new(FakeBroadcast::default());
-        let service = PlaybackService::new(recordings.clone(), clock.clone(), broadcast.clone());
-        (service, recordings, broadcast, clock)
+        let lengths = Arc::new(FakeLengths::default());
+        let service = PlaybackService::new(
+            recordings.clone(),
+            lengths.clone(),
+            clock.clone(),
+            broadcast.clone(),
+        );
+        (service, recordings, broadcast, clock, lengths)
     }
 
     #[test]
     fn every_applied_intent_gets_the_next_revision_and_is_published() {
-        let (service, _, broadcast, _) = service();
+        let (service, _, broadcast, _, _) = service();
         service
             .apply(Intent::SelectRecording(RecordingId::new(1)))
             .unwrap();
@@ -134,7 +176,7 @@ mod tests {
 
     #[test]
     fn a_rejected_intent_changes_and_publishes_nothing() {
-        let (service, _, broadcast, _) = service();
+        let (service, _, broadcast, _, _) = service();
         assert!(matches!(
             service.apply(Intent::Play),
             Err(IntentError::Transport(TransportError::NoRecording))
@@ -149,7 +191,7 @@ mod tests {
 
     #[test]
     fn speed_is_stored_with_the_recording_and_restored_on_select() {
-        let (service, recordings, _, _) = service();
+        let (service, recordings, _, _, _) = service();
         let id = RecordingId::new(1);
         service.apply(Intent::SelectRecording(id)).unwrap();
         service
@@ -163,12 +205,56 @@ mod tests {
 
     #[test]
     fn the_clock_drives_the_position_reference() {
-        let (service, _, _, clock) = service();
+        let (service, _, _, clock, _) = service();
         service
             .apply(Intent::SelectRecording(RecordingId::new(1)))
             .unwrap();
         clock.set(Millis::new(1_000));
         let state = service.apply(Intent::Play).unwrap();
         assert_eq!(state.reference.server_time, Millis::new(1_000));
+    }
+
+    #[test]
+    fn a_seek_beyond_the_known_length_is_refused() {
+        let (service, _, broadcast, _, lengths) = service();
+        service
+            .apply(Intent::SelectRecording(RecordingId::new(1)))
+            .unwrap();
+        let seek_to = |ms| Intent::Seek {
+            position: Millis::new(ms),
+            scrubbing: false,
+        };
+        // Length not known yet: accepted.
+        service.apply(seek_to(99_000)).unwrap();
+        lengths.set(Millis::new(60_000));
+        assert!(matches!(
+            service.apply(seek_to(60_001)),
+            Err(IntentError::BeyondEnd {
+                position: 60_001,
+                length: 60_000
+            })
+        ));
+        service.apply(seek_to(60_000)).unwrap();
+        assert_eq!(broadcast.states().len(), 3);
+    }
+
+    #[test]
+    fn playback_pauses_at_the_end_and_publishes_it_once() {
+        let (service, _, broadcast, clock, lengths) = service();
+        lengths.set(Millis::new(10_000));
+        service
+            .apply(Intent::SelectRecording(RecordingId::new(1)))
+            .unwrap();
+        service.apply(Intent::Play).unwrap();
+        clock.set(Millis::new(9_000));
+        assert!(service.stop_at_end().is_none());
+
+        clock.set(Millis::new(10_300));
+        let ended = service.stop_at_end().unwrap();
+        assert!(!ended.running);
+        assert_eq!(ended.position_at(Millis::new(99_000)), Millis::new(10_000));
+        assert_eq!(ended.revision, 3);
+        assert!(service.stop_at_end().is_none());
+        assert_eq!(broadcast.states().len(), 3);
     }
 }

@@ -15,11 +15,13 @@ All clients see and control one shared playback state held by the server. The ch
 
 **Position.** The state carries a reference point: position, server time at which it is valid, and the rate. Clients extrapolate while running. They estimate the clock offset to the server with ping round trips on connect and periodically.
 
-**Intents.** Clients send intents: select recording, play, pause, seek, set speed, set tuning, set key, set loop. The server checks permission and validity, applies the intent in arrival order and publishes the new state. Concurrent intents need no locks; the arrival order decides and every client sees the same result. A rejected intent returns an error message to its sender only.
+**Intents.** Clients send intents: select recording, play, pause, seek, set speed, set tuning, set key, set loop. The server checks permission and validity, applies the intent in arrival order and publishes the new state. Concurrent intents need no locks; the arrival order decides and every client sees the same result. A rejected intent returns an error message to its sender only. Once the length of a recording is known (after decoding), a `seek` beyond its end is rejected. The server ends the playback itself: when the position reaches the end of the recording, it pauses there and publishes the new state.
 
 **Scrubbing.** Dragging sends `seek` intents with `scrubbing: true`, throttled on the client to about 20 per second, always including the last value; releasing sends a final `seek` with `scrubbing: false`. All clients follow continuously. Whether the room hears the scrubbed position is a property of the server's audio output, not of the protocol: the goal is audible scrubbing; if the measured audio latency on the target hardware does not allow it, the server holds the sound while the flag is set and resumes on release. This is decided and documented with the audio output measurements.
 
 **Bookmarks.** Edits use HTTP with the expected record version; a mismatch yields a conflict response. After a successful edit the server sends a change notice over the channel so clients reload the affected recording's bookmarks.
+
+**Audio output.** The server tells every joining client, and again on every change, whether it can play sound (`audio_output`). Without a device the shared state keeps running silently; clients may show that.
 
 **Connection.** The server pings periodically; a client that misses two pongs is considered gone. The client reconnects on its own with growing, capped delays and shows the connection status. Authentication data is sent in the first client message after the connection opens, never in the URL; roles are added with user management.
 

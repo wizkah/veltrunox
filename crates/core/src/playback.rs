@@ -186,6 +186,24 @@ pub fn seek(
     })
 }
 
+/// Stops playback at the end of the recording: paused at `length`. `None` while
+/// playback has not reached the end (or is not running), so the caller can
+/// ask at any time.
+pub fn end_playback(state: &PlaybackState, length: Millis, now: Millis) -> Option<PlaybackState> {
+    if !state.running || state.position_at(now) < length {
+        return None;
+    }
+    Some(PlaybackState {
+        running: false,
+        scrubbing: false,
+        reference: PositionReference {
+            position: length,
+            server_time: now,
+        },
+        ..*state
+    })
+}
+
 pub fn set_speed(
     state: &PlaybackState,
     speed: Speed,
@@ -320,6 +338,26 @@ mod tests {
         let state = set_loop(&loaded(0), Some(range), ms(0)).unwrap();
         let state = play(&state, ms(0)).unwrap();
         assert_eq!(state.position_at(ms(20_000)), ms(20_000));
+    }
+
+    #[test]
+    fn playback_stops_paused_at_the_end() {
+        let state = play(&loaded(0), ms(0)).unwrap();
+        assert_eq!(end_playback(&state, ms(10_000), ms(9_999)), None);
+        let ended = end_playback(&state, ms(10_000), ms(10_200)).unwrap();
+        assert!(!ended.running);
+        assert_eq!(ended.position_at(ms(60_000)), ms(10_000));
+    }
+
+    #[test]
+    fn a_paused_or_looping_state_never_ends() {
+        let paused = seek(&loaded(0), ms(10_000), false, ms(0)).unwrap();
+        assert_eq!(end_playback(&paused, ms(10_000), ms(50)), None);
+        let range = TimeRange::new(ms(1_000), ms(2_000)).unwrap();
+        let state = seek(&loaded(0), ms(1_000), false, ms(0)).unwrap();
+        let state = set_loop(&state, Some(range), ms(0)).unwrap();
+        let state = play(&state, ms(0)).unwrap();
+        assert_eq!(end_playback(&state, ms(10_000), ms(60_000)), None);
     }
 
     #[test]

@@ -1,3 +1,4 @@
+use crate::hooks::{AudioHooks, LengthCache};
 use crate::hub::Hub;
 use std::sync::Arc;
 use veltrunox_server_app::{
@@ -21,27 +22,51 @@ impl AppState {
     where
         S: RecordingRepository + BookmarkRepository + 'static,
     {
-        Self::with_audio(store, clock, None)
+        Self::build(
+            store,
+            clock,
+            None::<fn(AudioHooks) -> Arc<dyn PlaybackBroadcast>>,
+        )
     }
 
-    /// Like `new`, and every published state also goes to the audio playback.
+    /// Like `new`, and every published state also goes to the audio playback,
+    /// which `start_audio` creates from the hooks it reports back through.
     pub fn with_audio<S>(
         store: Arc<S>,
         clock: Arc<dyn Clock>,
-        audio: Option<Arc<dyn PlaybackBroadcast>>,
+        start_audio: impl FnOnce(AudioHooks) -> Arc<dyn PlaybackBroadcast>,
     ) -> Self
     where
         S: RecordingRepository + BookmarkRepository + 'static,
     {
+        Self::build(store, clock, Some(start_audio))
+    }
+
+    fn build<S>(
+        store: Arc<S>,
+        clock: Arc<dyn Clock>,
+        start_audio: Option<impl FnOnce(AudioHooks) -> Arc<dyn PlaybackBroadcast>>,
+    ) -> Self
+    where
+        S: RecordingRepository + BookmarkRepository + 'static,
+    {
+        let lengths = Arc::new(LengthCache::default());
         let hub = Arc::new(Hub::new(veltrunox_core::PlaybackState::initial(
             clock.now(),
         )));
-        let broadcast: Arc<dyn PlaybackBroadcast> = match audio {
-            Some(audio) => Arc::new(Fanout(vec![hub.clone(), audio])),
+        let broadcast: Arc<dyn PlaybackBroadcast> = match start_audio {
+            Some(start) => {
+                let audio = start(AudioHooks {
+                    hub: hub.clone(),
+                    lengths: lengths.clone(),
+                });
+                Arc::new(Fanout(vec![hub.clone(), audio]))
+            }
             None => hub.clone(),
         };
         let playback = Arc::new(PlaybackService::new(
             store.clone(),
+            lengths,
             clock.clone(),
             broadcast,
         ));

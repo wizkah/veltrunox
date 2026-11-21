@@ -147,3 +147,15 @@ async fn the_clock_estimate_comes_from_a_ping_round_trip() {
         "server time counts from start"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_joining_client_learns_that_the_server_has_no_audio_output() {
+    // `AppState::new` starts no audio playback, as on a server without a device.
+    let url = start_server(store_with_recording()).await;
+    let mut client = TestClient::connect(&url);
+    let available = client.next_matching(|event| match event {
+        ChannelEvent::Server(ServerEvent::AudioOutput(available)) => Some(*available),
+        _ => None,
+    });
+    assert!(!available);
+}

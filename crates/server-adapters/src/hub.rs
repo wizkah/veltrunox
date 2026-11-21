@@ -9,6 +9,7 @@ use veltrunox_server_app::PlaybackBroadcast;
 pub struct Hub {
     state: watch::Sender<PlaybackState>,
     bookmarks: broadcast::Sender<RecordingId>,
+    audio_output: watch::Sender<bool>,
 }
 
 impl Hub {
@@ -16,11 +17,21 @@ impl Hub {
         Self {
             state: watch::channel(initial).0,
             bookmarks: broadcast::channel(64).0,
+            // Until a device is opened there is no sound.
+            audio_output: watch::channel(false).0,
         }
     }
 
     pub fn subscribe_state(&self) -> watch::Receiver<PlaybackState> {
         self.state.subscribe()
+    }
+
+    pub fn subscribe_audio_output(&self) -> watch::Receiver<bool> {
+        self.audio_output.subscribe()
+    }
+
+    pub fn set_audio_output(&self, available: bool) {
+        self.audio_output.send_replace(available);
     }
 
     pub fn subscribe_bookmarks(&self) -> broadcast::Receiver<RecordingId> {

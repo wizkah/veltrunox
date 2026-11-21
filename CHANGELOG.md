@@ -20,3 +20,4 @@
 - Playback on the server: audio files are decoded (`symphonia`), stretched and pitch-shifted (`signalsmith-stretch`) and played through the audio device (`cpal`); speed, tuning, key, loop and scrubbing follow the shared state. `VELTRUNOX_MEDIA_DIR` imports audio files as recordings (duplicates by content hash), `VELTRUNOX_AUDIO_DEVICE` picks the device.
 - Target tempo to speed (with out-of-range hint) and tuning/key to pitch shift as pure operations.
 - `scripts/build-pi.sh` cross-builds the server for a 64-bit Raspberry Pi.
+- Playback pauses at the end of the recording; a seek beyond the end is rejected once the length is known; clients are told over the channel whether the server has an audio output.

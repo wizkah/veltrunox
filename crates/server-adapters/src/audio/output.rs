@@ -3,12 +3,13 @@
 use super::decode::decode_file;
 use super::engine::{Engine, Pcm};
 use super::player::{Command, CommandSink, PlayerCore};
+use crate::hooks::AudioHooks;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SampleFormat, SizedSample, Stream, StreamConfig};
 use std::sync::mpsc::{Receiver, Sender, SyncSender, channel, sync_channel};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
-use veltrunox_core::{PlaybackState, RecordingId};
+use veltrunox_core::{Millis, PlaybackState, RecordingId};
 use veltrunox_server_app::{Clock, MediaCatalog, PlaybackBroadcast};
 
 /// Commands waiting for the audio thread; a full queue drops the newest, which
@@ -196,9 +197,10 @@ impl AudioPlayback {
         device: Option<String>,
         catalog: Arc<dyn MediaCatalog>,
         clock: Arc<dyn Clock>,
+        hooks: AudioHooks,
     ) -> Self {
         let (states, incoming) = channel();
-        thread::spawn(move || run(device.as_deref(), &*catalog, &*clock, &incoming));
+        thread::spawn(move || run(device.as_deref(), &*catalog, &*clock, &hooks, &incoming));
         Self {
             states: Mutex::new(states),
         }
@@ -219,20 +221,27 @@ fn run(
     device: Option<&str>,
     catalog: &dyn MediaCatalog,
     clock: &dyn Clock,
+    hooks: &AudioHooks,
     incoming: &Receiver<PlaybackState>,
 ) {
+    let mut load = |id: RecordingId| {
+        let pcm = load_audio(catalog, id)?;
+        hooks.recording_length(id, Millis::new(pcm.duration_ms()));
+        Some(pcm)
+    };
     let mut output = match DeviceOutput::open(device) {
         Ok(output) => {
             println!("audio output at {} Hz", output.rate);
+            hooks.output_changed(true);
             output
         }
         Err(error) => {
             eprintln!("{error}; playback state runs without sound");
-            return drain(incoming);
+            hooks.output_changed(false);
+            return follow_silently(incoming, &mut load);
         }
     };
     let mut core = PlayerCore::default();
-    let mut load = |id: RecordingId| load_audio(catalog, id);
     while let Ok(mut state) = incoming.recv() {
         // Every state is complete; only the newest matters.
         while let Ok(newer) = incoming.try_recv() {
@@ -242,8 +251,21 @@ fn run(
     }
 }
 
-fn drain(incoming: &Receiver<PlaybackState>) {
-    while incoming.recv().is_ok() {}
+/// Without a device nothing is played, but the length of each selected
+/// recording is still needed to end the playback and to check positions.
+fn follow_silently(
+    incoming: &Receiver<PlaybackState>,
+    load: &mut dyn FnMut(RecordingId) -> Option<Arc<Pcm>>,
+) {
+    let mut last = None;
+    while let Ok(state) = incoming.recv() {
+        if state.recording != last {
+            last = state.recording;
+            if let Some(id) = last {
+                load(id);
+            }
+        }
+    }
 }
 
 fn load_audio(catalog: &dyn MediaCatalog, id: RecordingId) -> Option<Arc<Pcm>> {

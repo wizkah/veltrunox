@@ -65,6 +65,9 @@ pub enum ServerEventDto {
     Rejected { reason: String },
     /// Bookmarks of this recording changed; reload them.
     BookmarksChanged { recording_id: u64 },
+    /// Whether the server can play sound; sent to a joining client and on change.
+    /// Without an output device the shared state still runs, silently.
+    AudioOutput { available: bool },
 }
 
 /// Messages a client sends over the real-time channel.
@@ -232,6 +235,17 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<ClientMessageDto>(&json).unwrap(),
             seek
+        );
+    }
+
+    #[test]
+    fn audio_output_event_has_a_stable_wire_format() {
+        let event = ServerEventDto::AudioOutput { available: false };
+        let json = serde_json::to_string(&event).unwrap();
+        assert_eq!(json, r#"{"type":"audio_output","available":false}"#);
+        assert_eq!(
+            serde_json::from_str::<ServerEventDto>(&json).unwrap(),
+            event
         );
     }
 

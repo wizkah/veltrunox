@@ -141,6 +141,8 @@ fn forward(event: ServerEvent, updates: &StreamSink<SessionUpdate>) {
             recording_id: recording.value(),
         }),
         ViewChange::Rejected(reason) => Some(SessionUpdate::Rejected { reason }),
+        // Not shown yet: the interface needs a place for it first (GUI work).
+        ViewChange::AudioOutput => None,
     };
     if let Some(update) = update {
         let _ = updates.add(update);

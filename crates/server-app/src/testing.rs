@@ -1,6 +1,6 @@
 //! Fakes for the ports, shared by the unit tests of this crate.
 
-use crate::ports::{Clock, PlaybackBroadcast, RecordingRepository, StorageError};
+use crate::ports::{Clock, PlaybackBroadcast, RecordingLengths, RecordingRepository, StorageError};
 use std::sync::Mutex;
 use veltrunox_core::{
     Millis, PlaybackSettings, PlaybackState, Recording, RecordingId, RecordingTitle,
@@ -63,6 +63,21 @@ impl RecordingRepository for FakeRecordings {
             entry.1 = settings;
         }
         Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct FakeLengths(Mutex<Option<Millis>>);
+
+impl FakeLengths {
+    pub fn set(&self, length: Millis) {
+        *self.0.lock().unwrap() = Some(length);
+    }
+}
+
+impl RecordingLengths for FakeLengths {
+    fn length(&self, _id: RecordingId) -> Option<Millis> {
+        *self.0.lock().unwrap()
     }
 }
 
