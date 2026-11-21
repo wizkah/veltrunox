@@ -33,6 +33,14 @@ VELTRUNOX_ADDRESS=127.0.0.1:8080 cargo run -p veltrunox-server
 
 The server keeps its data in `VELTRUNOX_DATA_DIR` (default `data/`, ignored by Git).
 
+Server for a 64-bit Raspberry Pi (Debian 12 or newer), cross-built on macOS or Linux (needs Rust, `curl` and Homebrew or ready-made Zig and `pkg-config`; the script fetches ALSA packages and checks their hashes):
+
+```sh
+scripts/build-pi.sh
+```
+
+The binary lands in `target/aarch64-unknown-linux-gnu/release/`. On the Pi, name the audio device (for example `VELTRUNOX_AUDIO_DEVICE=alsa:plughw:CARD=Headphones,DEV=0`); the default device may be an unconnected HDMI output.
+
 Web app (needs Flutter, `wasm-pack`, `flutter_rust_bridge_codegen` 2.13.0 and the `wasm32-unknown-unknown` target):
 
 ```sh

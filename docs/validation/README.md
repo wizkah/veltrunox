@@ -81,3 +81,27 @@ Limits:
 - Position is reported as the frames handed to the stretcher; the sound leaves it up to its input latency later. The latency is not yet measured or compensated.
 - Whole files are held as `f32` in memory; memory use on the Pi is not measured. Only WAV is decoded in a test; MP3, FLAC, M4A, OGG and AIFF rely on `symphonia` and are not tested here.
 - The server clock and the device clock are not compared; a long-running drift between them is not corrected.
+
+## Phase 3 – Latency, load and memory on Mac and Raspberry Pi (2026-11-21)
+
+Environment: Mac: macOS (Apple silicon), release build of the server. Pi: Raspberry Pi 4 Model B (4 cores, 4 GB), Debian 12 (bookworm), kernel 6.12.47, governor `ondemand`, no throttling reported before and after; the release server was cross-built on the Mac (`cargo zigbuild`, target `aarch64-unknown-linux-gnu`, glibc 2.36) against the Pi's `libasound`. Audio output: Mac default device, Pi headphone jack (`alsa:plughw:CARD=Headphones,DEV=0`). Input: one synthetic recording (3 min, 44.1 kHz stereo WAV, quiet chords with noise). Load generator: two WebSocket clients on the same host (loopback), or on the Mac against the Pi.
+
+| Check | Mac | Pi |
+|---|---|---|
+| Seek by one client until the other client receives the state, loopback, paused (500 runs) | p50 0.35 ms, p99 1.3 ms, max 2.3 ms | p50 0.30 ms, p99 1.0 ms, max 1.0 ms |
+| Same, playing | p50 0.24 ms, p99 2.0 ms, max 9.8 ms | p50 0.61 ms, p99 1.1 ms, max 2.1 ms |
+| Same, Mac client against the Pi server over the home network (500 runs each) | – | paused: p50 4.9 ms, p95 13.6 ms, p99 21.4 ms, max 35 ms; playing: p50 4.9 ms, p95 13.0 ms, p99 23.1 ms, max 43 ms |
+| Ping round trip over the channel | p50 0.04 ms | loopback p50 0.2 ms; network p50 4.7–5.0 ms, p99 18–24 ms |
+| Server CPU while playing (8 s window; 1×, 0.5×, 2×, 1× with +5 semitones, 0.75× with +3 semitones and loop), share of one core | 4.1–4.6 % | 15.3–15.8 % |
+| Server CPU idle, no playback | 0.1 % | 1.4 % |
+| Server memory while a 3 min recording is loaded (decoded to 32-bit float) | about 68–70 MB | 72 MB (RSS) |
+| Server memory idle | – | 9 MB (RSS) |
+
+Limits:
+
+- Latency covers the path from one client's intent to another client's received state. The time from choosing a position to audible sound is not measured: it needs the audio output latency, which cannot be observed without a loopback or microphone measurement. Sound quality, the loop wrap and underruns were not judged by ear.
+- CPU stays flat across speed and pitch settings, which suggests the stretcher runs continuously; whether this holds for other material was not examined. Headroom on the Pi is large for one stream; several clients, a browser on the same Pi and long recordings were not combined.
+- The Mac's memory figure is the physical footprint (`footprint`); `ps` RSS under-reports it because macOS compresses pages. The Mac's idle footprint reading was not usable. Memory grows with recording length (about 21 MB per minute of stereo audio at 44.1 kHz after decoding); long recordings were not measured.
+- The first Mac run reported a buffer underrun message on stream start; it did not recur in later runs. The Pi's default device (HDMI, nothing attached) produced continuous ALSA errors (`snd_pcm_avail_delay`); the headphone device did not, so the device choice matters on the Pi.
+- Network figures come from one Mac on an unknown link type (Wi-Fi or Ethernet) at one time of day; the spread (p99 above 20 ms) is probably the link, not the server.
+- One measurement run per setup; no repeated runs, no clock offset or drift measurement.
