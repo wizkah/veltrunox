@@ -1,0 +1,17 @@
+[package]
+name = "veltrunox-client-bridge"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+veltrunox-core.workspace = true
+veltrunox-client-app.workspace = true
+veltrunox-client-adapters.workspace = true
+flutter_rust_bridge = "=2.13.0"

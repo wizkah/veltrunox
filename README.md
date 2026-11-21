@@ -18,11 +18,31 @@ Veltrunox helps bands during rehearsals. Recordings live on a server together wi
 
 ## Status
 
-Design phase. There is no code yet. Architecture and coding rules are in `docs/`.
+Early scaffold. A Rust workspace with a first vertical slice (server lists recordings, client core fetches them) exists; a Flutter web app lists them. Architecture and coding rules are in `docs/`.
 
 ## Technology
 
 Rust for server and client core, Flutter for the user interface. The browser (WebAssembly) is the first client target.
+
+## Development
+
+```sh
+cargo test --workspace
+VELTRUNOX_ADDRESS=127.0.0.1:8080 cargo run -p veltrunox-server
+```
+
+Web app (needs Flutter, `wasm-pack` and `flutter_rust_bridge_codegen` 2.13.0):
+
+```sh
+cd app
+flutter_rust_bridge_codegen generate
+RUSTFLAGS="--cfg=web_sys_unstable_apis" wasm-pack build -t no-modules -d ../../app/web/pkg \
+  --no-typescript --out-name veltrunox_client_bridge ../crates/client-bridge --release
+rm web/pkg/package.json
+flutter build web
+```
+
+Serve `build/web` and start the server with `VELTRUNOX_ALLOWED_ORIGIN=<origin of the web app>`; the app reads the server URL from `--dart-define=VELTRUNOX_SERVER_URL=...` (default `http://127.0.0.1:8080`).
 
 ## Documentation
 

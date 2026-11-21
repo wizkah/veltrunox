@@ -1,0 +1,16 @@
+[package]
+name = "veltrunox-server"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+veltrunox-server-adapters.workspace = true
+veltrunox-server-app.workspace = true
+tokio.workspace = true
+axum.workspace = true
+veltrunox-core.workspace = true
+tower-http = { version = "0.6", features = ["cors"] }

@@ -1,0 +1,13 @@
+[package]
+name = "veltrunox-client-app"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+veltrunox-core.workspace = true
+thiserror.workspace = true
+rxrust.workspace = true

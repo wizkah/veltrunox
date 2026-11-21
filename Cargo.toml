@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/protocol",
+    "crates/server-app",
+    "crates/client-app",
+    "crates/server-adapters",
+    "crates/client-adapters",
+    "crates/server",
+    "crates/client-bridge",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+veltrunox-core = { path = "crates/core" }
+veltrunox-protocol = { path = "crates/protocol" }
+veltrunox-server-app = { path = "crates/server-app" }
+veltrunox-client-app = { path = "crates/client-app" }
+veltrunox-server-adapters = { path = "crates/server-adapters" }
+veltrunox-client-adapters = { path = "crates/client-adapters" }
+
+axum = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+rxrust = "1.0.0-rc.6"
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
