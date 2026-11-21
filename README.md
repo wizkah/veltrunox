@@ -53,7 +53,7 @@ Browser test (after `scripts/build-web.sh`; needs Node):
 cd e2e && npm ci && npx playwright install chromium && npx playwright test
 ```
 
-To run the app by hand, serve `build/web` and start the server with `VELTRUNOX_ALLOWED_ORIGIN=<origin of the web app>`; the app reads the server URL from `--dart-define=VELTRUNOX_SERVER_URL=...` (default `http://127.0.0.1:8080`).
+To run the app by hand, serve `build/web` and start the server with `VELTRUNOX_ALLOWED_ORIGIN=<origin of the web app>`; the app talks to port 8080 on the host it was loaded from (`localhost` or `127.0.0.1`), or to `--dart-define=VELTRUNOX_SERVER_URL=...` if set.
 
 ## Documentation
 

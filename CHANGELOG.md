@@ -21,3 +21,4 @@
 - Target tempo to speed (with out-of-range hint) and tuning/key to pitch shift as pure operations.
 - `scripts/build-pi.sh` cross-builds the server for a 64-bit Raspberry Pi.
 - Playback pauses at the end of the recording; a seek beyond the end is rejected once the length is known; clients are told over the channel whether the server has an audio output.
+- Web app: the server address defaults to port 8080 on the host the page was loaded from, so `localhost` and `127.0.0.1` both work.
