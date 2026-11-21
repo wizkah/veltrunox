@@ -1,5 +1,9 @@
 //! HTTP client adapter; compiles for native targets and `wasm32`.
 
+mod events;
+
+pub use events::{EventConnection, connect_events};
+
 use reqwest::Client;
 use veltrunox_client_app::{LinkError, ServerLink};
 use veltrunox_core::{Recording, RecordingId, RecordingTitle};

@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'features/connection/connection_indicator.dart';
 import 'features/library/library_screen.dart';
 
 class VeltrunoxApp extends StatelessWidget {
@@ -9,6 +10,6 @@ class VeltrunoxApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'Veltrunox',
     theme: ThemeData(colorSchemeSeed: Colors.indigo),
-    home: const LibraryScreen(),
+    home: const LibraryScreen(appBarActions: [ConnectionIndicator()]),
   );
 }

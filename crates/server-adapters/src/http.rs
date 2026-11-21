@@ -1,7 +1,8 @@
+use crate::events::events;
 use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
 use std::sync::Arc;
 use veltrunox_core::Recording;
-use veltrunox_protocol::{RECORDINGS_PATH, RecordingListDto, RecordingSummaryDto};
+use veltrunox_protocol::{EVENTS_PATH, RECORDINGS_PATH, RecordingListDto, RecordingSummaryDto};
 use veltrunox_server_app::{RecordingRepository, list_recordings};
 
 type SharedRepository = Arc<dyn RecordingRepository>;
@@ -10,6 +11,7 @@ type SharedRepository = Arc<dyn RecordingRepository>;
 pub fn router(repository: SharedRepository) -> Router {
     Router::new()
         .route(RECORDINGS_PATH, get(recordings))
+        .route(EVENTS_PATH, get(events))
         .with_state(repository)
 }
 

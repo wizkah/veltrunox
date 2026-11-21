@@ -2,7 +2,7 @@
 
 mod connection;
 
-pub use connection::{ConnectionStatus, report_changes};
+pub use connection::{ConnectionMonitor, ConnectionStatus, LinkEvent};
 
 use std::future::Future;
 use veltrunox_core::Recording;

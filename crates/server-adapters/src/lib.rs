@@ -1,5 +1,6 @@
 //! Server adapters: storage and HTTP endpoints.
 
+mod events;
 mod http;
 mod memory;
 

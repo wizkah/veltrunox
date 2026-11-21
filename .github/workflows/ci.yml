@@ -37,3 +37,20 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze
       - run: flutter test
+
+  web-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked && cargo install wasm-pack --locked
+      - run: cd app && flutter pub get
+      - run: scripts/build-web.sh
+      - name: Generated bridge code is up to date
+        run: git diff --exit-code -- app/lib/bridge/generated crates/client-bridge/src/frb_generated.rs

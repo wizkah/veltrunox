@@ -7,9 +7,19 @@ import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `keep_open`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`
+
 /// Loads the recording list from the server at `server_url`.
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
     RustLib.instance.api.crateApiListRecordings(serverUrl: serverUrl);
+
+/// Opens the real-time channel and pushes each distinct state change to `states`.
+Stream<ConnectionState> watchConnection({required String serverUrl}) =>
+    RustLib.instance.api.crateApiWatchConnection(serverUrl: serverUrl);
+
+/// State of the real-time channel as the user interface needs it.
+enum ConnectionState { connected, disconnected }
 
 /// A recording as the user interface needs it.
 class RecordingItem {

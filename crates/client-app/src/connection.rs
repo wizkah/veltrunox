@@ -1,7 +1,7 @@
 //! Connection status as a stream: the natural model for state changing over time.
 
 use rxrust::prelude::*;
-use std::{cell::RefCell, rc::Rc};
+use std::convert::Infallible;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionStatus {
@@ -9,32 +9,75 @@ pub enum ConnectionStatus {
     Connected,
 }
 
-/// Reports each distinct status change once.
-pub fn report_changes(
-    statuses: impl IntoIterator<Item = ConnectionStatus> + 'static,
-) -> Vec<ConnectionStatus> {
-    let seen = Rc::new(RefCell::new(Vec::new()));
-    let sink = Rc::clone(&seen);
-    Local::from_iter(statuses)
-        .distinct_until_changed()
-        .subscribe(move |status| sink.borrow_mut().push(status));
-    seen.take()
+/// What the link to the server reports about the real-time channel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinkEvent {
+    /// The server greeted the client; the channel is usable.
+    Greeted,
+    Closed,
+    Failed,
+}
+
+impl LinkEvent {
+    fn status(self) -> ConnectionStatus {
+        match self {
+            Self::Greeted => ConnectionStatus::Connected,
+            Self::Closed | Self::Failed => ConnectionStatus::Disconnected,
+        }
+    }
+}
+
+/// Turns link events into distinct status changes and hands each one to `on_status`.
+///
+/// Owns the event stream; the subscription ends when the monitor is dropped.
+pub struct ConnectionMonitor {
+    events: SharedSubject<'static, LinkEvent, Infallible>,
+}
+
+impl ConnectionMonitor {
+    pub fn new(on_status: impl FnMut(ConnectionStatus) + Send + 'static) -> Self {
+        let events = Shared::subject();
+        events
+            .clone()
+            .map(LinkEvent::status)
+            .distinct_until_changed()
+            .subscribe(on_status);
+        Self { events }
+    }
+
+    pub fn push(&mut self, event: LinkEvent) {
+        self.events.next(event);
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::ConnectionStatus::{Connected, Disconnected};
     use super::*;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn repeated_status_is_reported_once() {
-        let changes = report_changes([
-            Disconnected,
-            Disconnected,
-            Connected,
-            Connected,
-            Disconnected,
-        ]);
-        assert_eq!(changes, [Disconnected, Connected, Disconnected]);
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let sink = Arc::clone(&seen);
+        let mut monitor = ConnectionMonitor::new(move |status| sink.lock().unwrap().push(status));
+
+        for event in [
+            LinkEvent::Closed,
+            LinkEvent::Closed,
+            LinkEvent::Greeted,
+            LinkEvent::Greeted,
+            LinkEvent::Failed,
+        ] {
+            monitor.push(event);
+        }
+
+        assert_eq!(
+            *seen.lock().unwrap(),
+            [
+                ConnectionStatus::Disconnected,
+                ConnectionStatus::Connected,
+                ConnectionStatus::Disconnected
+            ]
+        );
     }
 }

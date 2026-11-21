@@ -3,6 +3,7 @@ name = "veltrunox-server-adapters"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+license.workspace = true
 
 [lints]
 workspace = true
@@ -11,9 +12,10 @@ workspace = true
 veltrunox-core.workspace = true
 veltrunox-protocol.workspace = true
 veltrunox-server-app.workspace = true
-axum.workspace = true
+axum = { workspace = true, features = ["ws"] }
 tokio.workspace = true
 tower-http = { version = "0.6", features = ["cors"] }
+serde_json = "1"
 
 [dev-dependencies]
 veltrunox-client-adapters.workspace = true
