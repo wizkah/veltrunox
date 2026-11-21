@@ -9,8 +9,8 @@ mod testing;
 pub use bookmarks::BookmarkService;
 pub use playback::{IntentError, PlaybackService};
 pub use ports::{
-    BookmarkError, BookmarkRepository, Clock, Owned, PlaybackBroadcast, RecordingRepository,
-    StorageError,
+    BookmarkError, BookmarkRepository, Clock, MediaCatalog, Owned, PlaybackBroadcast,
+    RecordingRepository, StorageError,
 };
 
 use veltrunox_core::Recording;

@@ -2,18 +2,19 @@
 //! and bookmarks.
 
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use veltrunox_core::{
     BookmarkId, BookmarkName, Bookmarks, KeyShift, Label, Millis, PlaybackSettings, Recording,
     RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version, check_version,
 };
 use veltrunox_server_app::{
-    BookmarkError, BookmarkRepository, Owned, RecordingRepository, StorageError,
+    BookmarkError, BookmarkRepository, MediaCatalog, Owned, RecordingRepository, StorageError,
 };
 
 /// Versioned schema changes; entry `n` upgrades from `user_version` `n` to `n + 1`.
-const MIGRATIONS: &[&str] = &["
+const MIGRATIONS: &[&str] = &[
+    "
     CREATE TABLE recordings (
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,
@@ -38,7 +39,13 @@ const MIGRATIONS: &[&str] = &["
     );
     CREATE INDEX labels_by_recording ON labels(recording_id);
     CREATE INDEX regions_by_recording ON regions(recording_id);
-"];
+",
+    "
+    ALTER TABLE recordings ADD COLUMN media_path TEXT;
+    ALTER TABLE recordings ADD COLUMN content_hash TEXT;
+    CREATE UNIQUE INDEX recordings_by_hash ON recordings(content_hash);
+",
+];
 
 /// Blocking store; callers on an async runtime run it off the runtime threads.
 pub struct SqliteStore {
@@ -105,6 +112,46 @@ fn sql_int(value: u64) -> Result<i64, StorageError> {
 
 fn unsigned(value: i64) -> Result<u64, StorageError> {
     u64::try_from(value).map_err(|_| corrupt("number", "negative"))
+}
+
+impl MediaCatalog for SqliteStore {
+    fn media_path(&self, id: RecordingId) -> Result<Option<PathBuf>, StorageError> {
+        let path = self
+            .connection()
+            .query_row(
+                "SELECT media_path FROM recordings WHERE id = ?1",
+                params![sql_int(id.value())?],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .optional()
+            .map_err(storage)?;
+        Ok(path.flatten().map(PathBuf::from))
+    }
+
+    fn add_media(
+        &self,
+        title: RecordingTitle,
+        path: &Path,
+        content_hash: &str,
+    ) -> Result<Option<Recording>, StorageError> {
+        let connection = self.connection();
+        let path_text = path
+            .to_str()
+            .ok_or_else(|| StorageError("file path is not valid text".into()))?;
+        let added = connection
+            .execute(
+                "INSERT OR IGNORE INTO recordings (title, media_path, content_hash) VALUES (?1, ?2, ?3)",
+                params![title.as_str(), path_text, content_hash],
+            )
+            .map_err(storage)?;
+        if added == 0 {
+            return Ok(None);
+        }
+        Ok(Some(Recording {
+            id: RecordingId::new(unsigned(connection.last_insert_rowid())?),
+            title,
+        }))
+    }
 }
 
 impl RecordingRepository for SqliteStore {

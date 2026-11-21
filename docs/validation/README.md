@@ -58,3 +58,26 @@ Environment: macOS (Apple silicon), headless Chromium (Playwright), real server 
 | The page shows "Verbunden"; the server process is stopped; the page shows "Getrennt"; the server is started again on the same port and data directory; the page shows "Verbunden" without reload | Pass (repeated; the same test failed against a stale web build without the reconnect code) |
 
 Limits: one browser, one outage of a few seconds (first backoff steps only); the 30 s cap and long outages are covered by the native unit tests only. CI integration of this test is not yet run on GitHub.
+
+## Phase 3 – Playback engine (2026-11-21)
+
+Environment: macOS (Apple silicon), Rust 1.99.1 stable, native only; synthetic sine signals, no recorded music, no listening test, not run on a Raspberry Pi.
+
+| Check | Result |
+|---|---|
+| Engine at 0.5×, 1× and 2×: measured frequency of a 440 Hz sine stays within 8 Hz; progress of the position matches the speed within 30 ms | Pass |
+| Pitch shift of +12 semitones doubles the frequency (within 16 Hz) without changing progress | Pass |
+| Device rate 48 kHz with a 44.1 kHz file: pitch and duration unchanged | Pass |
+| Loop over 500 ms, several wraps: no 10 ms window falls below 0.4 RMS (no gap or dropout), position stays inside the loop | Pass |
+| End of recording: engine finishes and renders silence; seek lands on the new position | Pass |
+| Player decisions (load, settings, seek only on jumps, silent scrubbing and resume, no audio file) with a recording sink | Pass |
+| WAV file decodes; mono is doubled; a text file is refused | Pass |
+| Directory import: formats, order, duplicates by content hash, titles, missing directory | Pass |
+| Real server with a WAV in `VELTRUNOX_MEDIA_DIR`: the recording is listed, the default device opens at 48 kHz | Pass (manual, once; no sound played) |
+
+Limits:
+
+- Sound quality (NFR-003), the audible loop wrap (AC-003 tolerance still to be set) and latency from choosing a position to sound (NFR-002) are not measured. They need a listening test and measurement on the target hardware.
+- Position is reported as the frames handed to the stretcher; the sound leaves it up to its input latency later. The latency is not yet measured or compensated.
+- Whole files are held as `f32` in memory; memory use on the Pi is not measured. Only WAV is decoded in a test; MP3, FLAC, M4A, OGG and AIFF rely on `symphonia` and are not tested here.
+- The server clock and the device clock are not compared; a long-running drift between them is not corrected.

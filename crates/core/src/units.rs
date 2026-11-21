@@ -48,6 +48,8 @@ pub enum InvalidValue {
     PositionOutOfRange,
     #[error("a time range must end after it starts")]
     EmptyRange,
+    #[error("tempo must be a positive number")]
+    TempoNotPositive,
     #[error("a name must not be empty")]
     EmptyName,
 }

@@ -16,4 +16,6 @@
 - Flutter player bar: select a recording, play/pause, restart, speed, tuning and key, shared live between clients; the bridge exposes the session (`watch_session`, `send_command`, `playback_position_ms`). Browser test with two clients.
 - Client core reconnects on its own with doubling, capped delays and measures the clock offset on connecting and every minute; the generated bridge no longer exposes a separate clock call.
 - Browser test for reconnection: the web app shows "Getrennt" when the server stops and "Verbunden" again after it restarts (`e2e/playwright.reconnect.config.ts`).
-- ADR-006 (proposed): audio pipeline with `symphonia`, `cpal` and `signalsmith-stretch`.
+- ADR-006: audio pipeline with `symphonia`, `cpal` and `signalsmith-stretch`.
+- Playback on the server: audio files are decoded (`symphonia`), stretched and pitch-shifted (`signalsmith-stretch`) and played through the audio device (`cpal`); speed, tuning, key, loop and scrubbing follow the shared state. `VELTRUNOX_MEDIA_DIR` imports audio files as recordings (duplicates by content hash), `VELTRUNOX_AUDIO_DEVICE` picks the device.
+- Target tempo to speed (with out-of-range hint) and tuning/key to pitch shift as pure operations.

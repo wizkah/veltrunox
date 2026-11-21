@@ -1,6 +1,6 @@
 # ADR-006 – Audio pipeline
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-11-21
 
 ## Context
@@ -16,7 +16,7 @@ An earlier prototype played through LibVLC (output module and ALSA device chosen
 | Decoding | `symphonia` (pure Rust) | No native dependency; covers WAV, MP3, FLAC, AIFF, M4A (AAC), OGG; also feeds waveform and analysis later |
 | Output | `cpal` (ALSA on Linux, CoreAudio on macOS) | Device list and selection from Rust; callback model fits a non-blocking audio thread |
 | Time stretch and pitch | `signalsmith-stretch` (MIT) | Good quality at 0.5×–2× and ±12 semitones; one engine for speed and pitch; light enough for ARM (to be measured) |
-| Sample-rate conversion | `rubato`, only if the device rate differs from the file | Keeps the engine at the file's rate |
+| Sample-rate conversion | None of its own: the stretcher's input/output length ratio absorbs the difference between file and device rate, and the pitch factor compensates it | One resampling step instead of two; covered by a test |
 
 **Decoded audio is held in memory** for the loaded recording (PCM, `f32`), so seeking and loops are index arithmetic, not decoder seeks. The playback thread reads ahead of the audio callback through a lock-free ring buffer; commands (position, speed, pitch, loop, run/pause) reach it through a bounded channel. The loop wraps at the sample level inside the engine, so there is no gap by construction.
 

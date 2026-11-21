@@ -1,5 +1,6 @@
 //! Ports the server use cases need; adapters implement them.
 
+use std::path::{Path, PathBuf};
 use veltrunox_core::{
     BookmarkId, BookmarkName, Bookmarks, Label, Millis, PlaybackSettings, PlaybackState, Recording,
     RecordingId, RecordingTitle, Region, TimeRange, Version,
@@ -20,6 +21,20 @@ pub trait RecordingRepository: Send + Sync {
         id: RecordingId,
         settings: PlaybackSettings,
     ) -> Result<(), StorageError>;
+}
+
+/// Port: the audio files behind the recordings. Files are known by the hash
+/// of their content, so the same audio is never listed twice.
+pub trait MediaCatalog: Send + Sync {
+    /// `None` if the recording does not exist or has no audio file.
+    fn media_path(&self, id: RecordingId) -> Result<Option<PathBuf>, StorageError>;
+    /// Adds a recording for the file; `None` if audio with this hash is already known.
+    fn add_media(
+        &self,
+        title: RecordingTitle,
+        path: &Path,
+        content_hash: &str,
+    ) -> Result<Option<Recording>, StorageError>;
 }
 
 #[derive(Debug, thiserror::Error)]
