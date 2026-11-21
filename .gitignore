@@ -1,0 +1,28 @@
+# Rust
+/target/
+
+# Flutter / Dart
+.dart_tool/
+/build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# Local data and configuration
+*.db
+*.sqlite
+/data/
+.env
+
+# Operating system metadata
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
