@@ -9,7 +9,7 @@
 ## 1. Core decisions
 
 - A server holds recordings, bookmarks (labels and regions), users and the shared playback state. Clients connect to it over HTTP and a real-time channel. No cloud service.
-- All connected clients see and control the same playback state in real time. The server is the single authority for that state and decides concurrent changes.
+- The server plays the audio (for example on the rehearsal-room speakers). Clients output no audio; they control and display the shared playback state in real time. The server is the single authority for that state and decides concurrent changes.
 - Rust implements the server and the client core (application logic, protocol, state). Flutter implements only the user interface (ADR-001).
 - Clean Architecture determines the direction of dependencies. IOSP separates domain decisions and operations from their coordination. IODA structures the code where it clarifies the flow of data (see Clean-Code).
 - Event streams (playback position, remote changes, scrubbing) use `rxrust` where a stream is the natural model. Domain decisions stay synchronous and free of stream types.
@@ -41,7 +41,7 @@ Solid arrows show source-code dependencies. Use cases define the ports they need
 | Server application | Library management, upload and analysis workflow, bookmark editing, playback transport, user management, authorisation |
 | Client application | Session and connection handling, local view state derived from the shared state, editing intents, waveform viewport logic |
 | Inbound adapters | HTTP and WebSocket endpoints (server); Flutter bridge calls (client) |
-| Outbound adapters | Persistence, file storage, audio decoding, time stretching, analysis, password hashing, HTTP/WebSocket client |
+| Outbound adapters | Persistence, file storage, audio decoding, time stretching, audio output, analysis, password hashing, HTTP/WebSocket client |
 | Start-up modules | Load configuration, wire up concrete adapters, start services and background tasks |
 
 Integrations coordinate operations and pass their results on. Rules such as "may this role change the region?" or "which playback rate results from a target tempo?" live in separately testable operations. Technical error handling and asynchronous coordination stay in the responsible flow; artificial micro-functions are not required.
@@ -56,8 +56,8 @@ A Cargo workspace with the following boundaries is intended (no code exists yet)
 | `veltrunox-protocol` | Versioned messages and encoding for HTTP and the real-time channel; no system access |
 | `veltrunox-server-app` | Server use cases and their port traits; depends on `veltrunox-core` |
 | `veltrunox-client-app` | Client use cases, session state and viewport logic and their port traits; depends on `veltrunox-core` |
-| `veltrunox-server-adapters` | Persistence, file storage, audio decoding, time stretching, analysis, security, HTTP and WebSocket endpoints |
-| `veltrunox-client-adapters` | HTTP and WebSocket client, platform integration, audio output |
+| `veltrunox-server-adapters` | Persistence, file storage, audio decoding, time stretching, audio output, analysis, security, HTTP and WebSocket endpoints |
+| `veltrunox-client-adapters` | HTTP and WebSocket client, platform integration |
 | `veltrunox-server` | Server entry point and wiring |
 | `veltrunox-client-bridge` | Entry point of the client core; exposes a narrow API to Flutter (`flutter_rust_bridge`) |
 
@@ -83,12 +83,12 @@ The Flutter project holds only presentation: feature folders (for example librar
 | `SessionTokens` | Issue and verify authentication tokens |
 | `PlaybackBroadcast` | Distribute the shared playback state and changes to connected clients |
 | `Clock` | Controllable time source |
-| `AudioOutput` | Play audio samples; its location (client, server or selectable) is not yet decided |
+| `AudioOutput` | Server side: play processed samples on the server's audio device |
 | `ServerLink` | Client side: requests and real-time stream to the server |
 
 ## 4. Shared playback state
 
-The server holds one playback state: current recording, position, run/pause, speed, tuning, key and loop range. Clients send intents (for example "seek", "play region", "set speed"). The server validates the permission and the intent, applies it, and publishes the new state to all clients. Clients render the published state and do not keep a divergent copy.
+The server holds one playback state: current recording, position, run/pause, speed, tuning, key and loop range. Speed, tuning and key are stored with the recording and restored when it is loaded; analysis results are never overwritten by them. Clients send intents (for example "seek", "play region", "set speed"). The server validates the permission and the intent, applies it, and publishes the new state to all clients. Clients render the published state and do not keep a divergent copy.
 
 Scrubbing sends a throttled stream of position intents; the throttling and the choice between continuous and release-only following are part of the real-time protocol (to be fixed in an ADR). Clients that join or reconnect receive the full current state first, then increments. Position is transmitted as a reference point (position plus server time) so clients can extrapolate while playing.
 
@@ -107,4 +107,5 @@ Scrubbing sends a throttled stream of position intents; the throttling and the c
 
 - Domain logic (time and pixel arithmetic, snapping, region rules, tempo and pitch calculations, permission decisions) is testable without network, audio or GUI.
 - The server is a single process with an embedded store; no external database service is required.
+- Audio output, time stretching and analysis must run in real time on the target hardware, including a Raspberry Pi.
 - Real-time latency and audio quality are measured; results and limits go to `docs/validation/`.
