@@ -5,11 +5,11 @@
 
 use crate::clock::local_now;
 use crate::frb_generated::StreamSink;
-use std::sync::{LazyLock, Mutex, MutexGuard, PoisonError};
-use veltrunox_client_adapters::{EventConnection, HttpServerLink, connect_events};
+use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
+use veltrunox_client_adapters::{EventChannel, HttpServerLink, SystemTimer, open_channel};
 use veltrunox_client_app::{
-    ChannelEvent, ConnectionMonitor, ConnectionStatus, ServerEvent, SessionView, ViewChange,
-    load_library,
+    ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkEvent, ServerEvent, SessionView,
+    ViewChange, load_library,
 };
 use veltrunox_core::{Intent, KeyShift, Millis, RecordingId, Speed, TuningHz};
 
@@ -85,48 +85,47 @@ fn view() -> MutexGuard<'static, SessionView> {
 
 /// The one real-time channel of this client; a new `watch_session` replaces it.
 /// `flutter_rust_bridge` drops values returned from stream functions, so the
-/// connection has to be owned here to stay open.
-#[cfg(not(target_arch = "wasm32"))]
-static CHANNEL: Mutex<Option<EventConnection>> = Mutex::new(None);
+/// channel has to be owned here to stay open.
+static CHANNEL: Mutex<Option<EventChannel>> = Mutex::new(None);
 
-// The browser connection is not `Send`; the browser runs on one thread anyway.
-#[cfg(target_arch = "wasm32")]
-thread_local! {
-    static CHANNEL: std::cell::RefCell<Option<EventConnection>> = const { std::cell::RefCell::new(None) };
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn with_channel<T>(action: impl FnOnce(&mut Option<EventConnection>) -> T) -> T {
+fn with_channel<T>(action: impl FnOnce(&mut Option<EventChannel>) -> T) -> T {
     action(&mut CHANNEL.lock().unwrap_or_else(PoisonError::into_inner))
 }
 
-#[cfg(target_arch = "wasm32")]
-fn with_channel<T>(action: impl FnOnce(&mut Option<EventConnection>) -> T) -> T {
-    CHANNEL.with(|channel| action(&mut channel.borrow_mut()))
-}
-
 /// Opens the real-time channel and pushes connection changes, playback state,
-/// bookmark notices and rejections to `updates`.
+/// bookmark notices and rejections to `updates`. The channel reconnects by itself
+/// and measures the clock offset when connected and from time to time.
 pub async fn watch_session(
     server_url: String,
     updates: StreamSink<SessionUpdate>,
 ) -> Result<(), String> {
+    // Close the previous channel first so it cannot report into the new session.
+    with_channel(|channel| *channel = None);
     *view() = SessionView::new();
     let status_sink = updates.clone();
     let monitor = Mutex::new(ConnectionMonitor::new(move |status| {
         // A closed sink means the UI stopped listening; nothing is left to report.
         let _ = status_sink.add(SessionUpdate::Connection(ConnectionState::from(status)));
     }));
-    let connection = connect_events(&server_url, move |event| match event {
-        ChannelEvent::Link(link_event) => {
-            if let Ok(mut monitor) = monitor.lock() {
-                monitor.push(link_event);
+    let channel = open_channel(
+        &server_url,
+        Arc::new(SystemTimer),
+        local_now,
+        move |event| match event {
+            ChannelEvent::Link(link_event) => {
+                if link_event == LinkEvent::Greeted {
+                    // The server sends the current state next; its revisions may
+                    // have started over if it restarted.
+                    view().forget_state();
+                }
+                if let Ok(mut monitor) = monitor.lock() {
+                    monitor.push(link_event);
+                }
             }
-        }
-        ChannelEvent::Server(server_event) => forward(server_event, &updates),
-    })
-    .map_err(|error| error.to_string())?;
-    with_channel(|channel| *channel = Some(connection));
+            ChannelEvent::Server(server_event) => forward(server_event, &updates),
+        },
+    );
+    with_channel(|slot| *slot = Some(channel));
     Ok(())
 }
 
@@ -168,26 +167,14 @@ pub async fn playback_position_ms() -> Option<u64> {
     view().position_now(local_now()).map(Millis::value)
 }
 
-/// Measures the clock offset to the server; call once the channel is connected.
-pub async fn sync_clock() -> Result<(), String> {
-    with_channel(|channel| match channel {
-        Some(connection) => {
-            connection.send_ping(local_now());
-            Ok(())
-        }
-        None => Err("not connected".to_owned()),
-    })
-}
-
 /// Sends a command to the shared player. Out-of-range values are rejected here
 /// and the server rejects them again; the answer arrives as a session update.
 pub async fn send_command(command: PlayerCommand) -> Result<(), String> {
     let intent = command.into_intent().map_err(|error| error.to_string())?;
     with_channel(|channel| match channel {
-        Some(connection) => {
-            connection.send_intent(intent);
-            Ok(())
-        }
+        Some(channel) => channel
+            .send_intent(intent)
+            .map_err(|error| error.to_string()),
         None => Err("not connected".to_owned()),
     })
 }

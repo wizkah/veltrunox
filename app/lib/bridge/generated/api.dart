@@ -17,16 +17,14 @@ Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
     RustLib.instance.api.crateApiListRecordings(serverUrl: serverUrl);
 
 /// Opens the real-time channel and pushes connection changes, playback state,
-/// bookmark notices and rejections to `updates`.
+/// bookmark notices and rejections to `updates`. The channel reconnects by itself
+/// and measures the clock offset when connected and from time to time.
 Stream<SessionUpdate> watchSession({required String serverUrl}) =>
     RustLib.instance.api.crateApiWatchSession(serverUrl: serverUrl);
 
 /// The playback position now, extrapolated from the latest state; `None` before the first state.
 Future<BigInt?> playbackPositionMs() =>
     RustLib.instance.api.crateApiPlaybackPositionMs();
-
-/// Measures the clock offset to the server; call once the channel is connected.
-Future<void> syncClock() => RustLib.instance.api.crateApiSyncClock();
 
 /// Sends a command to the shared player. Out-of-range values are rejected here
 /// and the server rejects them again; the answer arrives as a session update.

@@ -61,6 +61,12 @@ impl SessionView {
         self.state.as_ref()
     }
 
+    /// Drops the held state, for a new connection: the server may have restarted
+    /// and count its revisions from the start. It sends the current state first.
+    pub fn forget_state(&mut self) {
+        self.state = None;
+    }
+
     /// Applies an event. A state older than the one held is ignored.
     pub fn handle(&mut self, event: ServerEvent, local_now: Millis) -> ViewChange {
         match event {
@@ -181,6 +187,15 @@ mod tests {
             loop_range: None,
             scrubbing: false,
         }
+    }
+
+    #[test]
+    fn a_forgotten_state_accepts_a_lower_revision() {
+        let mut view = SessionView::new();
+        view.handle(ServerEvent::State(running_state(7, 0, 0)), ms(0));
+        view.forget_state();
+        let change = view.handle(ServerEvent::State(running_state(1, 0, 0)), ms(0));
+        assert_eq!(change, ViewChange::PlaybackState);
     }
 
     #[test]

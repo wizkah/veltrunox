@@ -14,3 +14,4 @@
 - SQLite persistence (ADR-004): recordings, playback settings and bookmarks survive restarts; data directory via `VELTRUNOX_DATA_DIR`. The sample recordings are only added to an empty library.
 - Bookmark endpoints with version checks (409 on conflict); client core with session view, clock offset estimate and throttled scrubbing.
 - Flutter player bar: select a recording, play/pause, restart, speed, tuning and key, shared live between clients; the bridge exposes the session (`watch_session`, `send_command`, `playback_position_ms`). Browser test with two clients.
+- Client core reconnects on its own with doubling, capped delays and measures the clock offset on connecting and every minute; the generated bridge no longer exposes a separate clock call.

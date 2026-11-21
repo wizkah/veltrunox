@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1051036357;
+  int get rustContentHash => -1166658013;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -86,8 +86,6 @@ abstract class RustLibApi extends BaseApi {
   Future<BigInt?> crateApiPlaybackPositionMs();
 
   Future<void> crateApiSendCommand({required PlayerCommand command});
-
-  Future<void> crateApiSyncClock();
 
   Stream<SessionUpdate> crateApiWatchSession({required String serverUrl});
 }
@@ -188,33 +186,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "send_command", argNames: ["command"]);
 
   @override
-  Future<void> crateApiSyncClock() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 4,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiSyncClockConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSyncClockConstMeta =>
-      const TaskConstMeta(debugName: "sync_clock", argNames: []);
-
-  @override
   Stream<SessionUpdate> crateApiWatchSession({required String serverUrl}) {
     final updates = RustStreamSink<SessionUpdate>();
     unawaited(
@@ -227,7 +198,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 5,
+              funcId: 4,
               port: port_,
             );
           },

@@ -1,9 +1,11 @@
 //! Client use cases and the ports they need. Free of network and UI types.
 
 mod connection;
+mod reconnect;
 mod session;
 
 pub use connection::{ConnectionMonitor, ConnectionStatus, LinkEvent};
+pub use reconnect::{CLOCK_SYNC_INTERVAL, ReconnectPolicy, Timer};
 pub use session::{ScrubThrottle, ServerEvent, SessionView, ViewChange};
 
 /// What the real-time channel reports: its own lifecycle or a message from the server.
@@ -22,6 +24,8 @@ pub enum LinkError {
     Unreachable(String),
     #[error("unexpected server response: {0}")]
     InvalidResponse(String),
+    #[error("not connected")]
+    NotConnected,
 }
 
 /// Port: requests to the server. The future is not required to be `Send`

@@ -1,8 +1,12 @@
 //! HTTP client adapter; compiles for native targets and `wasm32`.
 
+mod channel;
 mod events;
+mod timer;
 
+pub use channel::{EventChannel, open_channel};
 pub use events::{EventConnection, connect_events};
+pub use timer::SystemTimer;
 
 use reqwest::Client;
 use veltrunox_client_app::{LinkError, ServerLink};

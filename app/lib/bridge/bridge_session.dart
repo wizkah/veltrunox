@@ -72,10 +72,6 @@ class BridgeSession {
       rust.ConnectionState.disconnected => ConnectionStatus.disconnected,
     };
     _connections.add(_connection!);
-    if (_connection == ConnectionStatus.connected) {
-      // Measures the clock offset so the position runs in step with the server.
-      unawaited(rust.syncClock());
-    }
   }
 
   static PlayerState _playerState(rust.PlaybackView view) => PlayerState(

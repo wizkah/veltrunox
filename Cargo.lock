@@ -1654,6 +1654,7 @@ name = "veltrunox-client-adapters"
 version = "0.0.0"
 dependencies = [
  "ewebsock",
+ "gloo-timers",
  "reqwest",
  "serde_json",
  "veltrunox-client-app",

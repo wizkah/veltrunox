@@ -36,6 +36,8 @@ Environment: macOS (Apple silicon), Rust 1.99.1 stable, native only.
 | Domain and protocol unit tests: transport operations, position extrapolation with speed and loop, value ranges, version check, wire formats, boundary validation | Pass |
 | Persistence tests (in-memory and file database): settings and bookmarks survive reopening, stale versions conflict | Pass |
 | Integration, real server and Rust clients: a seek by one client reaches another; a client joining during playback gets the current state first; concurrent intents give every client the same final state; a rejection reaches only its sender; invalid values are refused at the server | Pass |
+| Reconnection, real server and Rust client (separate runtime dropped and restarted on the same port): the channel reports the loss, refuses sending meanwhile, reconnects and receives the current state; a channel started before the server exists keeps retrying until it appears | Pass (native, repeated runs) |
+| Backoff policy unit tests: delays double up to the cap, a greeting starts them over, a failure and its close schedule one retry | Pass |
 | Flutter: `dart format`, `flutter analyze`, `flutter test` (player bar and library with a fake player source) | Pass |
 | Browser (Playwright, headless Chromium, real server, built web app): two clients share select, play and pause; a client joining during playback shows the running state | Pass (two runs) |
 | GitHub Actions CI on `main` (Rust, Flutter, web build), ubuntu-latest | Pass (run of 2026-11-21; the first run failed on a race in one of the new tests, fixed) |
@@ -45,5 +47,5 @@ Limits:
 
 - The browser test covers one browser (Chromium), two clients on one machine and the play/pause path; speed, tuning and key controls are covered by widget tests only. Buttons are pressed with `dispatchEvent('click')` because another accessibility node covers them for real clicks.
 - Latency (NFR-001) is not measured; the tests only show correctness.
-- Not covered: server ping timeout, reconnection, clock offset against a real offset, any authentication.
+- Not covered: server ping timeout, reconnection in the browser (the `wasm32` timer compiles but has not run), the periodic clock measurement (only its start at connection is exercised), clock offset against a real offset, any authentication.
 
