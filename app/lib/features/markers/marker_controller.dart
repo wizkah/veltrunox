@@ -71,6 +71,45 @@ class MarkerController {
     ),
   );
 
+  /// Adds a label, or a region when an end is given.
+  Future<bool> add({required String title, required int startMs, int? endMs}) =>
+      endMs == null
+      ? addLabel(title: title, positionMs: startMs)
+      : addRegion(title: title, startMs: startMs, endMs: endMs);
+
+  /// Changes a marker. A label that gets an end becomes a region and a region
+  /// that loses its end becomes a label: the new marker is added first, then the
+  /// old one is deleted, so a failure in between leaves both rather than none.
+  Future<bool> change(
+    Marker marker, {
+    required String title,
+    required int startMs,
+    int? endMs,
+  }) => _attempt(() async {
+    switch ((marker, endMs)) {
+      case (final LabelMarker label, null):
+        await _source.updateLabel(label, title: title, positionMs: startMs);
+      case (final RegionMarker region, final int end):
+        await _source.updateRegion(
+          region,
+          title: title,
+          startMs: startMs,
+          endMs: end,
+        );
+      case (final LabelMarker label, final int end):
+        await _source.addRegion(
+          _recordingId,
+          title: title,
+          startMs: startMs,
+          endMs: end,
+        );
+        await _source.deleteLabel(label);
+      case (final RegionMarker region, null):
+        await _source.addLabel(_recordingId, title: title, positionMs: startMs);
+        await _source.deleteRegion(region);
+    }
+  });
+
   Future<bool> addLabel({required String title, required int positionMs}) =>
       _attempt(
         () => _source.addLabel(

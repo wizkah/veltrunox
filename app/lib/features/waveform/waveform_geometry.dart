@@ -2,6 +2,8 @@ import '../../design/tokens/app_geometry.dart';
 
 /// Heights and hit sizes of the waveform's layers, top to bottom.
 abstract final class WaveformGeometry {
+  /// The exact time of the playhead, above the ruler.
+  static const timeRowHeight = 24.0;
   static const rulerHeight = 28.0;
   static const labelBandHeight = AppSize.touchTarget;
   static const waveformHeight = 128.0;

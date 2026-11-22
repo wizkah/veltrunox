@@ -17,7 +17,7 @@ class PlayerControls extends ConsumerWidget {
   const PlayerControls({
     required this.state,
     required this.analysis,
-    this.beforeSettings,
+    this.above,
     this.showPositionSlider = true,
     super.key,
   });
@@ -25,9 +25,10 @@ class PlayerControls extends ConsumerWidget {
   final PlayerState state;
   final PlayerAnalysis? analysis;
 
-  /// Shown between the transport and the settings, for what belongs close to
-  /// the transport (for example the way to the markers on a narrow screen).
-  final Widget? beforeSettings;
+  /// Shown above the transport, in the same column (the waveform, and on a
+  /// narrow screen the way to the markers). On a wide screen the volume stands
+  /// beside it and the transport.
+  final Widget? above;
 
   /// Hidden where another control moves the position (the waveform).
   final bool showPositionSlider;
@@ -71,6 +72,14 @@ class PlayerControls extends ConsumerWidget {
         ),
       ],
     );
+    final main = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (above != null) ...[above!, const SizedBox(height: AppSpace.s3)],
+        transport,
+      ],
+    );
     Widget volume({required bool vertical}) => VolumeControl(
       percent: state.volumePercent,
       onChanged: controller.setVolume,
@@ -98,19 +107,15 @@ class PlayerControls extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: transport),
+                  Expanded(child: main),
                   const SizedBox(width: AppSpace.s4),
                   volume(vertical: true),
                 ],
               )
             else ...[
-              transport,
+              main,
               const SizedBox(height: AppSpace.s3),
               volume(vertical: false),
-            ],
-            if (beforeSettings != null) ...[
-              const SizedBox(height: AppSpace.s3),
-              beforeSettings!,
             ],
             const SizedBox(height: AppSpace.s3),
             settings(sideBySide: wide),

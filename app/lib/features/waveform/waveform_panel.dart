@@ -101,7 +101,7 @@ class WaveformPanel extends ConsumerWidget {
   }
 }
 
-class _Layers extends StatelessWidget {
+class _Layers extends StatefulWidget {
   const _Layers({
     required this.viewport,
     required this.view,
@@ -116,21 +116,49 @@ class _Layers extends StatelessWidget {
   final WaveformPanel panel;
   final WaveformViewController controller;
 
+  @override
+  State<_Layers> createState() => _LayersState();
+}
+
+class _LayersState extends State<_Layers> {
+  /// Where the playhead is while the user moves it, before the server has
+  /// confirmed; `null` while it shows the shared position.
+  double? _scrubMs;
+
+  WaveformPanel get _panel => widget.panel;
+
   List<LabelMarker> get _labels =>
-      panel.markers.whereType<LabelMarker>().toList();
+      _panel.markers.whereType<LabelMarker>().toList();
   List<RegionMarker> get _regions =>
-      panel.markers.whereType<RegionMarker>().toList();
+      _panel.markers.whereType<RegionMarker>().toList();
+
+  void _scrubTo(double ms) {
+    final bounded = ms.clamp(0.0, _panel.durationMs.toDouble());
+    setState(() => _scrubMs = bounded);
+    _panel.onScrub(bounded.round());
+  }
+
+  void _scrubEnd() {
+    final last = _scrubMs;
+    if (last == null) return;
+    setState(() => _scrubMs = null);
+    _panel.onScrubEnd(last.round());
+  }
 
   Future<void> _openGroup(BuildContext context, LabelCluster cluster) async {
     final chosen = await showLabelGroupDialog(context, cluster);
-    if (chosen != null) panel.onPlayFrom(chosen.positionMs);
+    if (chosen != null) _panel.onPlayFrom(chosen.positionMs);
   }
 
   @override
   Widget build(BuildContext context) {
+    final viewport = widget.viewport;
+    final view = widget.view;
+    final controller = widget.controller;
     final regions = _regions;
     final laneCount = layoutRegionLanes(regions).laneCount;
-    final collapsible = narrow && laneCount > WaveformGeometry.compactLanes;
+    final collapsible =
+        widget.narrow && laneCount > WaveformGeometry.compactLanes;
     final maxLanes = collapsible && !view.showAllLanes
         ? WaveformGeometry.compactLanes
         : null;
@@ -138,12 +166,15 @@ class _Layers extends StatelessWidget {
         ? laneCount
         : maxLanes;
     final waveformTop =
-        WaveformGeometry.rulerHeight + WaveformGeometry.labelBandHeight;
+        WaveformGeometry.timeRowHeight +
+        WaveformGeometry.rulerHeight +
+        WaveformGeometry.labelBandHeight;
     final topHeight = waveformTop + WaveformGeometry.waveformHeight;
     final totalHeight = topHeight + WaveformGeometry.lanesHeight(shownLanes);
     final snapTargets = view.snapEnabled
-        ? SnapTargets.from(panel.markers)
+        ? SnapTargets.from(_panel.markers)
         : null;
+    final shownMs = _scrubMs ?? _panel.positionMs.toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -156,56 +187,69 @@ class _Layers extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TimelineRuler(viewport: viewport),
+                  const SizedBox(height: WaveformGeometry.timeRowHeight),
+                  TimelineRuler(
+                    viewport: viewport,
+                    onScrub: _scrubTo,
+                    onScrubEnd: _scrubEnd,
+                  ),
                   LabelLayer(
                     labels: _labels,
                     viewport: viewport,
-                    onPlay: (label) => panel.onPlayFrom(label.positionMs),
+                    onPlay: (label) => _panel.onPlayFrom(label.positionMs),
                     onOpenGroup: (cluster) => _openGroup(context, cluster),
-                    onContext: panel.onMarkerContext,
+                    onContext: _panel.onMarkerContext,
                   ),
                   WaveformGestureLayer(
                     viewport: viewport,
                     drawingRegion: view.drawingRegion,
                     snapTargets: snapTargets,
-                    onTapAt: (ms) =>
-                        panel.onSeek(ms.clamp(0, panel.durationMs)),
+                    onTapAt: (ms) {
+                      controller.selectRegion(null);
+                      _panel.onSeek(ms.clamp(0, _panel.durationMs));
+                    },
                     onPan: controller.panByPixels,
                     onZoom: controller.zoomAt,
                     onRegionDrawn: (start, end) {
                       controller.endDrawingRegion();
-                      panel.onRegionDrawn(start, end);
+                      _panel.onRegionDrawn(start, end);
                     },
                     child: WaveformRenderer(
-                      data: panel.data,
+                      data: _panel.data,
                       viewport: viewport,
                     ),
                   ),
                   RegionLanes(
                     regions: regions,
-                    markers: panel.markers,
+                    markers: _panel.markers,
                     viewport: viewport,
                     selectedId: view.selectedRegionId,
                     maxLanes: maxLanes,
                     snapEnabled: view.snapEnabled,
-                    onPlay: panel.onPlayRegion,
+                    onPlay: _panel.onPlayRegion,
                     onSelect: (region) => controller.selectRegion(
                       region.id == view.selectedRegionId ? null : region.id,
                     ),
-                    onContext: panel.onMarkerContext,
-                    onResized: panel.onRegionResized,
+                    onContext: _panel.onMarkerContext,
+                    onResized: _panel.onRegionResized,
+                    onDeselect: () => controller.selectRegion(null),
                   ),
                 ],
               ),
               Playhead(
-                positionMs: panel.positionMs,
+                shownMs: shownMs,
                 viewport: viewport,
                 height: totalHeight,
                 hitTop: waveformTop,
                 hitHeight: WaveformGeometry.waveformHeight,
-                onScrub: panel.onScrub,
-                onScrubEnd: panel.onScrubEnd,
+                dragging: _scrubMs != null,
+                onDragStart: () =>
+                    setState(() => _scrubMs = _panel.positionMs.toDouble()),
+                onDragUpdate: (dx) =>
+                    _scrubTo((_scrubMs ?? shownMs) + dx * viewport.msPerPx),
+                onDragEnd: _scrubEnd,
               ),
+              PlayheadTime(shownMs: shownMs, viewport: viewport),
             ],
           ),
         ),

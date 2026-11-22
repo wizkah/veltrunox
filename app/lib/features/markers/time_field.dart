@@ -6,6 +6,7 @@ class TimeField extends StatelessWidget {
     required this.controller,
     required this.label,
     required this.errorText,
+    this.helperText,
     this.onSubmitted,
     this.textInputAction = TextInputAction.next,
     super.key,
@@ -14,13 +15,18 @@ class TimeField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final String? errorText;
+  final String? helperText;
   final VoidCallback? onSubmitted;
   final TextInputAction textInputAction;
 
   @override
   Widget build(BuildContext context) => TextField(
     controller: controller,
-    decoration: InputDecoration(labelText: label, errorText: errorText),
+    decoration: InputDecoration(
+      labelText: label,
+      helperText: helperText,
+      errorText: errorText,
+    ),
     keyboardType: TextInputType.datetime,
     textInputAction: textInputAction,
     onSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),

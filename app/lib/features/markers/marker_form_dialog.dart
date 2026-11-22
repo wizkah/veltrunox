@@ -7,14 +7,16 @@ import 'marker_form_validation.dart';
 import 'marker_texts.dart';
 import 'time_field.dart';
 
-/// What the region form hands back: a checked name and span.
-typedef RegionDraft = ({String title, int startMs, int endMs});
+/// What the marker form hands back: a checked name, a start and an optional
+/// end. Without an end the marker is a label, with one it is a region.
+typedef MarkerDraft = ({String title, int startMs, int? endMs});
 
-/// The form that creates a region from a name, a start and an end, or edits
-/// the same values of an existing one. Invalid input shows a message at its
-/// field and is not handed back.
-class RegionFormDialog extends StatefulWidget {
-  const RegionFormDialog({
+/// The form that creates a marker or edits one. A label and a region differ
+/// only in the end, so leaving the end empty makes a label and filling it in
+/// makes a region, also when it changes an existing marker. Invalid input shows
+/// a message at its field and is not handed back.
+class MarkerFormDialog extends StatefulWidget {
+  const MarkerFormDialog({
     required this.heading,
     required this.initialTitle,
     required this.initialStartMs,
@@ -26,22 +28,24 @@ class RegionFormDialog extends StatefulWidget {
   final String heading;
   final String initialTitle;
   final int initialStartMs;
-  final int initialEndMs;
+
+  /// `null` for a label.
+  final int? initialEndMs;
 
   /// The recording's length, if known; times beyond it are refused.
   final int? lengthMs;
 
   /// Resolves to the draft, or `null` if the user cancelled.
-  static Future<RegionDraft?> show(
+  static Future<MarkerDraft?> show(
     BuildContext context, {
     required String heading,
     required int startMs,
-    required int endMs,
+    required int? endMs,
     required int? lengthMs,
     String title = '',
-  }) => showDialog<RegionDraft>(
+  }) => showDialog<MarkerDraft>(
     context: context,
-    builder: (_) => RegionFormDialog(
+    builder: (_) => MarkerFormDialog(
       heading: heading,
       initialTitle: title,
       initialStartMs: startMs,
@@ -51,16 +55,18 @@ class RegionFormDialog extends StatefulWidget {
   );
 
   @override
-  State<RegionFormDialog> createState() => _RegionFormDialogState();
+  State<MarkerFormDialog> createState() => _MarkerFormDialogState();
 }
 
-class _RegionFormDialogState extends State<RegionFormDialog> {
+class _MarkerFormDialogState extends State<MarkerFormDialog> {
   late final _title = TextEditingController(text: widget.initialTitle);
   late final _start = TextEditingController(
     text: formatClockExact(widget.initialStartMs),
   );
   late final _end = TextEditingController(
-    text: formatClockExact(widget.initialEndMs),
+    text: widget.initialEndMs == null
+        ? ''
+        : formatClockExact(widget.initialEndMs!),
   );
   String? _titleError;
   String? _startError;
@@ -77,19 +83,24 @@ class _RegionFormDialogState extends State<RegionFormDialog> {
   void _submit() {
     final title = checkName(_title.text);
     final start = checkTime(_start.text, lengthMs: widget.lengthMs);
-    final end = checkRegionEnd(
-      _end.text,
-      startMs: start.value,
-      lengthMs: widget.lengthMs,
-    );
+    final hasEnd = _end.text.trim().isNotEmpty;
+    final end = hasEnd
+        ? checkRegionEnd(
+            _end.text,
+            startMs: start.value,
+            lengthMs: widget.lengthMs,
+          )
+        : (value: null, error: null);
     setState(() {
       _titleError = title.error;
       _startError = start.error;
       _endError = end.error;
     });
-    if (title.value == null || start.value == null || end.value == null) return;
+    if (title.value == null || start.value == null || end.error != null) {
+      return;
+    }
     Navigator.of(context)
-        .pop((title: title.value!, startMs: start.value!, endMs: end.value!));
+        .pop((title: title.value!, startMs: start.value!, endMs: end.value));
   }
 
   @override
@@ -121,6 +132,7 @@ class _RegionFormDialogState extends State<RegionFormDialog> {
             TimeField(
               controller: _end,
               label: MarkerTexts.end,
+              helperText: MarkerTexts.endOptional,
               errorText: _endError,
               textInputAction: TextInputAction.done,
               onSubmitted: _submit,

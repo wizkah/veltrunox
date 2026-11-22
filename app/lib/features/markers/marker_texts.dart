@@ -10,8 +10,7 @@ abstract final class MarkerTexts {
   static const filterLabels = 'Labels';
   static const filterRegions = 'Regionen';
   static const addRegion = 'Region anlegen';
-  static const editRegion = 'Region bearbeiten';
-  static const editLabel = 'Label bearbeiten';
+  static const editMarker = 'Markierung bearbeiten';
   static const edit = 'Bearbeiten';
   static const delete = 'Löschen';
   static const more = 'Weitere Aktionen';
@@ -20,7 +19,7 @@ abstract final class MarkerTexts {
   static const name = 'Name';
   static const start = 'Start';
   static const end = 'Ende';
-  static const position = 'Position';
+  static const endOptional = 'Leer lassen für ein Label';
   static const deleteTitle = 'Markierung löschen?';
   static const nameMissing = 'Bitte einen Namen eingeben';
   static const timeUnreadable = 'Zeit nicht lesbar, zum Beispiel 1:07';
@@ -31,6 +30,7 @@ abstract final class MarkerTexts {
   static String defaultLabelName(int number) => 'Label $number';
   static String defaultRegionName(int number) => 'Region $number';
   static const setLabelHere = 'Label hier setzen';
+  static const setRegionHere = 'Region hier anlegen';
   static String outsideRecording(String length) =>
       'Außerhalb der Aufnahme (Länge $length)';
   static String deleteMessage(String name) =>

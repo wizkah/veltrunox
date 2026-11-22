@@ -261,7 +261,7 @@ void main() {
     await tester.tap(find.byTooltip('Region aufziehen'));
     await tester.pump();
     final origin = tester.getTopLeft(find.byType(WaveformRenderer));
-    await tester.dragFrom(origin + const Offset(900, 60), const Offset(150, 0));
+    await tester.dragFrom(origin + const Offset(300, 60), const Offset(150, 0));
     await tester.pumpAndSettle();
 
     expect(app.markers.calls.single, startsWith('addRegion Region 2 '));
@@ -281,5 +281,46 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Chor'), findsWidgets);
+  });
+
+  group('layout', () {
+    testWidgets('on a wide screen the markers stand left and the volume right '
+        'of the waveform and the transport', (tester) async {
+      await _pump(tester);
+      final waveform = tester.getRect(find.byType(WaveformRenderer));
+      final markers = tester.getTopLeft(find.text('Markierungen'));
+      final volume = tester.getTopLeft(find.text('Lautstärke'));
+      final play = tester.getCenter(find.byIcon(Icons.play_arrow).last);
+
+      expect(markers.dx, lessThan(waveform.left));
+      expect(volume.dx, greaterThan(waveform.right));
+      expect(volume.dx, greaterThan(play.dx));
+      // The volume reaches from the waveform's level down to the transport.
+      expect(volume.dy, lessThan(play.dy));
+    });
+
+    testWidgets('on a narrow screen the way to the markers is above the '
+        'waveform', (tester) async {
+      await _pump(tester, width: 500);
+      final opener = tester.getTopLeft(find.text('Markierungen (2)'));
+      final waveform = tester.getTopLeft(find.byType(WaveformRenderer));
+      expect(opener.dy, lessThan(waveform.dy));
+    });
+  });
+
+  testWidgets('labels and regions are both created by a button below the '
+      'waveform', (tester) async {
+    final app = await _pump(tester);
+    final waveform = tester.getBottomLeft(find.byType(WaveformRenderer));
+
+    for (final name in ['Label hier setzen', 'Region hier anlegen']) {
+      expect(tester.getTopLeft(find.text(name)).dy, greaterThan(waveform.dy));
+    }
+    await tester.tap(find.text('Region hier anlegen'));
+    await tester.pumpAndSettle();
+
+    final call = app.markers.calls.single;
+    expect(call, startsWith('addRegion Region 2 10000 '));
+    expect(find.byType(RegionHandle), findsNWidgets(2));
   });
 }

@@ -31,6 +31,7 @@ class RegionLanes extends StatefulWidget {
     required this.onSelect,
     required this.onContext,
     required this.onResized,
+    required this.onDeselect,
     super.key,
   });
 
@@ -50,6 +51,9 @@ class RegionLanes extends StatefulWidget {
 
   /// A handle was let go: the region with its new start and end.
   final void Function(RegionMarker region, int startMs, int endMs) onResized;
+
+  /// The user touched something other than the selected region or its handles.
+  final VoidCallback onDeselect;
 
   @override
   State<RegionLanes> createState() => _RegionLanesState();
@@ -110,16 +114,27 @@ class _RegionLanesState extends State<RegionLanes> {
       widget.maxLanes ?? _assignment.laneCount,
       selectedId: widget.selectedId,
     );
-    return SizedBox(
-      width: viewport.widthPx,
-      height: WaveformGeometry.lanesHeight(shown.length),
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: [
-          for (final region in widget.regions)
-            if (_rowOf(region, shown) case final row?)
-              ..._regionWidgets(region, row),
-        ],
+    return TapRegion(
+      onTapOutside: widget.selectedId == null
+          ? null
+          : (_) => widget.onDeselect(),
+      child: SizedBox(
+        width: viewport.widthPx,
+        height: WaveformGeometry.lanesHeight(shown.length),
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.onDeselect,
+              ),
+            ),
+            for (final region in widget.regions)
+              if (_rowOf(region, shown) case final row?)
+                ..._regionWidgets(region, row),
+          ],
+        ),
       ),
     );
   }
@@ -152,7 +167,10 @@ class _RegionLanesState extends State<RegionLanes> {
           selected: selected,
           toneIndex: _assignment.laneOf(region.id) ?? 0,
           showSelectButton: width >= 72,
-          onPlay: () => widget.onPlay(region),
+          onPlay: () {
+            if (!selected) widget.onDeselect();
+            widget.onPlay(region);
+          },
           onSelect: () => widget.onSelect(region),
           onContext: () => widget.onContext(region),
         ),

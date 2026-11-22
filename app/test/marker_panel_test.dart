@@ -229,13 +229,61 @@ void main() {
     await tester.tap(find.text('Bearbeiten'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Label bearbeiten'), findsOneWidget);
-    await tester.enterText(_field('Position'), '0:30');
+    expect(find.text('Markierung bearbeiten'), findsOneWidget);
+    await tester.enterText(_field('Start'), '0:30');
     await tester.tap(find.text('Speichern'));
     await tester.pumpAndSettle();
 
     expect(source.calls, ['updateLabel 1 Einsatz 30000']);
     expect(find.text('Label bei 0:30'), findsOneWidget);
+  });
+
+  group('a label and a region differ only in the end', () {
+    Future<void> openEdit(WidgetTester tester, String name) async {
+      await tester.tap(find.byTooltip('Weitere Aktionen: $name'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bearbeiten'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('an end makes a label a region', (tester) async {
+      final source = FakeMarkerSource([_label]);
+      await _pump(tester, source);
+      await openEdit(tester, 'Einsatz');
+      await tester.enterText(_field('Ende'), '1:00');
+      await tester.tap(find.text('Speichern'));
+      await tester.pumpAndSettle();
+
+      expect(source.calls, ['addRegion Einsatz 25000 60000', 'deleteLabel 1']);
+      expect(find.text('Region 0:25–1:00'), findsOneWidget);
+      expect(find.textContaining('Label bei'), findsNothing);
+    });
+
+    testWidgets('no end makes a region a label', (tester) async {
+      final source = FakeMarkerSource([_region]);
+      await _pump(tester, source);
+      await openEdit(tester, 'Strophe');
+      await tester.enterText(_field('Ende'), '');
+      await tester.tap(find.text('Speichern'));
+      await tester.pumpAndSettle();
+
+      expect(source.calls, ['addLabel Strophe 10000', 'deleteRegion 2']);
+      expect(find.text('Label bei 0:10'), findsOneWidget);
+    });
+
+    testWidgets('an end that is not after the start is refused', (
+      tester,
+    ) async {
+      final source = FakeMarkerSource([_label]);
+      await _pump(tester, source);
+      await openEdit(tester, 'Einsatz');
+      await tester.enterText(_field('Ende'), '0:10');
+      await tester.tap(find.text('Speichern'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Das Ende muss nach dem Start liegen'), findsOneWidget);
+      expect(source.calls, isEmpty);
+    });
   });
 
   group('delete', () {

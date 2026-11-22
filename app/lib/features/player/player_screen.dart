@@ -61,44 +61,49 @@ class PlayerScreen extends ConsumerWidget {
         final controls = PlayerControls(
           state: loaded,
           analysis: analysis,
-          beforeSettings: beside ? null : markerOpener,
+          above: _aboveTransport(showMarkerOpener: !beside),
           showPositionSlider: waveform == null,
         );
         final header = _title(context);
-        final waveformBlock = _waveformBlock();
+        final main = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [?header, controls],
+        );
         return SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpace.s4),
           child: beside
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [?header, ?waveformBlock, controls],
-                      ),
-                    ),
                     if (markers != null) ...[
-                      const SizedBox(width: AppSpace.s6),
                       SizedBox(width: _markerColumnWidth, child: markers),
+                      const SizedBox(width: AppSpace.s6),
                     ],
+                    Expanded(child: main),
                   ],
                 )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [?header, ?waveformBlock, controls],
-                ),
+              : main,
         );
       },
     );
   }
 
-  Widget? _waveformBlock() => waveform == null
-      ? null
-      : Padding(
-          padding: const EdgeInsets.only(bottom: AppSpace.s3),
-          child: waveform,
-        );
+  /// What stands above the transport: on a narrow screen the way to the
+  /// markers, then the waveform.
+  Widget? _aboveTransport({required bool showMarkerOpener}) {
+    final opener = showMarkerOpener ? markerOpener : null;
+    if (opener == null && waveform == null) return null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (opener != null)
+          Align(alignment: Alignment.centerLeft, child: opener),
+        if (opener != null && waveform != null)
+          const SizedBox(height: AppSpace.s3),
+        ?waveform,
+      ],
+    );
+  }
 
   Widget? _title(BuildContext context) {
     final name = title;

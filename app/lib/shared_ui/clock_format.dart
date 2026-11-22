@@ -41,3 +41,8 @@ String formatClockExact(int milliseconds) {
       .replaceFirst(RegExp(r'0+$'), '');
   return '$whole,$digits';
 }
+
+/// Like [formatClock], with tenths of a second, as "1:07,5"; for a position
+/// that is shown while it moves.
+String formatClockTenths(int milliseconds) =>
+    '${formatClock(milliseconds)},${milliseconds ~/ 100 % 10}';

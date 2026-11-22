@@ -9,6 +9,7 @@ import '../features/markers/marker_flows.dart';
 import '../features/markers/marker_texts.dart';
 import '../features/player/player_controller.dart';
 import '../features/player/scrub_hold.dart';
+import '../features/waveform/new_region_range.dart';
 import '../features/waveform/waveform_panel.dart';
 import '../features/waveform/waveform_placeholder.dart';
 import '../features/waveform/waveform_source.dart';
@@ -99,6 +100,21 @@ class _PlayerWaveformState extends ConsumerState<PlayerWaveform> {
     if (!accepted) _reportFailure();
   }
 
+  Future<void> _setRegionHere(List<Marker> markers, int lengthMs) async {
+    final position = await ref.read(playerSourceProvider).position();
+    if (position == null) return;
+    final visibleEnd = ref
+        .read(waveformViewProvider(widget.recordingId))
+        .viewport
+        ?.endMs;
+    final range = defaultRegionRange(
+      positionMs: position,
+      visibleEndMs: visibleEnd ?? lengthMs.toDouble(),
+      lengthMs: lengthMs,
+    );
+    await _drawRegion(markers, range.startMs, range.endMs);
+  }
+
   Future<void> _setLabelHere(List<Marker> markers) async {
     final position = await ref.read(playerSourceProvider).position();
     if (position == null) return;
@@ -182,14 +198,23 @@ class _PlayerWaveformState extends ConsumerState<PlayerWaveform> {
           onMarkerContext: (marker) => _openActions(marker, loaded.lengthMs),
         ),
         const SizedBox(height: AppSpace.s2),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: ActionButton(
-            label: MarkerTexts.setLabelHere,
-            icon: Icons.add_location_alt_outlined,
-            kind: ActionKind.secondary,
-            onPressed: () => _setLabelHere(markers),
-          ),
+        Wrap(
+          spacing: AppSpace.s2,
+          runSpacing: AppSpace.s2,
+          children: [
+            ActionButton(
+              label: MarkerTexts.setLabelHere,
+              icon: Icons.add_location_alt_outlined,
+              kind: ActionKind.secondary,
+              onPressed: () => _setLabelHere(markers),
+            ),
+            ActionButton(
+              label: MarkerTexts.setRegionHere,
+              icon: Icons.add_road,
+              kind: ActionKind.secondary,
+              onPressed: () => _setRegionHere(markers, loaded.lengthMs),
+            ),
+          ],
         ),
       ],
     );

@@ -6,11 +6,17 @@ import 'package:material_ui/material_ui.dart';
 import '../../design/tokens/app_colors.dart';
 import 'snap_targets.dart';
 import 'time_viewport.dart';
+import 'two_finger_recognizer.dart';
+
+/// Moving less than this still counts as a tap: a mouse or finger rarely stays
+/// perfectly still during a click.
+const _tapTravelPx = 10.0;
 
 /// Turns touches on the free waveform into view and position intents: a tap
-/// sets the position, a one-finger drag pans, two fingers or the mouse wheel
-/// zoom. In "draw region" mode a drag draws a new interval instead. Handles,
-/// the playhead, labels and regions sit above and take their own touches.
+/// sets the position, one finger pans, two fingers pinch (zoom) and pan, and
+/// on a trackpad a sideways swipe pans and a pinch zooms. In "draw region" mode
+/// a one-finger drag draws a new interval instead. Handles, the playhead,
+/// labels and regions sit above and take their own touches.
 class WaveformGestureLayer extends StatefulWidget {
   const WaveformGestureLayer({
     required this.viewport,
@@ -32,6 +38,8 @@ class WaveformGestureLayer extends StatefulWidget {
 
   /// A tap at this time: set the position, do not play.
   final ValueChanged<int> onTapAt;
+
+  /// The content moved sideways by this many pixels.
   final ValueChanged<double> onPan;
 
   /// Zoom by a factor (above 1 zooms in) around a pixel position.
@@ -46,7 +54,11 @@ class WaveformGestureLayer extends StatefulWidget {
 class _WaveformGestureLayerState extends State<WaveformGestureLayer> {
   /// Drawing a region: where it began and where the finger is, in pixels.
   ({double from, double to})? _drawing;
-  double _lastScale = 1;
+  double _travel = 0;
+
+  /// Where the touch began; a drag is recognised only after it moved a little,
+  /// so the recogniser's own start point is already past it.
+  Offset _downPoint = Offset.zero;
 
   /// A pixel position as time, snapped to a marker if snapping is on.
   int _timeAt(double x) {
@@ -57,30 +69,30 @@ class _WaveformGestureLayerState extends State<WaveformGestureLayer> {
   }
 
   void _start(ScaleStartDetails details) {
-    _lastScale = 1;
-    if (widget.drawingRegion && details.pointerCount == 1) {
-      final x = details.localFocalPoint.dx;
-      setState(() => _drawing = (from: x, to: x));
+    _travel = 0;
+    if (widget.drawingRegion) {
+      final x = _downPoint.dx;
+      setState(() => _drawing = (from: x, to: details.localFocalPoint.dx));
     }
   }
 
   void _update(ScaleUpdateDetails details) {
-    if (details.pointerCount >= 2) {
-      _drawing = null;
-      widget.onZoom(details.scale / _lastScale, details.localFocalPoint.dx);
-      _lastScale = details.scale;
-    } else if (_drawing case final drawing?) {
+    _travel += details.focalPointDelta.distance;
+    if (_drawing case final drawing?) {
       setState(
         () => _drawing = (from: drawing.from, to: details.localFocalPoint.dx),
       );
-    } else {
+    } else if (_travel >= _tapTravelPx) {
       widget.onPan(details.focalPointDelta.dx);
     }
   }
 
   void _end(ScaleEndDetails details) {
     final drawing = _drawing;
-    if (drawing == null) return;
+    if (drawing == null) {
+      if (_travel < _tapTravelPx) widget.onTapAt(_ms(_downPoint.dx));
+      return;
+    }
     setState(() => _drawing = null);
     if ((drawing.to - drawing.from).abs() < 4) return;
     final a = _timeAt(drawing.from);
@@ -88,25 +100,55 @@ class _WaveformGestureLayerState extends State<WaveformGestureLayer> {
     widget.onRegionDrawn(math.min(a, b), math.max(a, b));
   }
 
-  void _scrolled(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent) return;
-    widget.onZoom(
-      math.pow(1.002, -event.scrollDelta.dy).toDouble(),
-      event.localPosition.dx,
-    );
+  int _ms(double x) => widget.viewport.xToTime(x).round();
+
+  /// A trackpad or wheel: a mostly sideways swipe pans, a pinch (the browser
+  /// reports it as a scale) zooms. Mostly vertical scrolling is left to the
+  /// page.
+  void _signalled(PointerSignalEvent event) {
+    final resolver = GestureBinding.instance.pointerSignalResolver;
+    if (event is PointerScrollEvent &&
+        event.scrollDelta.dx.abs() > event.scrollDelta.dy.abs()) {
+      resolver.register(event, (_) => widget.onPan(-event.scrollDelta.dx));
+    } else if (event is PointerScaleEvent) {
+      resolver.register(
+        event,
+        (_) => widget.onZoom(event.scale, event.localPosition.dx),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) => Listener(
-    onPointerSignal: _scrolled,
-    child: GestureDetector(
+    onPointerDown: (event) => _downPoint = event.localPosition,
+    onPointerSignal: _signalled,
+    child: RawGestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapUp: (details) => widget.onTapAt(
-        widget.viewport.xToTime(details.localPosition.dx).round(),
-      ),
-      onScaleStart: _start,
-      onScaleUpdate: _update,
-      onScaleEnd: _end,
+      gestures: {
+        TapGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+              TapGestureRecognizer.new,
+              (tap) =>
+                  tap.onTapUp = (details) =>
+                      widget.onTapAt(_ms(details.localPosition.dx)),
+            ),
+        ScaleGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<ScaleGestureRecognizer>(
+              ScaleGestureRecognizer.new,
+              (scale) => scale
+                ..onStart = _start
+                ..onUpdate = _update
+                ..onEnd = _end,
+            ),
+        TwoFingerRecognizer:
+            GestureRecognizerFactoryWithHandlers<TwoFingerRecognizer>(
+              TwoFingerRecognizer.new,
+              (twoFingers) => twoFingers.onUpdate = (factor, focalX, panDx) {
+                widget.onZoom(factor, focalX);
+                widget.onPan(panDx);
+              },
+            ),
+      },
       child: CustomPaint(
         foregroundPainter: _DrawingPainter(_drawing),
         child: widget.child,

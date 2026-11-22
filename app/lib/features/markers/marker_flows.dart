@@ -2,11 +2,10 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../shared_ui/confirm_dialog.dart';
 import '../../shared_ui/toast_notice.dart';
-import 'label_form_dialog.dart';
 import 'marker.dart';
 import 'marker_controller.dart';
 import 'marker_texts.dart';
-import 'region_form_dialog.dart';
+import 'marker_form_dialog.dart';
 
 /// The user flows around markers: ask in a form or dialog, write, and tell the
 /// user when the server did not take the change.
@@ -23,9 +22,10 @@ class MarkerFlows {
   /// The recording's length, if known.
   final int? lengthMs;
 
-  /// Opens the region form, with the start at `playheadMs`, and adds the region.
+  /// Opens the form, with the start at `playheadMs` and the end at the end of
+  /// the recording, and adds what it describes (a label if the end is left empty).
   Future<void> addRegion({required int playheadMs}) async {
-    final draft = await RegionFormDialog.show(
+    final draft = await MarkerFormDialog.show(
       context,
       heading: MarkerTexts.addRegion,
       startMs: playheadMs,
@@ -34,7 +34,7 @@ class MarkerFlows {
     );
     if (draft == null) return;
     _report(
-      await controller.addRegion(
+      await controller.add(
         title: draft.title,
         startMs: draft.startMs,
         endMs: draft.endMs,
@@ -42,41 +42,24 @@ class MarkerFlows {
     );
   }
 
-  Future<void> edit(Marker marker) => switch (marker) {
-    final LabelMarker label => _editLabel(label),
-    final RegionMarker region => _editRegion(region),
-  };
-
-  Future<void> _editLabel(LabelMarker label) async {
-    final draft = await LabelFormDialog.show(
+  /// Opens the form with the marker's values; the changed marker may turn from
+  /// a label into a region or back.
+  Future<void> edit(Marker marker) async {
+    final draft = await MarkerFormDialog.show(
       context,
-      title: label.title,
-      positionMs: label.positionMs,
+      heading: MarkerTexts.editMarker,
+      title: marker.title,
+      startMs: marker.startMs,
+      endMs: switch (marker) {
+        LabelMarker() => null,
+        RegionMarker(:final endMs) => endMs,
+      },
       lengthMs: lengthMs,
     );
     if (draft == null) return;
     _report(
-      await controller.updateLabel(
-        label,
-        title: draft.title,
-        positionMs: draft.positionMs,
-      ),
-    );
-  }
-
-  Future<void> _editRegion(RegionMarker region) async {
-    final draft = await RegionFormDialog.show(
-      context,
-      heading: MarkerTexts.editRegion,
-      title: region.title,
-      startMs: region.startMs,
-      endMs: region.endMs,
-      lengthMs: lengthMs,
-    );
-    if (draft == null) return;
-    _report(
-      await controller.updateRegion(
-        region,
+      await controller.change(
+        marker,
         title: draft.title,
         startMs: draft.startMs,
         endMs: draft.endMs,
