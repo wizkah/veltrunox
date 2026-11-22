@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1015835784;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1185976169;
 
 // Section: executor
 
@@ -271,6 +271,55 @@ fn wire__crate__api__end_scrub_impl(
         },
     )
 }
+fn wire__crate__api__label_to_region_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "label_to_region",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_server_url = <String>::sse_decode(&mut deserializer);
+            let api_id = <u64>::sse_decode(&mut deserializer);
+            let api_expected_version = <u64>::sse_decode(&mut deserializer);
+            let api_name = <String>::sse_decode(&mut deserializer);
+            let api_start_ms = <u64>::sse_decode(&mut deserializer);
+            let api_end_ms = <u64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::label_to_region(
+                            api_server_url,
+                            api_id,
+                            api_expected_version,
+                            api_name,
+                            api_start_ms,
+                            api_end_ms,
+                        )
+                        .await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__list_bookmarks_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -489,6 +538,53 @@ fn wire__crate__api__recording_waveform_impl(
                         let output_ok =
                             crate::api::recording_waveform(api_server_url, api_recording_id)
                                 .await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__region_to_label_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "region_to_label",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_server_url = <String>::sse_decode(&mut deserializer);
+            let api_id = <u64>::sse_decode(&mut deserializer);
+            let api_expected_version = <u64>::sse_decode(&mut deserializer);
+            let api_name = <String>::sse_decode(&mut deserializer);
+            let api_position_ms = <u64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::region_to_label(
+                            api_server_url,
+                            api_id,
+                            api_expected_version,
+                            api_name,
+                            api_position_ms,
+                        )
+                        .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -1269,19 +1365,21 @@ fn pde_ffi_dispatcher_primary_impl(
         3 => wire__crate__api__create_label_impl(port, ptr, rust_vec_len, data_len),
         4 => wire__crate__api__create_region_impl(port, ptr, rust_vec_len, data_len),
         5 => wire__crate__api__end_scrub_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__list_bookmarks_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__list_recordings_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__playback_position_ms_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__reanalyse_recording_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__recording_length_ms_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__recording_waveform_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__remove_label_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__remove_region_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__scrub_to_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__send_command_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__speed_for_target_bpm_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__tuning_supported_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__watch_session_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__label_to_region_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__list_bookmarks_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__list_recordings_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__playback_position_ms_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__reanalyse_recording_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__recording_length_ms_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__recording_waveform_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__region_to_label_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__remove_label_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__remove_region_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__scrub_to_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__send_command_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__speed_for_target_bpm_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__tuning_supported_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__watch_session_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

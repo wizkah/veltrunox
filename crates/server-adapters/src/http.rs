@@ -11,10 +11,11 @@ use axum::{
 use veltrunox_core::{BookmarkId, BookmarkName, InvalidValue, Millis, RecordingId, Version};
 use veltrunox_protocol::{
     ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, EVENTS_PATH, ExpectedVersionQuery,
-    LABEL_PATH, LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto, RECORDINGS_PATH, REGION_PATH,
-    REGIONS_PATH, RecordingListDto, RegionDto, UpdateLabelDto, UpdateRegionDto,
-    WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_to_dto, label_to_dto,
-    library_entry_to_dto, peaks_to_bytes, range_from_dto, region_to_dto, waveform_info_to_dto,
+    LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto,
+    RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH, REGIONS_PATH, RecordingListDto, RegionDto,
+    UpdateLabelDto, UpdateRegionDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto,
+    bookmarks_to_dto, label_to_dto, library_entry_to_dto, peaks_to_bytes, range_from_dto,
+    region_to_dto, waveform_info_to_dto,
 };
 use veltrunox_server_app::{BookmarkError, list_recordings};
 
@@ -31,6 +32,8 @@ pub fn router(app: AppState) -> Router {
         .route(REGIONS_PATH, post(add_region))
         .route(LABEL_PATH, put(update_label).delete(delete_label))
         .route(REGION_PATH, put(update_region).delete(delete_region))
+        .route(LABEL_TO_REGION_PATH, post(label_to_region))
+        .route(REGION_TO_LABEL_PATH, post(region_to_label))
         .with_state(app)
 }
 
@@ -246,4 +249,38 @@ async fn delete_region(
     let expected = Version::new(query.expected_version);
     blocking(move || Ok(app.bookmarks.delete_region(BookmarkId::new(id), expected)?)).await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+async fn label_to_region(
+    State(app): State<AppState>,
+    Path(id): Path<u64>,
+    Json(body): Json<UpdateRegionDto>,
+) -> Result<Json<RegionDto>, ApiError> {
+    let name = BookmarkName::new(&body.name)?;
+    let range = range_from_dto(body.range)?;
+    let expected = Version::new(body.expected_version);
+    let region = blocking(move || {
+        Ok(app
+            .bookmarks
+            .convert_label_to_region(BookmarkId::new(id), expected, name, range)?)
+    })
+    .await?;
+    Ok(Json(region_to_dto(&region)))
+}
+
+async fn region_to_label(
+    State(app): State<AppState>,
+    Path(id): Path<u64>,
+    Json(body): Json<UpdateLabelDto>,
+) -> Result<Json<LabelDto>, ApiError> {
+    let name = BookmarkName::new(&body.name)?;
+    let position = Millis::position(body.position_ms)?;
+    let expected = Version::new(body.expected_version);
+    let label = blocking(move || {
+        Ok(app
+            .bookmarks
+            .convert_region_to_label(BookmarkId::new(id), expected, name, position)?)
+    })
+    .await?;
+    Ok(Json(label_to_dto(&label)))
 }

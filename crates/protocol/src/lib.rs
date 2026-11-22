@@ -38,6 +38,10 @@ pub const REGIONS_PATH: &str = "/api/v1/recordings/{id}/regions";
 /// Path of one label or region; `{id}` is the bookmark id.
 pub const LABEL_PATH: &str = "/api/v1/labels/{id}";
 pub const REGION_PATH: &str = "/api/v1/regions/{id}";
+/// Replaces the label `{id}` by a region (body: `UpdateRegionDto`, answer: `RegionDto`).
+pub const LABEL_TO_REGION_PATH: &str = "/api/v1/labels/{id}/to-region";
+/// Replaces the region `{id}` by a label (body: `UpdateLabelDto`, answer: `LabelDto`).
+pub const REGION_TO_LABEL_PATH: &str = "/api/v1/regions/{id}/to-label";
 
 /// The shared playback state, complete, as published to every client.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

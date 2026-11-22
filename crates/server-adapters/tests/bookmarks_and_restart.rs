@@ -6,8 +6,9 @@ use std::sync::Arc;
 use support::{TestClient, start_server, store_with_recording};
 use veltrunox_client_adapters::HttpServerLink;
 use veltrunox_client_app::{
-    ChannelEvent, LinkError, ServerEvent, add_label, add_region, delete_label, delete_region,
-    edit_label, edit_region, load_bookmarks, load_library,
+    ChannelEvent, LinkError, ServerEvent, add_label, add_region, convert_label_to_region,
+    convert_region_to_label, delete_label, delete_region, edit_label, edit_region, load_bookmarks,
+    load_library,
 };
 use veltrunox_core::{
     BookmarkName, Intent, KeyShift, Millis, RecordingId, Speed, TimeRange, Version,
@@ -106,6 +107,39 @@ async fn the_client_writes_labels_and_regions_and_meets_a_conflict() {
         .unwrap();
     let found = load_bookmarks(&link, RECORDING).await.unwrap();
     assert!(found.labels.is_empty() && found.regions.is_empty());
+}
+
+#[tokio::test]
+async fn a_marker_changes_its_kind_in_one_step() {
+    let url = start_server(store_with_recording()).await;
+    let link = HttpServerLink::new(&url);
+    let name = BookmarkName::new("Chorus").unwrap();
+
+    let label = add_label(&link, RECORDING, &name, Millis::new(2_000))
+        .await
+        .unwrap();
+    let range = TimeRange::new(Millis::new(2_000), Millis::new(8_000)).unwrap();
+    let region = convert_label_to_region(&link, label.id, label.version, &name, range)
+        .await
+        .unwrap();
+    let found = load_bookmarks(&link, RECORDING).await.unwrap();
+    assert!(found.labels.is_empty());
+    assert_eq!(found.regions, vec![region.clone()]);
+
+    let stale =
+        convert_region_to_label(&link, region.id, Version::new(9), &name, Millis::new(2_000)).await;
+    assert!(matches!(stale, Err(LinkError::Conflict { .. })));
+    assert_eq!(
+        load_bookmarks(&link, RECORDING).await.unwrap().regions,
+        vec![region.clone()]
+    );
+
+    let back = convert_region_to_label(&link, region.id, region.version, &name, Millis::new(2_000))
+        .await
+        .unwrap();
+    let found = load_bookmarks(&link, RECORDING).await.unwrap();
+    assert!(found.regions.is_empty());
+    assert_eq!(found.labels, vec![back]);
 }
 
 #[tokio::test]

@@ -254,7 +254,7 @@ void main() {
       await tester.tap(find.text('Speichern'));
       await tester.pumpAndSettle();
 
-      expect(source.calls, ['addRegion Einsatz 25000 60000', 'deleteLabel 1']);
+      expect(source.calls, ['labelToRegion 1 v1 Einsatz 25000 60000']);
       expect(find.text('Region 0:25–1:00'), findsOneWidget);
       expect(find.textContaining('Label bei'), findsNothing);
     });
@@ -267,7 +267,7 @@ void main() {
       await tester.tap(find.text('Speichern'));
       await tester.pumpAndSettle();
 
-      expect(source.calls, ['addLabel Strophe 10000', 'deleteRegion 2']);
+      expect(source.calls, ['regionToLabel 2 v3 Strophe 10000']);
       expect(find.text('Label bei 0:10'), findsOneWidget);
     });
 

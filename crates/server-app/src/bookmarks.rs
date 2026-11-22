@@ -84,4 +84,34 @@ impl BookmarkService {
         self.broadcast.bookmarks_changed(recording);
         Ok(())
     }
+
+    /// Turns a label into a region; the label disappears, the region has a new id.
+    pub fn convert_label_to_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: BookmarkName,
+        range: TimeRange,
+    ) -> Result<Region, BookmarkError> {
+        let stored = self
+            .repository
+            .convert_label_to_region(id, expected, name, range)?;
+        self.broadcast.bookmarks_changed(stored.recording);
+        Ok(stored.item)
+    }
+
+    /// Turns a region into a label; the region disappears, the label has a new id.
+    pub fn convert_region_to_label(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: BookmarkName,
+        position: Millis,
+    ) -> Result<Label, BookmarkError> {
+        let stored = self
+            .repository
+            .convert_region_to_label(id, expected, name, position)?;
+        self.broadcast.bookmarks_changed(stored.recording);
+        Ok(stored.item)
+    }
 }

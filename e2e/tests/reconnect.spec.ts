@@ -4,6 +4,8 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+const port = process.env.E2E_PORT ?? '8181';
+
 // Runs with playwright.reconnect.config.ts: this test starts and stops the server itself.
 const serverBinary = join(__dirname, '../../target/debug/veltrunox-server');
 const dataDir = mkdtempSync(join(tmpdir(), 'veltrunox-e2e-reconnect-'));
@@ -11,7 +13,7 @@ const configFile = join(dataDir, 'veltrunox.toml');
 writeFileSync(
   configFile,
   [
-    'address = "127.0.0.1:8080"',
+    `address = "127.0.0.1:${port}"`,
     `data_dir = ${JSON.stringify(join(dataDir, 'data'))}`,
     `web_dir = ${JSON.stringify(join(__dirname, '../../app/build/web'))}`,
   ].join('\n'),
@@ -23,7 +25,7 @@ async function startServer() {
     stdio: 'ignore',
   });
   await expect
-    .poll(() => fetch('http://127.0.0.1:8080/api/v1/recordings').then((r) => r.ok, () => false), {
+    .poll(() => fetch(`http://127.0.0.1:${port}/api/v1/recordings`).then((r) => r.ok, () => false), {
       timeout: 30_000,
     })
     .toBe(true);

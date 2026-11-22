@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-11-21  
-**Amended by:** ADR-010 (loop range and `set loop` become play range, play mode, `play_region`)
+**Amended by:** ADR-010 (loop range and `set loop` become play range, play mode, `play_region`); ADR-011 (audible scrubbing replaces the fallback in the scrubbing paragraph)
 
 ## Context
 
@@ -18,9 +18,9 @@ All clients see and control one shared playback state held by the server. The ch
 
 **Intents.** Clients send intents: select recording, play, pause, seek, set speed, set tuning, set key, set loop. The server checks permission and validity, applies the intent in arrival order and publishes the new state. Concurrent intents need no locks; the arrival order decides and every client sees the same result. A rejected intent returns an error message to its sender only. Once the length of a recording is known (after decoding), a `seek` beyond its end is rejected. The server ends the playback itself: when the position reaches the end of the recording, it pauses there and publishes the new state.
 
-**Scrubbing.** Dragging sends `seek` intents with `scrubbing: true`, throttled on the client to about 20 per second, always including the last value; releasing sends a final `seek` with `scrubbing: false`. All clients follow continuously. Whether the room hears the scrubbed position is a property of the server's audio output, not of the protocol: the goal is audible scrubbing; if the measured audio latency on the target hardware does not allow it, the server holds the sound while the flag is set and resumes on release. This is decided and documented with the audio output measurements.
+**Scrubbing.** Dragging sends `seek` intents with `scrubbing: true`, throttled on the client to about 20 per second, always including the last value; releasing sends a final `seek` with `scrubbing: false`. All clients follow continuously. Whether and how the room hears the scrubbed position is a property of the server's audio output, not of the protocol (ADR-011: short audible pieces; the former fallback of holding the sound no longer applies).
 
-**Bookmarks.** Edits use HTTP with the expected record version; a mismatch yields a conflict response. After a successful edit the server sends a change notice over the channel so clients reload the affected recording's bookmarks.
+**Bookmarks.** Edits use HTTP with the expected record version; a mismatch yields a conflict response. After a successful edit the server sends a change notice over the channel so clients reload the affected recording's bookmarks. Turning a label into a region or a region into a label is one server call (`POST /api/v1/labels/{id}/to-region`, `POST /api/v1/regions/{id}/to-label`, with the expected version): the old record is deleted and the new one created in one transaction, with a new id and the first version; a stale version is a conflict and changes nothing.
 
 **Audio output.** The server tells every joining client, and again on every change, whether it can play sound (`audio_output`). Without a device the shared state keeps running silently; clients may show that.
 

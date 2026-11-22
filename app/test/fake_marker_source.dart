@@ -119,4 +119,48 @@ class FakeMarkerSource implements MarkerSource {
     'deleteRegion ${region.id}',
     () => markers.removeWhere((marker) => marker.id == region.id),
   );
+
+  @override
+  Future<void> labelToRegion(
+    LabelMarker label, {
+    required String title,
+    required int startMs,
+    required int endMs,
+  }) async => _write(
+    'labelToRegion ${label.id} v${label.version} $title $startMs $endMs',
+    () {
+      markers
+        ..removeWhere((marker) => marker.id == label.id)
+        ..add(
+          RegionMarker(
+            id: _nextId++,
+            version: 1,
+            title: title,
+            startMs: startMs,
+            endMs: endMs,
+          ),
+        );
+    },
+  );
+
+  @override
+  Future<void> regionToLabel(
+    RegionMarker region, {
+    required String title,
+    required int positionMs,
+  }) async => _write(
+    'regionToLabel ${region.id} v${region.version} $title $positionMs',
+    () {
+      markers
+        ..removeWhere((marker) => marker.id == region.id)
+        ..add(
+          LabelMarker(
+            id: _nextId++,
+            version: 1,
+            title: title,
+            positionMs: positionMs,
+          ),
+        );
+    },
+  );
 }

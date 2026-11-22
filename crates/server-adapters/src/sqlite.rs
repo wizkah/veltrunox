@@ -740,6 +740,91 @@ impl BookmarkRepository for SqliteStore {
             Ok(recording)
         })
     }
+
+    fn convert_label_to_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: BookmarkName,
+        range: TimeRange,
+    ) -> Result<Owned<Region>, BookmarkError> {
+        self.write_versioned(Table::Labels, id, expected, |transaction, recording, _| {
+            delete_row(transaction, Table::Labels, id)?;
+            let region = insert_region(transaction, recording, name, range)?;
+            Ok(Owned {
+                recording,
+                item: region,
+            })
+        })
+    }
+
+    fn convert_region_to_label(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: BookmarkName,
+        position: Millis,
+    ) -> Result<Owned<Label>, BookmarkError> {
+        self.write_versioned(Table::Regions, id, expected, |transaction, recording, _| {
+            delete_row(transaction, Table::Regions, id)?;
+            let label = insert_label(transaction, recording, name, position)?;
+            Ok(Owned {
+                recording,
+                item: label,
+            })
+        })
+    }
+}
+
+fn insert_label(
+    transaction: &Transaction<'_>,
+    recording: RecordingId,
+    name: BookmarkName,
+    position: Millis,
+) -> Result<Label, BookmarkError> {
+    transaction
+        .execute(
+            "INSERT INTO labels (recording_id, name, position_ms, version) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                sql_int(recording.value())?,
+                name.as_str(),
+                sql_int(position.value())?,
+                sql_int(Version::FIRST.value())?
+            ],
+        )
+        .map_err(storage)?;
+    Ok(Label {
+        id: BookmarkId::new(unsigned(transaction.last_insert_rowid())?),
+        name,
+        position,
+        version: Version::FIRST,
+    })
+}
+
+fn insert_region(
+    transaction: &Transaction<'_>,
+    recording: RecordingId,
+    name: BookmarkName,
+    range: TimeRange,
+) -> Result<Region, BookmarkError> {
+    transaction
+        .execute(
+            "INSERT INTO regions (recording_id, name, start_ms, end_ms, version) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                sql_int(recording.value())?,
+                name.as_str(),
+                sql_int(range.start().value())?,
+                sql_int(range.end().value())?,
+                sql_int(Version::FIRST.value())?
+            ],
+        )
+        .map_err(storage)?;
+    Ok(Region {
+        id: BookmarkId::new(unsigned(transaction.last_insert_rowid())?),
+        name,
+        range,
+        version: Version::FIRST,
+    })
 }
 
 fn delete_row(
@@ -908,6 +993,62 @@ mod tests {
             1
         );
         std::fs::remove_dir_all(&directory).unwrap();
+    }
+
+    #[test]
+    fn a_label_becomes_a_region_in_one_step() {
+        let (store, id) = store_with_recording();
+        let label =
+            BookmarkRepository::add_label(&store, id, name("Verse"), Millis::new(5)).unwrap();
+        let converted = BookmarkRepository::convert_label_to_region(
+            &store,
+            label.id,
+            label.version,
+            name("Verse"),
+            range(5, 20),
+        )
+        .unwrap();
+        assert_eq!(converted.recording, id);
+        assert_eq!(converted.item.version, Version::FIRST);
+        let listed = BookmarkRepository::list(&store, id).unwrap();
+        assert!(listed.labels.is_empty());
+        assert_eq!(listed.regions, vec![converted.item]);
+    }
+
+    #[test]
+    fn a_region_becomes_a_label_in_one_step() {
+        let (store, id) = store_with_recording();
+        let region =
+            BookmarkRepository::add_region(&store, id, name("Solo"), range(10, 30)).unwrap();
+        let converted = BookmarkRepository::convert_region_to_label(
+            &store,
+            region.id,
+            region.version,
+            name("Solo"),
+            Millis::new(10),
+        )
+        .unwrap();
+        let listed = BookmarkRepository::list(&store, id).unwrap();
+        assert!(listed.regions.is_empty());
+        assert_eq!(listed.labels, vec![converted.item]);
+    }
+
+    #[test]
+    fn a_stale_conversion_is_a_conflict_and_changes_nothing() {
+        let (store, id) = store_with_recording();
+        let label =
+            BookmarkRepository::add_label(&store, id, name("Verse"), Millis::new(5)).unwrap();
+        let result = BookmarkRepository::convert_label_to_region(
+            &store,
+            label.id,
+            Version::new(label.version.value() + 7),
+            name("Verse"),
+            range(5, 20),
+        );
+        assert!(matches!(result, Err(BookmarkError::Conflict(_))));
+        let listed = BookmarkRepository::list(&store, id).unwrap();
+        assert_eq!(listed.labels, vec![label]);
+        assert!(listed.regions.is_empty());
     }
 
     #[test]

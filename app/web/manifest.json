@@ -1,11 +1,11 @@
 {
-    "name": "veltrunox_app",
-    "short_name": "veltrunox_app",
+    "name": "Veltrunox",
+    "short_name": "Veltrunox",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#071519",
+    "theme_color": "#071519",
+    "description": "Shared rehearsal player",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

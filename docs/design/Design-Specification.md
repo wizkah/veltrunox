@@ -432,7 +432,7 @@ The library is a large, searchable song list. Each recording shows at least its 
 |---|---|---|
 | Search | Directly findable, clear search text | [B] |
 | Sort | Understandable current sort order | [B] |
-| Filter by analysis, key, tempo | UI proposal for faster searching | [V] |
+| Filter by analysis state | UI proposal for faster searching; no filters by key or tempo | [V] |
 | Open a recording | Switch to the player; clearly distinct from "play now" | [B/V] |
 | Running analysis | Progress/status per recording, not only a global spinner | [B] |
 | Failed analysis | Understandable error message, no invented bpm/key values | [V] |

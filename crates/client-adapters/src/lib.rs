@@ -16,11 +16,11 @@ use veltrunox_core::{
     TimeRange, Version, Waveform, WaveformLevel,
 };
 use veltrunox_protocol::{
-    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, LABEL_PATH, LABELS_PATH, LabelDto,
-    NewLabelDto, NewRegionDto, RECORDINGS_PATH, REGION_PATH, REGIONS_PATH, RecordingListDto,
-    RegionDto, UpdateLabelDto, UpdateRegionDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH,
-    WaveformInfoDto, bookmarks_from_dto, label_from_dto, library_entry_from_dto, peaks_from_bytes,
-    range_to_dto, region_from_dto,
+    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, LABEL_PATH, LABEL_TO_REGION_PATH,
+    LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto, RECORDINGS_PATH, REGION_PATH,
+    REGION_TO_LABEL_PATH, REGIONS_PATH, RecordingListDto, RegionDto, UpdateLabelDto,
+    UpdateRegionDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_from_dto,
+    label_from_dto, library_entry_from_dto, peaks_from_bytes, range_to_dto, region_from_dto,
 };
 
 pub struct HttpServerLink {
@@ -296,5 +296,47 @@ impl ServerLink for HttpServerLink {
             expected.value()
         );
         Self::send_write(self.client.delete(url)).await.map(drop)
+    }
+
+    async fn label_into_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: &BookmarkName,
+        range: TimeRange,
+    ) -> Result<Region, LinkError> {
+        let body = UpdateRegionDto {
+            expected_version: expected.value(),
+            name: name.as_str().to_owned(),
+            range: range_to_dto(range),
+        };
+        let dto: RegionDto = Self::written(
+            self.client
+                .post(self.url(LABEL_TO_REGION_PATH, id.value()))
+                .json(&body),
+        )
+        .await?;
+        region_from_dto(&dto).map_err(|error| LinkError::InvalidResponse(error.to_string()))
+    }
+
+    async fn region_into_label(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: &BookmarkName,
+        position: Millis,
+    ) -> Result<Label, LinkError> {
+        let body = UpdateLabelDto {
+            expected_version: expected.value(),
+            name: name.as_str().to_owned(),
+            position_ms: position.value(),
+        };
+        let dto: LabelDto = Self::written(
+            self.client
+                .post(self.url(REGION_TO_LABEL_PATH, id.value()))
+                .json(&body),
+        )
+        .await?;
+        label_from_dto(&dto).map_err(|error| LinkError::InvalidResponse(error.to_string()))
     }
 }

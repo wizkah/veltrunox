@@ -9,9 +9,9 @@ use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
 use veltrunox_client_adapters::{EventChannel, HttpServerLink, SystemTimer, open_channel};
 use veltrunox_client_app::{
     ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkEvent, ScrubThrottle, ServerEvent,
-    SessionView, ViewChange, WaveformCache, add_label, add_region, analyse_again, delete_label,
-    delete_region, edit_label, edit_region, load_bookmarks, load_length, load_library,
-    load_waveform,
+    SessionView, ViewChange, WaveformCache, add_label, add_region, analyse_again,
+    convert_label_to_region, convert_region_to_label, delete_label, delete_region, edit_label,
+    edit_region, load_bookmarks, load_length, load_library, load_waveform,
 };
 use veltrunox_core::{
     AnalysisProgress, BookmarkId, BookmarkName, Bpm, Intent, InvalidValue, KeyMode, KeyShift,
@@ -323,6 +323,49 @@ pub async fn remove_region(
         .map_err(|error| error.to_string())
 }
 
+/// Replaces a label seen at `expected_version` by a region in one step.
+pub async fn label_to_region(
+    server_url: String,
+    id: u64,
+    expected_version: u64,
+    name: String,
+    start_ms: u64,
+    end_ms: u64,
+) -> Result<(), String> {
+    let link = HttpServerLink::new(&server_url);
+    convert_label_to_region(
+        &link,
+        BookmarkId::new(id),
+        Version::new(expected_version),
+        &bookmark_name(&name)?,
+        range_of(start_ms, end_ms)?,
+    )
+    .await
+    .map(drop)
+    .map_err(|error| error.to_string())
+}
+
+/// Replaces a region seen at `expected_version` by a label in one step.
+pub async fn region_to_label(
+    server_url: String,
+    id: u64,
+    expected_version: u64,
+    name: String,
+    position_ms: u64,
+) -> Result<(), String> {
+    let link = HttpServerLink::new(&server_url);
+    convert_region_to_label(
+        &link,
+        BookmarkId::new(id),
+        Version::new(expected_version),
+        &bookmark_name(&name)?,
+        Millis::position(position_ms).map_err(|error| error.to_string())?,
+    )
+    .await
+    .map(drop)
+    .map_err(|error| error.to_string())
+}
+
 /// The speed that plays a recording of `recording_bpm` at `target_bpm`.
 pub struct TargetTempo {
     pub speed: f64,
@@ -518,9 +561,16 @@ fn forward(event: ServerEvent, updates: &StreamSink<SessionUpdate>) {
         ViewChange::BookmarksChanged(recording) => Some(SessionUpdate::BookmarksChanged {
             recording_id: recording.value(),
         }),
-        ViewChange::AnalysisChanged(recording) => Some(SessionUpdate::AnalysisChanged {
-            recording_id: recording.value(),
-        }),
+        ViewChange::AnalysisChanged(recording) => {
+            // A new scan may have replaced the peaks.
+            WAVEFORMS
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .forget(recording);
+            Some(SessionUpdate::AnalysisChanged {
+                recording_id: recording.value(),
+            })
+        }
         ViewChange::Rejected(reason) => Some(SessionUpdate::Rejected { reason }),
         // Not shown yet: the interface needs a place for it first (GUI work).
         ViewChange::AudioOutput => None,

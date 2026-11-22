@@ -139,6 +139,22 @@ pub trait BookmarkRepository: Send + Sync {
         id: BookmarkId,
         expected: Version,
     ) -> Result<RecordingId, BookmarkError>;
+    /// Replaces a label by a new region in one step; the region gets a new id.
+    fn convert_label_to_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: BookmarkName,
+        range: TimeRange,
+    ) -> Result<Owned<Region>, BookmarkError>;
+    /// Replaces a region by a new label in one step; the label gets a new id.
+    fn convert_region_to_label(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: BookmarkName,
+        position: Millis,
+    ) -> Result<Owned<Label>, BookmarkError>;
 }
 
 /// Port: how long the recordings are, as far as the server knows yet. A length

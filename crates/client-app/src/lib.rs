@@ -98,6 +98,22 @@ pub trait ServerLink {
         id: BookmarkId,
         expected: Version,
     ) -> impl Future<Output = Result<(), LinkError>>;
+    /// Replaces a label by a region in one step on the server.
+    fn label_into_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: &BookmarkName,
+        range: TimeRange,
+    ) -> impl Future<Output = Result<Region, LinkError>>;
+    /// Replaces a region by a label in one step on the server.
+    fn region_into_label(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: &BookmarkName,
+        position: Millis,
+    ) -> impl Future<Output = Result<Label, LinkError>>;
 }
 
 /// Use case: load the recording list from the server.
@@ -199,4 +215,26 @@ pub async fn delete_region(
     expected: Version,
 ) -> Result<(), LinkError> {
     link.remove_region(id, expected).await
+}
+
+/// Use case: turn a label into a region; the label is replaced atomically by a new region.
+pub async fn convert_label_to_region(
+    link: &impl ServerLink,
+    id: BookmarkId,
+    expected: Version,
+    name: &BookmarkName,
+    range: TimeRange,
+) -> Result<Region, LinkError> {
+    link.label_into_region(id, expected, name, range).await
+}
+
+/// Use case: turn a region into a label; the region is replaced atomically by a new label.
+pub async fn convert_region_to_label(
+    link: &impl ServerLink,
+    id: BookmarkId,
+    expected: Version,
+    name: &BookmarkName,
+    position: Millis,
+) -> Result<Label, LinkError> {
+    link.region_into_label(id, expected, name, position).await
 }

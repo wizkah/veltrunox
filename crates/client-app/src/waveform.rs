@@ -12,8 +12,8 @@ pub struct RecordingWaveform {
     pub waveform: Waveform,
 }
 
-/// Waveforms already fetched. A recording's peaks do not change once scanned, so
-/// an entry stays for the life of the client.
+/// Waveforms already fetched. An entry stays until the server reports a new
+/// analysis of that recording (a new scan may replace the peaks).
 #[derive(Debug, Default)]
 pub struct WaveformCache {
     entries: HashMap<RecordingId, Arc<RecordingWaveform>>,
@@ -22,6 +22,11 @@ pub struct WaveformCache {
 impl WaveformCache {
     pub fn get(&self, recording: RecordingId) -> Option<Arc<RecordingWaveform>> {
         self.entries.get(&recording).cloned()
+    }
+
+    /// Forgets a recording's waveform so the next request fetches it again.
+    pub fn forget(&mut self, recording: RecordingId) {
+        self.entries.remove(&recording);
     }
 
     pub fn insert(
@@ -105,6 +110,23 @@ mod tests {
         assert_eq!(failed.unwrap_err(), "not scanned");
         let found: Result<_, &str> = block_on(cached_waveform(&cache, id, async || Ok(sample())));
         assert!(found.is_ok());
+    }
+
+    #[test]
+    fn a_forgotten_waveform_is_fetched_again() {
+        let cache = Mutex::new(WaveformCache::default());
+        let fetches = Cell::new(0);
+        let id = RecordingId::new(5);
+        let mut fetch = || {
+            let _: Result<_, ()> = block_on(cached_waveform(&cache, id, async || {
+                fetches.set(fetches.get() + 1);
+                Ok(sample())
+            }));
+        };
+        fetch();
+        cache.lock().unwrap().forget(id);
+        fetch();
+        assert_eq!(fetches.get(), 2);
     }
 
     #[test]

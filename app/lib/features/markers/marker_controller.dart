@@ -78,8 +78,8 @@ class MarkerController {
       : addRegion(title: title, startMs: startMs, endMs: endMs);
 
   /// Changes a marker. A label that gets an end becomes a region and a region
-  /// that loses its end becomes a label: the new marker is added first, then the
-  /// old one is deleted, so a failure in between leaves both rather than none.
+  /// that loses its end becomes a label; the server replaces the marker in one
+  /// step, so a failure leaves the old marker untouched.
   Future<bool> change(
     Marker marker, {
     required String title,
@@ -97,16 +97,14 @@ class MarkerController {
           endMs: end,
         );
       case (final LabelMarker label, final int end):
-        await _source.addRegion(
-          _recordingId,
+        await _source.labelToRegion(
+          label,
           title: title,
           startMs: startMs,
           endMs: end,
         );
-        await _source.deleteLabel(label);
       case (final RegionMarker region, null):
-        await _source.addLabel(_recordingId, title: title, positionMs: startMs);
-        await _source.deleteRegion(region);
+        await _source.regionToLabel(region, title: title, positionMs: startMs);
     }
   });
 

@@ -105,4 +105,32 @@ class BridgeMarkerSource implements MarkerSource {
     id: BigInt.from(region.id),
     expectedVersion: BigInt.from(region.version),
   );
+
+  @override
+  Future<void> labelToRegion(
+    LabelMarker label, {
+    required String title,
+    required int startMs,
+    required int endMs,
+  }) => rust.labelToRegion(
+    serverUrl: serverUrl,
+    id: BigInt.from(label.id),
+    expectedVersion: BigInt.from(label.version),
+    name: title,
+    startMs: BigInt.from(startMs),
+    endMs: BigInt.from(endMs),
+  );
+
+  @override
+  Future<void> regionToLabel(
+    RegionMarker region, {
+    required String title,
+    required int positionMs,
+  }) => rust.regionToLabel(
+    serverUrl: serverUrl,
+    id: BigInt.from(region.id),
+    expectedVersion: BigInt.from(region.version),
+    name: title,
+    positionMs: BigInt.from(positionMs),
+  );
 }

@@ -136,6 +136,38 @@ Future<void> removeRegion({
   expectedVersion: expectedVersion,
 );
 
+/// Replaces a label seen at `expected_version` by a region in one step.
+Future<void> labelToRegion({
+  required String serverUrl,
+  required BigInt id,
+  required BigInt expectedVersion,
+  required String name,
+  required BigInt startMs,
+  required BigInt endMs,
+}) => RustLib.instance.api.crateApiLabelToRegion(
+  serverUrl: serverUrl,
+  id: id,
+  expectedVersion: expectedVersion,
+  name: name,
+  startMs: startMs,
+  endMs: endMs,
+);
+
+/// Replaces a region seen at `expected_version` by a label in one step.
+Future<void> regionToLabel({
+  required String serverUrl,
+  required BigInt id,
+  required BigInt expectedVersion,
+  required String name,
+  required BigInt positionMs,
+}) => RustLib.instance.api.crateApiRegionToLabel(
+  serverUrl: serverUrl,
+  id: id,
+  expectedVersion: expectedVersion,
+  name: name,
+  positionMs: positionMs,
+);
+
 Future<TargetTempo> speedForTargetBpm({
   required double targetBpm,
   required double recordingBpm,

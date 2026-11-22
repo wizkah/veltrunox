@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1015835784;
+  int get rustContentHash => -1185976169;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -113,6 +113,15 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiEndScrub({required BigInt positionMs});
 
+  Future<void> crateApiLabelToRegion({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+    required String name,
+    required BigInt startMs,
+    required BigInt endMs,
+  });
+
   Future<BookmarkSet> crateApiListBookmarks({
     required String serverUrl,
     required BigInt recordingId,
@@ -137,6 +146,14 @@ abstract class RustLibApi extends BaseApi {
   Future<WaveformData> crateApiRecordingWaveform({
     required String serverUrl,
     required BigInt recordingId,
+  });
+
+  Future<void> crateApiRegionToLabel({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+    required String name,
+    required BigInt positionMs,
   });
 
   Future<void> crateApiRemoveLabel({
@@ -369,6 +386,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "end_scrub", argNames: ["positionMs"]);
 
   @override
+  Future<void> crateApiLabelToRegion({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+    required String name,
+    required BigInt startMs,
+    required BigInt endMs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(serverUrl, serializer);
+          sse_encode_u_64(id, serializer);
+          sse_encode_u_64(expectedVersion, serializer);
+          sse_encode_String(name, serializer);
+          sse_encode_u_64(startMs, serializer);
+          sse_encode_u_64(endMs, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLabelToRegionConstMeta,
+        argValues: [serverUrl, id, expectedVersion, name, startMs, endMs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLabelToRegionConstMeta => const TaskConstMeta(
+    debugName: "label_to_region",
+    argNames: [
+      "serverUrl",
+      "id",
+      "expectedVersion",
+      "name",
+      "startMs",
+      "endMs",
+    ],
+  );
+
+  @override
   Future<BookmarkSet> crateApiListBookmarks({
     required String serverUrl,
     required BigInt recordingId,
@@ -382,7 +448,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 7,
             port: port_,
           );
         },
@@ -414,7 +480,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -443,7 +509,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -475,7 +541,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -509,7 +575,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 11,
             port: port_,
           );
         },
@@ -543,7 +609,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 12,
             port: port_,
           );
         },
@@ -564,6 +630,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiRegionToLabel({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+    required String name,
+    required BigInt positionMs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(serverUrl, serializer);
+          sse_encode_u_64(id, serializer);
+          sse_encode_u_64(expectedVersion, serializer);
+          sse_encode_String(name, serializer);
+          sse_encode_u_64(positionMs, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiRegionToLabelConstMeta,
+        argValues: [serverUrl, id, expectedVersion, name, positionMs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRegionToLabelConstMeta => const TaskConstMeta(
+    debugName: "region_to_label",
+    argNames: ["serverUrl", "id", "expectedVersion", "name", "positionMs"],
+  );
+
+  @override
   Future<void> crateApiRemoveLabel({
     required String serverUrl,
     required BigInt id,
@@ -579,7 +685,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 14,
             port: port_,
           );
         },
@@ -615,7 +721,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 15,
             port: port_,
           );
         },
@@ -645,7 +751,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 16,
             port: port_,
           );
         },
@@ -673,7 +779,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 17,
             port: port_,
           );
         },
@@ -705,7 +811,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 18,
             port: port_,
           );
         },
@@ -735,7 +841,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 19,
             port: port_,
           );
         },
@@ -768,7 +874,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 18,
+              funcId: 20,
               port: port_,
             );
           },

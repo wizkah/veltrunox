@@ -33,4 +33,19 @@ abstract interface class MarkerSource {
     required int endMs,
   });
   Future<void> deleteRegion(RegionMarker region);
+
+  /// Replaces a label by a region in one step; a failure leaves the label.
+  Future<void> labelToRegion(
+    LabelMarker label, {
+    required String title,
+    required int startMs,
+    required int endMs,
+  });
+
+  /// Replaces a region by a label in one step; a failure leaves the region.
+  Future<void> regionToLabel(
+    RegionMarker region, {
+    required String title,
+    required int positionMs,
+  });
 }

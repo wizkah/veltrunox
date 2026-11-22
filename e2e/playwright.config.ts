@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // The server reads its settings from a configuration file (TOML strings accept JSON quoting).
-// A development server may already use the default port; E2E_PORT picks another one.
-const port = process.env.E2E_PORT ?? '8080';
+// The tests use port 8181 (not the development server's 8080); E2E_PORT picks another one.
+const port = process.env.E2E_PORT ?? '8181';
 const testDirectory = mkdtempSync(join(tmpdir(), 'veltrunox-e2e-'));
 const configFile = join(testDirectory, 'veltrunox.toml');
 writeFileSync(
