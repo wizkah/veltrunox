@@ -8,14 +8,17 @@ import 'position_display.dart';
 
 /// Moves through the recording. Moving the handle reports the position along
 /// the way (scrubbing, a short piece is heard). Holding it still lets the
-/// recording play on from there, as letting go would; letting go reports the
-/// final position. Otherwise the slider follows the playback position.
+/// recording play on from there; letting go reports the final position, or
+/// after a rest only that the handle is let go. Otherwise the slider follows
+/// the playback position.
 class PositionSlider extends StatefulWidget {
   const PositionSlider({
     required this.positionMs,
     required this.lengthMs,
     required this.onScrub,
     required this.onScrubEnd,
+    required this.onHold,
+    required this.onHoldEnd,
     this.holdDelay = const Duration(milliseconds: 130),
     super.key,
   });
@@ -24,6 +27,12 @@ class PositionSlider extends StatefulWidget {
   final int lengthMs;
   final ValueChanged<int> onScrub;
   final ValueChanged<int> onScrubEnd;
+
+  /// The handle rests at this position: the recording plays on from there.
+  final ValueChanged<int> onHold;
+
+  /// The handle is let go after it rested.
+  final VoidCallback onHoldEnd;
 
   /// How long the handle must rest before the recording plays on.
   final Duration holdDelay;
@@ -35,8 +44,8 @@ class PositionSlider extends StatefulWidget {
 class _PositionSliderState extends State<PositionSlider> {
   Timer? _hold;
 
-  /// The recording already plays on from the held handle; the release has
-  /// nothing left to report (it would move the playback back).
+  /// The recording already plays on from the held handle; the release must not
+  /// move the playback back.
   bool _playingOn = false;
 
   @override
@@ -51,13 +60,17 @@ class _PositionSliderState extends State<PositionSlider> {
     widget.onScrub(position);
     _hold = Timer(widget.holdDelay, () {
       _playingOn = true;
-      widget.onScrubEnd(position);
+      widget.onHold(position);
     });
   }
 
   void _onRelease(int position) {
     _hold?.cancel();
-    if (!_playingOn) widget.onScrubEnd(position);
+    if (_playingOn) {
+      widget.onHoldEnd();
+    } else {
+      widget.onScrubEnd(position);
+    }
     _playingOn = false;
   }
 

@@ -332,11 +332,18 @@ void main() {
 
   group('position slider holding still', () {
     testWidgets(
-      'lets the recording play on and reports nothing more on release',
+      'lets a running recording play on and reports nothing more on release',
       (tester) async {
         final player = await _pumpBar(
           tester,
-          state: _loaded,
+          state: const PlayerState(
+            recordingId: 1,
+            running: true,
+            speed: 1,
+            tuningHz: 440,
+            keyShiftSemitones: 0,
+            volumePercent: 100,
+          ),
           analysis: _analysis,
         );
         final gesture = await tester.startGesture(
@@ -358,6 +365,33 @@ void main() {
           player.calls.where((c) => c.startsWith('endScrub')),
           hasLength(1),
         );
+        expect(player.calls, isNot(contains('play')));
+        expect(player.calls, isNot(contains('pause')));
+      },
+    );
+
+    testWidgets(
+      'plays a stopped recording while held and stops it on release',
+      (tester) async {
+        final player = await _pumpBar(
+          tester,
+          state: _loaded,
+          analysis: _analysis,
+        );
+        final gesture = await tester.startGesture(
+          tester.getCenter(_sliderOf('Position')),
+        );
+        await gesture.moveBy(const Offset(40, 0));
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(
+          player.calls.where((c) => c.startsWith('endScrub')),
+          hasLength(1),
+        );
+        expect(player.calls.last, 'play');
+
+        await gesture.up();
+        await tester.pump();
+        expect(player.calls.last, 'pause');
       },
     );
 

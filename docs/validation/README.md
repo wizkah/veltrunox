@@ -233,6 +233,8 @@ Environment: Flutter widget tests; Raspberry Pi 4 Model B, release build install
 |---|---|
 | Widget tests: after 130 ms without movement the final position is reported once (playback goes on), the release then reports nothing more, and moving again scrubs again | Pass |
 | Pi: new build installed, service starts | Pass |
+| Widget tests: a stopped recording plays on after the rest and is stopped again on release; a running one gets neither play nor pause | Pass |
+| Pi: build with this behaviour installed, service starts | Pass (not listened to) |
 
 | Pi: listening check by the user (playing on after a rest; repeated pause and resume) | Pass (reported as good, no further detail) |
 

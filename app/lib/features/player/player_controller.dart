@@ -92,6 +92,24 @@ class PlayerController {
   Future<void> scrub(int positionMs) => _source.scrub(positionMs);
   Future<void> endScrub(int positionMs) => _source.endScrub(positionMs);
 
+  /// Whether the recording was stopped and plays only while the handle rests.
+  bool _playsOnlyWhileHeld = false;
+
+  /// The handle rests at `positionMs`: the recording plays on from there, also
+  /// if it was stopped; letting go ([endHold]) stops it again.
+  Future<void> hold(int positionMs, {required bool running}) async {
+    _playsOnlyWhileHeld = !running;
+    await _source.endScrub(positionMs);
+    if (_playsOnlyWhileHeld) await _source.play();
+  }
+
+  /// The handle is let go after [hold].
+  Future<void> endHold() async {
+    if (!_playsOnlyWhileHeld) return;
+    _playsOnlyWhileHeld = false;
+    await _source.pause();
+  }
+
   /// Sets the tuning. `false` if it is outside the supported range.
   Future<bool> setTuning(double hertz) async {
     if (!await _source.tuningSupported(hertz)) return false;

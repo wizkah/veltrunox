@@ -68,6 +68,9 @@ class _LoadedPlayer extends ConsumerWidget {
             lengthMs: length,
             onScrub: controller.scrub,
             onScrubEnd: controller.endScrub,
+            onHold: (position) =>
+                controller.hold(position, running: state.running),
+            onHoldEnd: controller.endHold,
           ),
         TransportControls(
           running: state.running,
