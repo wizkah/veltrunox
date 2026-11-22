@@ -225,3 +225,14 @@ Limits:
 - The pieces play at the recording's own speed and pitch; speed, key and tuning settings do not apply to them.
 - Reason for playing from the recording directly: after a seek the time stretcher needs about 55 ms before sound comes out (measured at 44.1 kHz), too long for dragging at 20 positions per second.
 
+## Playing on while the position handle rests (2026-11-22)
+
+Environment: Flutter widget tests; Raspberry Pi 4 Model B, release build installed.
+
+| Check | Result |
+|---|---|
+| Widget tests: after 130 ms without movement the final position is reported once (playback goes on), the release then reports nothing more, and moving again scrubs again | Pass |
+| Pi: new build installed, service starts | Pass |
+
+Limits: not listened to; the 130 ms rest time was chosen by estimate (the scrub piece lasts 120 ms). While playing on, the handle stays where it was held and does not follow the position until it is let go.
+

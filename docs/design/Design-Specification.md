@@ -218,7 +218,7 @@ With many regions, small displays show **at most two lanes by default**; "All re
 | Tap a region name / play icon | **Immediately** play the region from its start | [B] |
 | Play in the marker list | The same action for both marker types | [B] |
 | "Set label here" | **One action** creates a label at the playhead; the name can be edited later | [B] |
-| Create a region | Choose the "Region" mode, then drag a time range (**two steps**) | [B] |
+| Create a region | Two ways: choose the "Region" button, then drag a time range in the waveform (**two steps**); or open the region form (name, start, end) and confirm | [B] |
 | Long-press label/region | Context actions (rename, edit, delete) according to rights | [B] |
 | Open a recording from the library | Visible in the player; started directly on an explicit play | [V] |
 
@@ -346,6 +346,10 @@ Empty titles at creation are allowed, but the display needs a sensible fallback 
 - [V] The pinch zoom centre lies between the fingers; with `+`/`−` it lies at the visible playhead if in view, otherwise at the viewport centre.
 - [V] "Fit whole recording" is its own clearly distinct action.
 - [V] Scrolling and zooming change **only the local viewport**, not the shared playback position.
+
+### 6.6a Region form [B]
+
+The region form creates a region from a name, a start and an end time, and edits the same values of an existing region. It is reachable from the transport/marker area and from the context actions of a region, without a long press. Start and end default to the playhead and the end of the visible range [V]; invalid input (end not after start, outside the recording) shows a message at the field and is not adopted. A region created this way is selected afterwards, like one created by dragging.
 
 ### 6.7 Marker list [B]
 
@@ -558,7 +562,7 @@ Local action (e.g. zoom)
 3. Visible keyboard focus on all interactive elements; a sensible focus order.
 4. Screen reader: "Entry, 25 seconds, play"; region "Chorus, 40 seconds to 1 minute 32 seconds, play"; native semantics where possible.
 5. Time and progress values are not shown as bars only; text is available.
-6. Drag alternatives: start/end of a selected region can also be changed in editable time fields.
+6. Drag alternatives: a region can be created, and start/end of a selected region changed, in the region form with editable time fields.
 7. Errors and offline messages use suitable status/alert semantics without stealing focus repeatedly.
 8. Stay functional with `prefers-reduced-motion` and enlarged system fonts.
 9. With a very dense waveform, avoid uncontrolled hit-area overlap: offer a selection/precision view.
@@ -579,6 +583,7 @@ Scenarios for UI acceptance tests; test data suffices, no real audio or server i
 | UI-AC-06 | Tap free waveform | Playhead target set, **no** unwanted playback |
 | UI-AC-07 | One-finger drag, free vs. on the playhead | Free: pan; playhead: scrub; clearly distinct |
 | UI-AC-08 | Choose "Region", drag over the waveform | New interval created in at most two steps |
+| UI-AC-21 | Create a region in the region form | Name, start and end are validated (end after start, within the recording); the region appears in its lane and in the marker list |
 | UI-AC-09 | More than two region lanes on a narrow phone | Two lanes visible by default; "All regions" reachable |
 | UI-AC-10 | Many nearby labels | Labels not illegibly overlapping; groups playable in at most two taps |
 | UI-AC-11 | Simulate an external position change | Playhead updates; non-blocking notice about actor/position |
@@ -646,5 +651,5 @@ Two isolated layers, first without server and audio:
 1. Foundations from `design-tokens.json` and the visual base components (button, slider, input, status, modal) with all states.
 2. `WaveformViewport` and `RegionLaneLayout` with deterministic test data: three overlapping regions, two labels, one marker group, region creation, handles, pan/zoom/scrub, direct play intent.
 3. Compose the library and the player from the same components.
-4. Responsive, contrast and touch tests against UI-AC-01 to UI-AC-20.
+4. Responsive, contrast and touch tests against UI-AC-01 to UI-AC-21.
 5. Carry validated numbers and behaviour into the next version; close open points with an explicit decision.

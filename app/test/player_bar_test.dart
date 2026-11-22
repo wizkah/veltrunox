@@ -330,6 +330,61 @@ void main() {
     });
   });
 
+  group('position slider holding still', () {
+    testWidgets(
+      'lets the recording play on and reports nothing more on release',
+      (tester) async {
+        final player = await _pumpBar(
+          tester,
+          state: _loaded,
+          analysis: _analysis,
+        );
+        final gesture = await tester.startGesture(
+          tester.getCenter(_sliderOf('Position')),
+        );
+        await gesture.moveBy(const Offset(40, 0));
+        await tester.pump();
+        expect(player.calls.where((c) => c.startsWith('endScrub')), isEmpty);
+
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(
+          player.calls.where((c) => c.startsWith('endScrub')),
+          hasLength(1),
+        );
+
+        await gesture.up();
+        await tester.pump();
+        expect(
+          player.calls.where((c) => c.startsWith('endScrub')),
+          hasLength(1),
+        );
+      },
+    );
+
+    testWidgets('moving again after the rest scrubs again', (tester) async {
+      final player = await _pumpBar(
+        tester,
+        state: _loaded,
+        analysis: _analysis,
+      );
+      final gesture = await tester.startGesture(
+        tester.getCenter(_sliderOf('Position')),
+      );
+      await gesture.moveBy(const Offset(40, 0));
+      await tester.pump(const Duration(milliseconds: 200));
+      final before = player.calls.where((c) => c.startsWith('scrub ')).length;
+      await gesture.moveBy(const Offset(40, 0));
+      await tester.pump();
+      expect(
+        player.calls.where((c) => c.startsWith('scrub ')).length,
+        greaterThan(before),
+      );
+      await gesture.up();
+      await tester.pump();
+      expect(player.calls.last, startsWith('endScrub '));
+    });
+  });
+
   group('speed slider', () {
     const analysis = PlayerAnalysis(tuningHz: 443, tempoBpm: 120);
 

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Holding the position handle still for a moment lets the recording play on from there (if it was playing); moving it again scrubs again.
 - Audible scrubbing: dragging the position handle plays a short piece (120 ms, as recorded, with short fades) at each position instead of staying silent, and the shared position holds under the handle while it is dragged, then runs on from where it is let go.
 - Design specification v0.1 and design tokens (`docs/design/`): player, waveform with labels and region lanes, library, states, accessibility and UI acceptance criteria.
 - Player: a position slider with scrubbing (the length comes from the stored scan; the slider appears once a recording is analysed); the speed slider takes effect while it is dragged and shows the wanted tempo under the handle; the tuning slider is replaced by a field for the wanted tuning in Hz (300–500, with a message otherwise) that sets it back to the analysed value. Loops and regions are not part of this.
