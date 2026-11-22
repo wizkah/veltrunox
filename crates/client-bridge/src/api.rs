@@ -12,8 +12,8 @@ use veltrunox_client_app::{
     SessionView, ViewChange, analyse_again, load_length, load_library,
 };
 use veltrunox_core::{
-    AnalysisProgress, Bpm, Intent, KeyMode, KeyShift, LibraryEntry, Millis, RecordingId, Speed,
-    TargetSpeed, TuningHz, Volume, speed_for_target_tempo,
+    AnalysisProgress, Bpm, Intent, KeyMode, KeyShift, LibraryEntry, Millis, PlayMode, RecordingId,
+    Speed, TargetSpeed, TimeRange, TuningHz, Volume, speed_for_target_tempo,
 };
 
 /// A recording as the user interface needs it.
@@ -153,8 +153,29 @@ pub struct PlaybackView {
     pub speed: f64,
     pub tuning_hz: f64,
     pub key_shift_semitones: i8,
+    /// The region being played, if any.
+    pub play_range: Option<TimeSpan>,
+    pub play_mode: PlayModeChoice,
     pub scrubbing: bool,
     pub volume_percent: u8,
+}
+
+/// A span of the recording in milliseconds.
+#[derive(Clone, Copy)]
+pub struct TimeSpan {
+    pub start_ms: u64,
+    pub end_ms: u64,
+}
+
+/// What happens at the end of the region being played.
+#[derive(Clone, Copy)]
+pub enum PlayModeChoice {
+    /// Playback runs to the end of the recording.
+    ToEnd,
+    /// Playback stops at the end of the region.
+    ToRegionEnd,
+    /// Playback wraps from the end of the region to its start.
+    Loop,
 }
 
 /// Everything the real-time channel tells the user interface.
@@ -176,14 +197,34 @@ pub enum SessionUpdate {
 
 /// What the user asks the shared player to do.
 pub enum PlayerCommand {
-    SelectRecording { recording_id: u64 },
+    SelectRecording {
+        recording_id: u64,
+    },
     Play,
     Pause,
-    Seek { position_ms: u64 },
-    SetSpeed { speed: f64 },
-    SetTuning { tuning_hz: f64 },
-    SetKey { key_shift_semitones: i8 },
-    SetVolume { volume_percent: u8 },
+    Seek {
+        position_ms: u64,
+    },
+    SetSpeed {
+        speed: f64,
+    },
+    SetTuning {
+        tuning_hz: f64,
+    },
+    SetKey {
+        key_shift_semitones: i8,
+    },
+    /// Plays the region from its start, in one step.
+    PlayRegion {
+        start_ms: u64,
+        end_ms: u64,
+    },
+    SetPlayMode {
+        play_mode: PlayModeChoice,
+    },
+    SetVolume {
+        volume_percent: u8,
+    },
 }
 
 /// The latest server state and clock estimate of this client; shared between the
@@ -273,6 +314,11 @@ impl PlaybackView {
             speed: state.settings.speed.factor(),
             tuning_hz: state.settings.tuning.hertz(),
             key_shift_semitones: state.settings.key.semitones(),
+            play_range: state.play_range.map(|range| TimeSpan {
+                start_ms: range.start().value(),
+                end_ms: range.end().value(),
+            }),
+            play_mode: state.play_mode.into(),
             scrubbing: state.scrubbing,
             volume_percent: state.volume.percent(),
         }
@@ -340,8 +386,33 @@ impl PlayerCommand {
             Self::SetKey {
                 key_shift_semitones,
             } => Intent::SetKey(KeyShift::new(key_shift_semitones)?),
+            Self::PlayRegion { start_ms, end_ms } => Intent::PlayRegion(TimeRange::new(
+                Millis::position(start_ms)?,
+                Millis::position(end_ms)?,
+            )?),
+            Self::SetPlayMode { play_mode } => Intent::SetPlayMode(play_mode.into()),
             Self::SetVolume { volume_percent } => Intent::SetVolume(Volume::new(volume_percent)?),
         })
+    }
+}
+
+impl From<PlayMode> for PlayModeChoice {
+    fn from(mode: PlayMode) -> Self {
+        match mode {
+            PlayMode::ToEnd => Self::ToEnd,
+            PlayMode::ToRegionEnd => Self::ToRegionEnd,
+            PlayMode::Loop => Self::Loop,
+        }
+    }
+}
+
+impl From<PlayModeChoice> for PlayMode {
+    fn from(choice: PlayModeChoice) -> Self {
+        match choice {
+            PlayModeChoice::ToEnd => Self::ToEnd,
+            PlayModeChoice::ToRegionEnd => Self::ToRegionEnd,
+            PlayModeChoice::Loop => Self::Loop,
+        }
     }
 }
 

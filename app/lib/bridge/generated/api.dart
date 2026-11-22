@@ -10,7 +10,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `forward`, `from_state`, `into_intent`, `send_intent`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `from`, `from`, `from`, `from`
 
 /// Loads the recording list from the server at `server_url`.
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
@@ -110,6 +110,18 @@ class AnalysisValues {
 /// State of the real-time channel as the user interface needs it.
 enum ConnectionState { connected, disconnected }
 
+/// What happens at the end of the region being played.
+enum PlayModeChoice {
+  /// Playback runs to the end of the recording.
+  toEnd,
+
+  /// Playback stops at the end of the region.
+  toRegionEnd,
+
+  /// Playback wraps from the end of the region to its start.
+  loop,
+}
+
 /// The shared playback state as the user interface needs it.
 class PlaybackView {
   final BigInt revision;
@@ -121,6 +133,10 @@ class PlaybackView {
   final double speed;
   final double tuningHz;
   final int keyShiftSemitones;
+
+  /// The region being played, if any.
+  final TimeSpan? playRange;
+  final PlayModeChoice playMode;
   final bool scrubbing;
   final int volumePercent;
 
@@ -132,6 +148,8 @@ class PlaybackView {
     required this.speed,
     required this.tuningHz,
     required this.keyShiftSemitones,
+    this.playRange,
+    required this.playMode,
     required this.scrubbing,
     required this.volumePercent,
   });
@@ -145,6 +163,8 @@ class PlaybackView {
       speed.hashCode ^
       tuningHz.hashCode ^
       keyShiftSemitones.hashCode ^
+      playRange.hashCode ^
+      playMode.hashCode ^
       scrubbing.hashCode ^
       volumePercent.hashCode;
 
@@ -160,6 +180,8 @@ class PlaybackView {
           speed == other.speed &&
           tuningHz == other.tuningHz &&
           keyShiftSemitones == other.keyShiftSemitones &&
+          playRange == other.playRange &&
+          playMode == other.playMode &&
           scrubbing == other.scrubbing &&
           volumePercent == other.volumePercent;
 }
@@ -180,6 +202,14 @@ sealed class PlayerCommand with _$PlayerCommand {
       PlayerCommand_SetTuning;
   const factory PlayerCommand.setKey({required int keyShiftSemitones}) =
       PlayerCommand_SetKey;
+
+  /// Plays the region from its start, in one step.
+  const factory PlayerCommand.playRegion({
+    required BigInt startMs,
+    required BigInt endMs,
+  }) = PlayerCommand_PlayRegion;
+  const factory PlayerCommand.setPlayMode({required PlayModeChoice playMode}) =
+      PlayerCommand_SetPlayMode;
   const factory PlayerCommand.setVolume({required int volumePercent}) =
       PlayerCommand_SetVolume;
 }
@@ -261,4 +291,23 @@ class TargetTempo {
           runtimeType == other.runtimeType &&
           speed == other.speed &&
           supported == other.supported;
+}
+
+/// A span of the recording in milliseconds.
+class TimeSpan {
+  final BigInt startMs;
+  final BigInt endMs;
+
+  const TimeSpan({required this.startMs, required this.endMs});
+
+  @override
+  int get hashCode => startMs.hashCode ^ endMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TimeSpan &&
+          runtimeType == other.runtimeType &&
+          startMs == other.startMs &&
+          endMs == other.endMs;
 }

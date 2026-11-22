@@ -567,6 +567,17 @@ impl SseDecode for Option<crate::api::AnalysisValues> {
     }
 }
 
+impl SseDecode for Option<crate::api::TimeSpan> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::TimeSpan>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<u64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -575,6 +586,19 @@ impl SseDecode for Option<u64> {
         } else {
             return None;
         }
+    }
+}
+
+impl SseDecode for crate::api::PlayModeChoice {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::PlayModeChoice::ToEnd,
+            1 => crate::api::PlayModeChoice::ToRegionEnd,
+            2 => crate::api::PlayModeChoice::Loop,
+            _ => unreachable!("Invalid variant for PlayModeChoice: {}", inner),
+        };
     }
 }
 
@@ -588,6 +612,8 @@ impl SseDecode for crate::api::PlaybackView {
         let mut var_speed = <f64>::sse_decode(deserializer);
         let mut var_tuningHz = <f64>::sse_decode(deserializer);
         let mut var_keyShiftSemitones = <i8>::sse_decode(deserializer);
+        let mut var_playRange = <Option<crate::api::TimeSpan>>::sse_decode(deserializer);
+        let mut var_playMode = <crate::api::PlayModeChoice>::sse_decode(deserializer);
         let mut var_scrubbing = <bool>::sse_decode(deserializer);
         let mut var_volumePercent = <u8>::sse_decode(deserializer);
         return crate::api::PlaybackView {
@@ -598,6 +624,8 @@ impl SseDecode for crate::api::PlaybackView {
             speed: var_speed,
             tuning_hz: var_tuningHz,
             key_shift_semitones: var_keyShiftSemitones,
+            play_range: var_playRange,
+            play_mode: var_playMode,
             scrubbing: var_scrubbing,
             volume_percent: var_volumePercent,
         };
@@ -644,6 +672,20 @@ impl SseDecode for crate::api::PlayerCommand {
                 };
             }
             7 => {
+                let mut var_startMs = <u64>::sse_decode(deserializer);
+                let mut var_endMs = <u64>::sse_decode(deserializer);
+                return crate::api::PlayerCommand::PlayRegion {
+                    start_ms: var_startMs,
+                    end_ms: var_endMs,
+                };
+            }
+            8 => {
+                let mut var_playMode = <crate::api::PlayModeChoice>::sse_decode(deserializer);
+                return crate::api::PlayerCommand::SetPlayMode {
+                    play_mode: var_playMode,
+                };
+            }
+            9 => {
                 let mut var_volumePercent = <u8>::sse_decode(deserializer);
                 return crate::api::PlayerCommand::SetVolume {
                     volume_percent: var_volumePercent,
@@ -718,6 +760,18 @@ impl SseDecode for crate::api::TargetTempo {
         return crate::api::TargetTempo {
             speed: var_speed,
             supported: var_supported,
+        };
+    }
+}
+
+impl SseDecode for crate::api::TimeSpan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_startMs = <u64>::sse_decode(deserializer);
+        let mut var_endMs = <u64>::sse_decode(deserializer);
+        return crate::api::TimeSpan {
+            start_ms: var_startMs,
+            end_ms: var_endMs,
         };
     }
 }
@@ -834,6 +888,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::ConnectionState>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::PlayModeChoice {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::ToEnd => 0.into_dart(),
+            Self::ToRegionEnd => 1.into_dart(),
+            Self::Loop => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::PlayModeChoice {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::PlayModeChoice> for crate::api::PlayModeChoice {
+    fn into_into_dart(self) -> crate::api::PlayModeChoice {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::PlaybackView {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -844,6 +915,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::PlaybackView {
             self.speed.into_into_dart().into_dart(),
             self.tuning_hz.into_into_dart().into_dart(),
             self.key_shift_semitones.into_into_dart().into_dart(),
+            self.play_range.into_into_dart().into_dart(),
+            self.play_mode.into_into_dart().into_dart(),
             self.scrubbing.into_into_dart().into_dart(),
             self.volume_percent.into_into_dart().into_dart(),
         ]
@@ -881,8 +954,17 @@ impl flutter_rust_bridge::IntoDart for crate::api::PlayerCommand {
                 key_shift_semitones.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::PlayerCommand::PlayRegion { start_ms, end_ms } => [
+                7.into_dart(),
+                start_ms.into_into_dart().into_dart(),
+                end_ms.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::PlayerCommand::SetPlayMode { play_mode } => {
+                [8.into_dart(), play_mode.into_into_dart().into_dart()].into_dart()
+            }
             crate::api::PlayerCommand::SetVolume { volume_percent } => {
-                [7.into_dart(), volume_percent.into_into_dart().into_dart()].into_dart()
+                [9.into_dart(), volume_percent.into_into_dart().into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -959,6 +1041,22 @@ impl flutter_rust_bridge::IntoDart for crate::api::TargetTempo {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::TargetTempo {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::TargetTempo> for crate::api::TargetTempo {
     fn into_into_dart(self) -> crate::api::TargetTempo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::TimeSpan {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.start_ms.into_into_dart().into_dart(),
+            self.end_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::TimeSpan {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::TimeSpan> for crate::api::TimeSpan {
+    fn into_into_dart(self) -> crate::api::TimeSpan {
         self
     }
 }
@@ -1099,6 +1197,16 @@ impl SseEncode for Option<crate::api::AnalysisValues> {
     }
 }
 
+impl SseEncode for Option<crate::api::TimeSpan> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::TimeSpan>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<u64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1106,6 +1214,23 @@ impl SseEncode for Option<u64> {
         if let Some(value) = self {
             <u64>::sse_encode(value, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::PlayModeChoice {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::PlayModeChoice::ToEnd => 0,
+                crate::api::PlayModeChoice::ToRegionEnd => 1,
+                crate::api::PlayModeChoice::Loop => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -1119,6 +1244,8 @@ impl SseEncode for crate::api::PlaybackView {
         <f64>::sse_encode(self.speed, serializer);
         <f64>::sse_encode(self.tuning_hz, serializer);
         <i8>::sse_encode(self.key_shift_semitones, serializer);
+        <Option<crate::api::TimeSpan>>::sse_encode(self.play_range, serializer);
+        <crate::api::PlayModeChoice>::sse_encode(self.play_mode, serializer);
         <bool>::sse_encode(self.scrubbing, serializer);
         <u8>::sse_encode(self.volume_percent, serializer);
     }
@@ -1156,8 +1283,17 @@ impl SseEncode for crate::api::PlayerCommand {
                 <i32>::sse_encode(6, serializer);
                 <i8>::sse_encode(key_shift_semitones, serializer);
             }
-            crate::api::PlayerCommand::SetVolume { volume_percent } => {
+            crate::api::PlayerCommand::PlayRegion { start_ms, end_ms } => {
                 <i32>::sse_encode(7, serializer);
+                <u64>::sse_encode(start_ms, serializer);
+                <u64>::sse_encode(end_ms, serializer);
+            }
+            crate::api::PlayerCommand::SetPlayMode { play_mode } => {
+                <i32>::sse_encode(8, serializer);
+                <crate::api::PlayModeChoice>::sse_encode(play_mode, serializer);
+            }
+            crate::api::PlayerCommand::SetVolume { volume_percent } => {
+                <i32>::sse_encode(9, serializer);
                 <u8>::sse_encode(volume_percent, serializer);
             }
             _ => {
@@ -1214,6 +1350,14 @@ impl SseEncode for crate::api::TargetTempo {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <f64>::sse_encode(self.speed, serializer);
         <bool>::sse_encode(self.supported, serializer);
+    }
+}
+
+impl SseEncode for crate::api::TimeSpan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.start_ms, serializer);
+        <u64>::sse_encode(self.end_ms, serializer);
     }
 }
 

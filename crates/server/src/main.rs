@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             hooks,
         ))
     });
-    watch_end(app.playback.clone());
+    watch_end(&app);
     queue_pending_analyses(&app);
     let listener = tokio::net::TcpListener::bind(&config.address).await?;
     println!("listening on http://{}", config.address);

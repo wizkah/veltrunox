@@ -43,6 +43,18 @@ pub struct PositionReference {
     pub server_time: Millis,
 }
 
+/// What happens at the end of the play range. Without a play range it has no effect.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PlayMode {
+    /// The range is ignored; playback runs to the end of the recording.
+    #[default]
+    ToEnd,
+    /// Playback stops at the end of the range.
+    ToRegionEnd,
+    /// The position wraps from the end of the range to its start.
+    Loop,
+}
+
 /// What every client sees. The server is the only writer.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlaybackState {
@@ -52,7 +64,10 @@ pub struct PlaybackState {
     pub reference: PositionReference,
     pub running: bool,
     pub settings: PlaybackSettings,
-    pub loop_range: Option<TimeRange>,
+    /// The region being played; ends with the position leaving it.
+    pub play_range: Option<TimeRange>,
+    /// Belongs to the room, not to a recording.
+    pub play_mode: PlayMode,
     pub scrubbing: bool,
     /// Output volume of the server; belongs to the room, not to a recording.
     pub volume: Volume,
@@ -70,26 +85,49 @@ impl PlaybackState {
             },
             running: false,
             settings: PlaybackSettings::default(),
-            loop_range: None,
+            play_range: None,
+            play_mode: PlayMode::ToEnd,
             scrubbing: false,
             volume: Volume::default(),
         }
     }
 
-    /// The playback position at `now`, following speed and loop range.
+    /// The playback position at `now`, following speed, play range and play mode.
     pub fn position_at(&self, now: Millis) -> Millis {
         let start = self.reference.position;
         // While the position handle is dragged the position is the one under it.
         if !self.running || self.scrubbing {
             return start;
         }
-        let elapsed = now.saturating_sub(self.reference.server_time).value() as f64;
-        let advanced = (elapsed * self.settings.speed.factor()).round() as u64;
-        let position = start.saturating_add(Millis::new(advanced));
-        match self.loop_range {
-            Some(range) if range.contains(start) => wrap_into(range, position),
+        let position = start.saturating_add(self.advanced_by(now));
+        match (self.active_range(), self.play_mode) {
+            (Some(range), PlayMode::Loop) => wrap_into(range, position),
+            (Some(range), PlayMode::ToRegionEnd) => position.min(range.end()),
             _ => position,
         }
+    }
+
+    /// The server time at which a running playback reaches the end of the play range and
+    /// has to stop; `None` when it does not stop there.
+    pub fn region_stop_at(&self) -> Option<Millis> {
+        if !self.running || self.scrubbing || self.play_mode != PlayMode::ToRegionEnd {
+            return None;
+        }
+        let range = self.active_range()?;
+        let remaining = range.end().value() - self.reference.position.value();
+        let wait = (remaining as f64 / self.settings.speed.factor()).ceil() as u64;
+        Some(self.reference.server_time.saturating_add(Millis::new(wait)))
+    }
+
+    /// The range that governs the position: the play range, while the reference lies inside it.
+    fn active_range(&self) -> Option<TimeRange> {
+        self.play_range
+            .filter(|range| range.contains(self.reference.position))
+    }
+
+    fn advanced_by(&self, now: Millis) -> Millis {
+        let elapsed = now.saturating_sub(self.reference.server_time).value() as f64;
+        Millis::new((elapsed * self.settings.speed.factor()).round() as u64)
     }
 }
 
@@ -108,11 +146,16 @@ pub enum Intent {
     SelectRecording(RecordingId),
     Play,
     Pause,
-    Seek { position: Millis, scrubbing: bool },
+    Seek {
+        position: Millis,
+        scrubbing: bool,
+    },
     SetSpeed(Speed),
     SetTuning(TuningHz),
     SetKey(KeyShift),
-    SetLoop(Option<TimeRange>),
+    /// Sets the play range, moves the position to its start and plays, in one step.
+    PlayRegion(TimeRange),
+    SetPlayMode(PlayMode),
     SetVolume(Volume),
 }
 
@@ -122,8 +165,8 @@ pub enum TransportError {
     NoRecording,
 }
 
-/// The state with its reference moved to `now`, so a change of speed or loop
-/// range applies from this moment on.
+/// The state with its reference moved to `now`, so a change of speed or play
+/// mode applies from this moment on.
 fn rebased(state: &PlaybackState, now: Millis) -> PlaybackState {
     PlaybackState {
         reference: PositionReference {
@@ -156,7 +199,8 @@ pub fn select_recording(
         },
         running: false,
         settings,
-        loop_range: None,
+        play_range: None,
+        play_mode: PlayMode::ToEnd,
         scrubbing: false,
         ..*state
     }
@@ -187,12 +231,34 @@ pub fn seek(
     now: Millis,
 ) -> Result<PlaybackState, TransportError> {
     require_recording(state)?;
+    // The play range ends with the position leaving it.
+    let play_range = state.play_range.filter(|range| range.contains(position));
     Ok(PlaybackState {
         reference: PositionReference {
             position,
             server_time: now,
         },
         scrubbing,
+        play_range,
+        ..*state
+    })
+}
+
+/// Stops playback at the end of the play range once it has been reached: paused at the range
+/// end, play range cleared. `None` before that, so the caller can ask at any time.
+pub fn end_region(state: &PlaybackState, now: Millis) -> Option<PlaybackState> {
+    let range = state.play_range?;
+    if state.region_stop_at()? > now {
+        return None;
+    }
+    Some(PlaybackState {
+        running: false,
+        scrubbing: false,
+        play_range: None,
+        reference: PositionReference {
+            position: range.end(),
+            server_time: now,
+        },
         ..*state
     })
 }
@@ -261,14 +327,34 @@ pub fn set_volume(state: &PlaybackState, volume: Volume) -> PlaybackState {
     PlaybackState { volume, ..*state }
 }
 
-pub fn set_loop(
+/// Plays `range` from its start; the play mode stays as it is.
+pub fn play_region(
     state: &PlaybackState,
-    loop_range: Option<TimeRange>,
+    range: TimeRange,
     now: Millis,
 ) -> Result<PlaybackState, TransportError> {
     require_recording(state)?;
     Ok(PlaybackState {
-        loop_range,
+        running: true,
+        scrubbing: false,
+        play_range: Some(range),
+        reference: PositionReference {
+            position: range.start(),
+            server_time: now,
+        },
+        ..*state
+    })
+}
+
+/// Changes the play mode, also while playing; it applies from this moment on.
+pub fn set_play_mode(
+    state: &PlaybackState,
+    play_mode: PlayMode,
+    now: Millis,
+) -> Result<PlaybackState, TransportError> {
+    require_recording(state)?;
+    Ok(PlaybackState {
+        play_mode,
         ..rebased(state, now)
     })
 }
@@ -346,23 +432,111 @@ mod tests {
         assert_eq!(state.position_at(ms(50)), Millis::ZERO);
     }
 
+    fn region(start: u64, end: u64) -> TimeRange {
+        TimeRange::new(ms(start), ms(end)).unwrap()
+    }
+
+    fn playing_region(mode: PlayMode) -> PlaybackState {
+        let state = set_play_mode(&loaded(0), mode, ms(0)).unwrap();
+        play_region(&state, region(10_000, 12_000), ms(0)).unwrap()
+    }
+
+    #[test]
+    fn play_region_sets_range_position_and_start_in_one_step() {
+        let state = play_region(&loaded(0), region(10_000, 12_000), ms(5)).unwrap();
+        assert!(state.running && !state.scrubbing);
+        assert_eq!(state.play_range, Some(region(10_000, 12_000)));
+        assert_eq!(state.position_at(ms(5)), ms(10_000));
+        assert_eq!(state.play_mode, PlayMode::ToEnd);
+        assert_eq!(
+            play_region(&PlaybackState::initial(ms(0)), region(1, 2), ms(0)),
+            Err(TransportError::NoRecording)
+        );
+    }
+
     #[test]
     fn running_position_wraps_inside_a_loop() {
-        let range = TimeRange::new(ms(10_000), ms(12_000)).unwrap();
-        let state = seek(&loaded(0), ms(10_000), false, ms(0)).unwrap();
-        let state = set_loop(&state, Some(range), ms(0)).unwrap();
-        let state = play(&state, ms(0)).unwrap();
+        let state = playing_region(PlayMode::Loop);
         assert_eq!(state.position_at(ms(1_500)), ms(11_500));
         assert_eq!(state.position_at(ms(2_500)), ms(10_500));
         assert_eq!(state.position_at(ms(4_500)), ms(10_500));
     }
 
     #[test]
-    fn a_position_outside_the_loop_runs_on() {
-        let range = TimeRange::new(ms(10_000), ms(12_000)).unwrap();
-        let state = set_loop(&loaded(0), Some(range), ms(0)).unwrap();
+    fn to_end_ignores_the_range() {
+        let state = playing_region(PlayMode::ToEnd);
+        assert_eq!(state.position_at(ms(5_000)), ms(15_000));
+        assert_eq!(state.region_stop_at(), None);
+    }
+
+    #[test]
+    fn to_region_end_holds_the_position_at_the_range_end() {
+        let state = playing_region(PlayMode::ToRegionEnd);
+        assert_eq!(state.position_at(ms(1_500)), ms(11_500));
+        assert_eq!(state.position_at(ms(5_000)), ms(12_000));
+        assert_eq!(state.region_stop_at(), Some(ms(2_000)));
+    }
+
+    #[test]
+    fn the_stop_instant_follows_the_speed() {
+        let state = playing_region(PlayMode::ToRegionEnd);
+        let slow = set_speed(&state, Speed::new(0.5).unwrap(), ms(1_000)).unwrap();
+        // 1000 ms played, 1000 ms of the range left at half speed.
+        assert_eq!(slow.region_stop_at(), Some(ms(3_000)));
+        assert_eq!(slow.position_at(ms(3_000)), ms(12_000));
+    }
+
+    #[test]
+    fn the_region_ends_paused_at_its_end_and_clears_the_range() {
+        let state = playing_region(PlayMode::ToRegionEnd);
+        assert_eq!(end_region(&state, ms(1_999)), None);
+        let ended = end_region(&state, ms(2_030)).unwrap();
+        assert!(!ended.running);
+        assert_eq!(ended.play_range, None);
+        assert_eq!(ended.position_at(ms(60_000)), ms(12_000));
+        // A new play runs on to the end of the recording.
+        let again = play(&ended, ms(3_000)).unwrap();
+        assert_eq!(again.position_at(ms(4_000)), ms(13_000));
+        assert_eq!(end_region(&again, ms(60_000)), None);
+    }
+
+    #[test]
+    fn the_play_mode_can_change_while_playing() {
+        let state = playing_region(PlayMode::ToEnd);
+        let state = set_play_mode(&state, PlayMode::ToRegionEnd, ms(1_000)).unwrap();
+        assert_eq!(state.position_at(ms(1_000)), ms(11_000));
+        assert_eq!(state.region_stop_at(), Some(ms(2_000)));
+        let state = set_play_mode(&state, PlayMode::Loop, ms(1_500)).unwrap();
+        assert_eq!(state.position_at(ms(2_500)), ms(10_500));
+    }
+
+    #[test]
+    fn the_range_ends_with_the_position_leaving_it() {
+        let state = playing_region(PlayMode::Loop);
+        let inside = seek(&state, ms(11_000), false, ms(10)).unwrap();
+        assert_eq!(inside.play_range, Some(region(10_000, 12_000)));
+        let outside = seek(&state, ms(20_000), false, ms(10)).unwrap();
+        assert_eq!(outside.play_range, None);
+        assert_eq!(outside.play_mode, PlayMode::Loop);
+        let paused = pause(&state, ms(500)).unwrap();
+        assert_eq!(paused.play_range, Some(region(10_000, 12_000)));
+    }
+
+    #[test]
+    fn selecting_resets_range_and_mode() {
+        let state = playing_region(PlayMode::Loop);
+        let state = select_recording(&state, RecordingId::new(2), Default::default(), ms(5));
+        assert_eq!(state.play_range, None);
+        assert_eq!(state.play_mode, PlayMode::ToEnd);
+    }
+
+    #[test]
+    fn a_position_outside_the_range_runs_on() {
+        let state = set_play_mode(&loaded(0), PlayMode::Loop, ms(0)).unwrap();
+        let state = play_region(&state, region(10_000, 12_000), ms(0)).unwrap();
+        let state = seek(&state, ms(20_000), false, ms(0)).unwrap();
         let state = play(&state, ms(0)).unwrap();
-        assert_eq!(state.position_at(ms(20_000)), ms(20_000));
+        assert_eq!(state.position_at(ms(5_000)), ms(25_000));
     }
 
     #[test]
@@ -378,11 +552,9 @@ mod tests {
     fn a_paused_or_looping_state_never_ends() {
         let paused = seek(&loaded(0), ms(10_000), false, ms(0)).unwrap();
         assert_eq!(end_playback(&paused, ms(10_000), ms(50)), None);
-        let range = TimeRange::new(ms(1_000), ms(2_000)).unwrap();
-        let state = seek(&loaded(0), ms(1_000), false, ms(0)).unwrap();
-        let state = set_loop(&state, Some(range), ms(0)).unwrap();
-        let state = play(&state, ms(0)).unwrap();
-        assert_eq!(end_playback(&state, ms(10_000), ms(60_000)), None);
+        let looping = set_play_mode(&loaded(0), PlayMode::Loop, ms(0)).unwrap();
+        let looping = play_region(&looping, region(1_000, 2_000), ms(0)).unwrap();
+        assert_eq!(end_playback(&looping, ms(10_000), ms(60_000)), None);
     }
 
     #[test]

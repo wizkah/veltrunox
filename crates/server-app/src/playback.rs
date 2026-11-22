@@ -3,8 +3,8 @@
 use crate::ports::{Clock, PlaybackBroadcast, RecordingLengths, RecordingRepository, StorageError};
 use std::sync::{Arc, Mutex, PoisonError};
 use veltrunox_core::{
-    Intent, Millis, PlaybackState, TransportError, end_playback, pause, play, seek,
-    select_recording, set_key, set_loop, set_speed, set_tuning, set_volume,
+    Intent, Millis, PlaybackState, TransportError, end_playback, end_region, pause, play,
+    play_region, seek, select_recording, set_key, set_play_mode, set_speed, set_tuning, set_volume,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -74,6 +74,26 @@ impl PlaybackService {
         Some(self.publish(&mut guard, ended))
     }
 
+    /// How long until playback reaches the end of the play range and has to stop; `None` when
+    /// it does not stop there. Changes with every published state, so the caller asks again
+    /// after each one.
+    pub fn region_stop_in(&self) -> Option<Millis> {
+        let at = self
+            .state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .region_stop_at()?;
+        Some(at.saturating_sub(self.clock.now()))
+    }
+
+    /// Pauses at the end of the play range once playback has reached it; returns the published
+    /// state, or `None` if there was nothing to do. Meant to be called after `region_stop_in`.
+    pub fn stop_at_region_end(&self) -> Option<PlaybackState> {
+        let mut guard = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        let ended = end_region(&guard, self.clock.now())?;
+        Some(self.publish(&mut guard, ended))
+    }
+
     fn publish(&self, current: &mut PlaybackState, mut next: PlaybackState) -> PlaybackState {
         next.revision = current.revision + 1;
         *current = next;
@@ -81,7 +101,7 @@ impl PlaybackService {
         next
     }
 
-    /// A position behind the end, also the end of a loop, is refused once the length is known. While the
+    /// A position behind the end, also the end of a play range, is refused once the length is known. While the
     /// audio is still being decoded it is not, and `stop_at_end` catches up.
     fn check_position(&self, state: &PlaybackState, position: Millis) -> Result<(), IntentError> {
         let length = state.recording.and_then(|id| self.lengths.length(id));
@@ -121,12 +141,11 @@ impl PlaybackService {
             Intent::SetSpeed(speed) => set_speed(state, speed, now)?,
             Intent::SetTuning(tuning) => set_tuning(state, tuning)?,
             Intent::SetKey(key) => set_key(state, key)?,
-            Intent::SetLoop(range) => {
-                if let Some(range) = range {
-                    self.check_position(state, range.end())?;
-                }
-                set_loop(state, range, now)?
+            Intent::PlayRegion(range) => {
+                self.check_position(state, range.end())?;
+                play_region(state, range, now)?
             }
+            Intent::SetPlayMode(mode) => set_play_mode(state, mode, now)?,
         })
     }
 }
@@ -144,7 +163,9 @@ fn changes_settings(intent: Intent) -> bool {
 mod tests {
     use super::*;
     use crate::testing::{FakeBroadcast, FakeClock, FakeLengths, FakeRecordings};
-    use veltrunox_core::{Millis, PlaybackSettings, RecordingId, Speed, TimeRange, Volume};
+    use veltrunox_core::{
+        Millis, PlayMode, PlaybackSettings, RecordingId, Speed, TimeRange, Volume,
+    };
 
     fn service() -> (
         PlaybackService,
@@ -240,25 +261,69 @@ mod tests {
     }
 
     #[test]
-    fn a_loop_reaching_beyond_the_known_length_is_refused() {
+    fn a_region_reaching_beyond_the_known_length_is_refused() {
         let (service, _, _, _, lengths) = service();
+        let range = |end| TimeRange::new(Millis::new(1_000), Millis::new(end)).unwrap();
+        // Nothing selected.
+        assert!(matches!(
+            service.apply(Intent::PlayRegion(range(2_000))),
+            Err(IntentError::Transport(TransportError::NoRecording))
+        ));
         service
             .apply(Intent::SelectRecording(RecordingId::new(1)))
             .unwrap();
-        let range = |end| TimeRange::new(Millis::new(1_000), Millis::new(end)).unwrap();
         // Length not known yet: accepted.
-        service.apply(Intent::SetLoop(Some(range(90_000)))).unwrap();
+        service.apply(Intent::PlayRegion(range(90_000))).unwrap();
         lengths.set(Millis::new(60_000));
         assert!(matches!(
-            service.apply(Intent::SetLoop(Some(range(60_001)))),
+            service.apply(Intent::PlayRegion(range(60_001))),
             Err(IntentError::BeyondEnd {
                 position: 60_001,
                 length: 60_000
             })
         ));
-        service.apply(Intent::SetLoop(Some(range(60_000)))).unwrap();
-        // Removing the loop needs no check.
-        service.apply(Intent::SetLoop(None)).unwrap();
+        service.apply(Intent::PlayRegion(range(60_000))).unwrap();
+    }
+
+    #[test]
+    fn a_region_starts_with_one_published_state() {
+        let (service, _, broadcast, clock, _) = service();
+        service
+            .apply(Intent::SelectRecording(RecordingId::new(1)))
+            .unwrap();
+        clock.set(Millis::new(500));
+        let range = TimeRange::new(Millis::new(4_000), Millis::new(6_000)).unwrap();
+        let state = service.apply(Intent::PlayRegion(range)).unwrap();
+        assert!(state.running);
+        assert_eq!(state.play_range, Some(range));
+        assert_eq!(state.position_at(Millis::new(500)), Millis::new(4_000));
+        assert_eq!(broadcast.states().len(), 2);
+    }
+
+    #[test]
+    fn playback_pauses_at_the_region_end_at_the_computed_instant() {
+        let (service, _, broadcast, clock, _) = service();
+        service
+            .apply(Intent::SelectRecording(RecordingId::new(1)))
+            .unwrap();
+        service
+            .apply(Intent::SetPlayMode(PlayMode::ToRegionEnd))
+            .unwrap();
+        clock.set(Millis::new(1_000));
+        let range = TimeRange::new(Millis::new(4_000), Millis::new(6_000)).unwrap();
+        service.apply(Intent::PlayRegion(range)).unwrap();
+        assert_eq!(service.region_stop_in(), Some(Millis::new(2_000)));
+
+        clock.set(Millis::new(2_900));
+        assert!(service.stop_at_region_end().is_none());
+        clock.set(Millis::new(3_000));
+        let ended = service.stop_at_region_end().unwrap();
+        assert!(!ended.running);
+        assert_eq!(ended.play_range, None);
+        assert_eq!(ended.position_at(Millis::new(99_000)), Millis::new(6_000));
+        assert_eq!(service.region_stop_in(), None);
+        assert!(service.stop_at_region_end().is_none());
+        assert_eq!(broadcast.states().len(), 4);
     }
 
     #[test]

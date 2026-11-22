@@ -1,14 +1,14 @@
 //! Translation between wire messages and domain types.
 
 use crate::{
-    AnalysisProgressDto, AnalysisResultDto, BookmarksDto, ClientMessageDto, LabelDto,
+    AnalysisProgressDto, AnalysisResultDto, BookmarksDto, ClientMessageDto, LabelDto, PlayModeDto,
     PlaybackStateDto, RangeDto, RecordingSummaryDto, RegionDto, WaveformInfoDto,
     WaveformLevelInfoDto,
 };
 use veltrunox_core::{
     AnalysisInfo, AnalysisProgress, BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, Intent,
     InvalidRecording, InvalidValue, KeyMode, KeyShift, Label, LibraryEntry, Millis, MusicalKey,
-    Peak, PitchClass, PlaybackSettings, PlaybackState, PositionReference, Recording,
+    Peak, PitchClass, PlayMode, PlaybackSettings, PlaybackState, PositionReference, Recording,
     RecordingAnalysis, RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version,
     Volume, Waveform,
 };
@@ -144,6 +144,22 @@ pub fn range_from_dto(dto: RangeDto) -> Result<TimeRange, InvalidValue> {
     )
 }
 
+pub fn play_mode_to_dto(mode: PlayMode) -> PlayModeDto {
+    match mode {
+        PlayMode::ToEnd => PlayModeDto::ToEnd,
+        PlayMode::ToRegionEnd => PlayModeDto::ToRegionEnd,
+        PlayMode::Loop => PlayModeDto::Loop,
+    }
+}
+
+pub fn play_mode_from_dto(dto: PlayModeDto) -> PlayMode {
+    match dto {
+        PlayModeDto::ToEnd => PlayMode::ToEnd,
+        PlayModeDto::ToRegionEnd => PlayMode::ToRegionEnd,
+        PlayModeDto::Loop => PlayMode::Loop,
+    }
+}
+
 pub fn state_to_dto(state: &PlaybackState) -> PlaybackStateDto {
     PlaybackStateDto {
         revision: state.revision,
@@ -154,7 +170,8 @@ pub fn state_to_dto(state: &PlaybackState) -> PlaybackStateDto {
         speed: state.settings.speed.factor(),
         tuning_hz: state.settings.tuning.hertz(),
         key_shift_semitones: state.settings.key.semitones(),
-        loop_range: state.loop_range.map(range_to_dto),
+        play_range: state.play_range.map(range_to_dto),
+        play_mode: play_mode_to_dto(state.play_mode),
         scrubbing: state.scrubbing,
         volume_percent: state.volume.percent(),
     }
@@ -174,7 +191,8 @@ pub fn state_from_dto(dto: &PlaybackStateDto) -> Result<PlaybackState, InvalidVa
             tuning: TuningHz::new(dto.tuning_hz)?,
             key: KeyShift::new(dto.key_shift_semitones)?,
         },
-        loop_range: dto.loop_range.map(range_from_dto).transpose()?,
+        play_range: dto.play_range.map(range_from_dto).transpose()?,
+        play_mode: play_mode_from_dto(dto.play_mode),
         scrubbing: dto.scrubbing,
         volume: Volume::new(dto.volume_percent)?,
     })
@@ -203,8 +221,11 @@ pub fn intent_to_message(intent: Intent) -> ClientMessageDto {
         Intent::SetKey(key) => ClientMessageDto::SetKey {
             key_shift_semitones: key.semitones(),
         },
-        Intent::SetLoop(range) => ClientMessageDto::SetLoop {
-            loop_range: range.map(range_to_dto),
+        Intent::PlayRegion(range) => ClientMessageDto::PlayRegion {
+            range: range_to_dto(range),
+        },
+        Intent::SetPlayMode(mode) => ClientMessageDto::SetPlayMode {
+            play_mode: play_mode_to_dto(mode),
         },
         Intent::SetVolume(volume) => ClientMessageDto::SetVolume {
             volume_percent: volume.percent(),
@@ -233,8 +254,9 @@ pub fn intent_from_message(message: &ClientMessageDto) -> Result<Option<Intent>,
         ClientMessageDto::SetKey {
             key_shift_semitones,
         } => Intent::SetKey(KeyShift::new(*key_shift_semitones)?),
-        ClientMessageDto::SetLoop { loop_range } => {
-            Intent::SetLoop(loop_range.map(range_from_dto).transpose()?)
+        ClientMessageDto::PlayRegion { range } => Intent::PlayRegion(range_from_dto(*range)?),
+        ClientMessageDto::SetPlayMode { play_mode } => {
+            Intent::SetPlayMode(play_mode_from_dto(*play_mode))
         }
         ClientMessageDto::SetVolume { volume_percent } => {
             Intent::SetVolume(Volume::new(*volume_percent)?)
@@ -387,7 +409,8 @@ mod tests {
                 tuning: TuningHz::new(432.0).unwrap(),
                 key: KeyShift::new(2).unwrap(),
             },
-            loop_range: Some(TimeRange::new(Millis::new(1_000), Millis::new(2_000)).unwrap()),
+            play_range: Some(TimeRange::new(Millis::new(1_000), Millis::new(2_000)).unwrap()),
+            play_mode: PlayMode::Loop,
             scrubbing: true,
             volume: Volume::new(35).unwrap(),
         };
@@ -407,7 +430,8 @@ mod tests {
             Intent::SetSpeed(Speed::new(1.5).unwrap()),
             Intent::SetTuning(TuningHz::new(415.0).unwrap()),
             Intent::SetKey(KeyShift::new(-5).unwrap()),
-            Intent::SetLoop(None),
+            Intent::PlayRegion(TimeRange::new(Millis::new(1_000), Millis::new(2_000)).unwrap()),
+            Intent::SetPlayMode(PlayMode::ToRegionEnd),
             Intent::SetVolume(Volume::new(80).unwrap()),
         ];
         for intent in intents {
@@ -440,11 +464,11 @@ mod tests {
             intent_from_message(&too_loud),
             Err(InvalidValue::VolumeOutOfRange)
         );
-        let backwards = ClientMessageDto::SetLoop {
-            loop_range: Some(RangeDto {
+        let backwards = ClientMessageDto::PlayRegion {
+            range: RangeDto {
                 start_ms: 5,
                 end_ms: 2,
-            }),
+            },
         };
         assert_eq!(
             intent_from_message(&backwards),

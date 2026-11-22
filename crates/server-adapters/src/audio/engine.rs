@@ -56,11 +56,13 @@ const GRAIN_MS: u64 = 120;
 /// Fades at the edges of a piece, in milliseconds, so the cuts do not click.
 const GRAIN_FADE_IN_MS: u64 = 3;
 const GRAIN_FADE_OUT_MS: u64 = 8;
+/// Fade-out before the stop position, in milliseconds of the recording, so the cut does not click.
+const STOP_FADE_MS: u64 = 5;
 /// Pieces sounding at once: the newest and the one it fades out.
 const MAX_GRAINS: usize = 3;
 
 /// Plays one recording: speed and pitch independently, with a loop that wraps
-/// at sample level.
+/// and a stop position that ends playback, both at sample level.
 pub struct Engine {
     pcm: Arc<Pcm>,
     stretch: Stretch,
@@ -70,6 +72,10 @@ pub struct Engine {
     speed: f64,
     semitones: f64,
     loop_frames: Option<Range<usize>>,
+    /// The source frame at which playback ends, if the engine reaches it.
+    stop_frame: Option<usize>,
+    /// Set once playback has ended at the stop position.
+    ended: Option<Ended>,
     /// Next source frame to feed to the stretcher.
     read: usize,
     /// Fraction of an input frame not yet consumed.
@@ -77,6 +83,13 @@ pub struct Engine {
     input: Vec<f32>,
     /// The pieces of a dragged position handle that sound now.
     grains: Vec<Grain>,
+}
+
+/// Playback that ended at the stop position; what the stretcher still holds is played out.
+struct Ended {
+    frame: usize,
+    /// Output frames until the stretcher has given back everything before the stop.
+    tail_left: usize,
 }
 
 /// A short piece of the recording played as it is, for scrubbing.
@@ -99,6 +112,8 @@ impl Engine {
             speed: 1.0,
             semitones: 0.0,
             loop_frames: None,
+            stop_frame: None,
+            ended: None,
             read: 0,
             carry: 0.0,
             input: Vec::with_capacity(SCRATCH_FRAMES * CHANNELS),
@@ -112,6 +127,10 @@ impl Engine {
     pub fn set_running(&mut self, running: bool) {
         self.grains.clear();
         self.running = running;
+        // Playing on after the stop continues from the stop position.
+        if running && let Some(ended) = self.ended.take() {
+            self.seek_frame(ended.frame);
+        }
     }
 
     /// Plays a short piece from `position` (milliseconds) as it is recorded, so
@@ -157,10 +176,30 @@ impl Engine {
         });
     }
 
+    /// The position in milliseconds at which playback ends; `None` plays on. A stop that the
+    /// playing position has already passed is not reached. The sound before it plays out, the
+    /// last few milliseconds fading, and nothing after it is heard.
+    pub fn set_stop_ms(&mut self, position: Option<u64>) {
+        self.stop_frame = position.map(|position| self.frame_at(position));
+    }
+
     /// Jumps to a position in milliseconds; the stretcher is primed with the
     /// audio before it so the first output is not a fade-in.
     pub fn seek_ms(&mut self, position: u64) {
         let target = self.frame_at(position).min(self.pcm.frames());
+        // Pausing on the stop position must not cut off the sound still being played out.
+        if self
+            .ended
+            .as_ref()
+            .is_some_and(|ended| ended.frame == target)
+        {
+            return;
+        }
+        self.ended = None;
+        self.seek_frame(target);
+    }
+
+    fn seek_frame(&mut self, target: usize) {
         self.read = target;
         self.carry = 0.0;
         self.stretch.reset();
@@ -178,7 +217,17 @@ impl Engine {
 
     /// True when a recording without loop has been played to its end.
     pub fn finished(&self) -> bool {
-        self.loop_frames.is_none() && self.read >= self.pcm.frames()
+        self.ended.is_none() && self.loop_frames.is_none() && self.read >= self.pcm.frames()
+    }
+
+    /// True while the sound before the stop position is still being played out.
+    fn playing_out(&self) -> bool {
+        self.ended.as_ref().is_some_and(|ended| ended.tail_left > 0)
+    }
+
+    /// True once playback has ended at the stop position.
+    pub fn stopped(&self) -> bool {
+        self.ended.is_some()
     }
 
     /// Fills `output` (interleaved stereo at the output rate).
@@ -187,7 +236,7 @@ impl Engine {
             self.render_grains(output);
             return;
         }
-        if !self.running || self.finished() {
+        if !(self.running || self.playing_out()) || self.finished() {
             output.fill(0.0);
             return;
         }
@@ -197,6 +246,9 @@ impl Engine {
         self.carry = wanted - frames as f64;
         self.fill_input(frames);
         self.stretch.process(&self.input, &mut *output);
+        if let Some(ended) = &mut self.ended {
+            ended.tail_left = ended.tail_left.saturating_sub(output.len() / CHANNELS);
+        }
     }
 
     /// Mixes the sounding pieces of scrubbing into `output`.
@@ -227,26 +279,57 @@ impl Engine {
         self.grains.retain(|grain| grain.left > 0);
     }
 
-    /// Source frames for the next `frames` input frames; a running loop wraps at its end.
+    /// Source frames for the next `frames` input frames; a running loop wraps at its end and
+    /// the stop position ends the input, after a fade, in silence.
     fn fill_input(&mut self, frames: usize) {
         self.input.clear();
         let total = self.pcm.frames();
+        let fade = self.frame_at(STOP_FADE_MS).max(1);
         for _ in 0..frames {
+            if self.ended.is_some() {
+                self.input.extend([0.0; CHANNELS]);
+                continue;
+            }
             // A position that starts beyond the loop plays on; reaching its end wraps.
             if let Some(range) = &self.loop_frames
                 && self.read == range.end
             {
                 self.read = range.start;
             }
+            if self.stop_frame == Some(self.read) {
+                self.end_here();
+                self.input.extend([0.0; CHANNELS]);
+                continue;
+            }
             if self.read < total {
                 let at = self.read * CHANNELS;
-                self.input
-                    .extend_from_slice(&self.pcm.samples[at..at + CHANNELS]);
+                let gain = match self.stop_frame {
+                    Some(stop) if self.read < stop && stop - self.read <= fade => {
+                        (stop - self.read) as f32 / (fade + 1) as f32
+                    }
+                    _ => 1.0,
+                };
+                self.input.extend(
+                    self.pcm.samples[at..at + CHANNELS]
+                        .iter()
+                        .map(|sample| sample * gain),
+                );
             } else {
                 self.input.extend([0.0; CHANNELS]);
             }
             self.read += 1;
         }
+    }
+
+    /// Playback has reached the stop position: no more input from here on.
+    fn end_here(&mut self) {
+        let rate_ratio = f64::from(self.pcm.sample_rate()) / f64::from(self.output_rate);
+        let before = self.stretch.input_latency() as f64 / (self.speed * rate_ratio);
+        let tail = before.ceil() as usize + self.stretch.output_latency() + self.frames_out(10);
+        self.ended = Some(Ended {
+            frame: self.read,
+            tail_left: tail,
+        });
     }
 
     fn frame_at(&self, millis: u64) -> usize {
@@ -363,6 +446,121 @@ mod tests {
         }
         let position = engine.position_ms();
         assert!((1_000..=1_500).contains(&position), "position {position}");
+    }
+
+    /// Renders until the output has been silent for 20 ms; returns the left channel and the
+    /// number of frames up to the last audible one.
+    fn render_until_silent(engine: &mut Engine, limit_seconds: f64) -> (Vec<f32>, usize) {
+        let rendered = render_seconds(engine, limit_seconds);
+        let last = rendered
+            .iter()
+            .rposition(|sample| sample.abs() > 1e-4)
+            .unwrap_or(0);
+        (rendered, last)
+    }
+
+    #[test]
+    fn playback_ends_at_the_stop_position() {
+        let mut engine = Engine::new(sine(440.0, 8.0), RATE);
+        engine.set_stop_ms(Some(1_500));
+        engine.seek_ms(1_000);
+        engine.set_running(true);
+        let (rendered, last) = render_until_silent(&mut engine, 2.0);
+        assert!(engine.stopped());
+        assert_eq!(engine.position_ms(), 1_500);
+        // 500 ms of material; the stretcher delays it by its latency, nothing is added after.
+        let latency = engine.stretch.input_latency() + engine.stretch.output_latency();
+        let audible = last as i64 - latency as i64;
+        let expected = i64::from(RATE) / 2;
+        assert!(
+            (audible - expected).abs() < i64::from(RATE) / 100,
+            "audible until {last}, expected about {}",
+            expected + latency as i64
+        );
+        // Silent for good afterwards.
+        assert!(
+            rendered[last + 1..]
+                .iter()
+                .all(|sample| sample.abs() <= 1e-4)
+        );
+        assert_eq!(rendered[rendered.len() - 1], 0.0);
+    }
+
+    #[test]
+    fn the_stop_fades_out_without_a_click() {
+        let mut engine = Engine::new(sine(440.0, 8.0), RATE);
+        engine.set_stop_ms(Some(1_500));
+        engine.seek_ms(1_000);
+        engine.set_running(true);
+        let (rendered, last) = render_until_silent(&mut engine, 2.0);
+        // The level before the end falls smoothly: no step larger than the sine's own slope.
+        let steps = rendered[..=last]
+            .windows(2)
+            .skip(RATE as usize / 4)
+            .map(|pair| (pair[1] - pair[0]).abs())
+            .fold(0.0_f32, f32::max);
+        assert!(steps < 0.15, "largest step {steps}");
+        let tail = &rendered[last.saturating_sub(40)..=last];
+        assert!(tail.iter().all(|sample| sample.abs() < 0.2), "ends loud");
+    }
+
+    #[test]
+    fn the_stop_position_follows_the_speed() {
+        for speed in [0.5, 2.0] {
+            let mut engine = Engine::new(sine(440.0, 8.0), RATE);
+            engine.set_speed(speed);
+            engine.set_stop_ms(Some(2_000));
+            engine.seek_ms(1_000);
+            engine.set_running(true);
+            let (_, last) = render_until_silent(&mut engine, 4.0);
+            assert_eq!(engine.position_ms(), 2_000, "{speed}x");
+            let latency = engine.stretch.input_latency() as f64 / speed
+                + engine.stretch.output_latency() as f64;
+            let seconds = (last as f64 - latency) / f64::from(RATE);
+            let expected = 1.0 / speed;
+            assert!(
+                (seconds - expected).abs() < 0.15,
+                "{speed}x ended after {seconds} s, expected about {expected} s"
+            );
+        }
+    }
+
+    #[test]
+    fn a_stop_behind_the_position_is_not_reached() {
+        let mut engine = Engine::new(sine(440.0, 8.0), RATE);
+        engine.set_stop_ms(Some(500));
+        engine.seek_ms(1_000);
+        engine.set_running(true);
+        let rendered = render_seconds(&mut engine, 1.0);
+        assert!(!engine.stopped());
+        assert!(rms(&rendered[RATE as usize / 2..]) > 0.5);
+    }
+
+    #[test]
+    fn pausing_on_the_stop_keeps_the_sound_playing_out_and_play_continues() {
+        let mut engine = Engine::new(sine(440.0, 8.0), RATE);
+        engine.set_stop_ms(Some(1_200));
+        engine.seek_ms(1_000);
+        engine.set_running(true);
+        render_seconds(&mut engine, 0.3);
+        // What the player sends when the server pauses at the region end.
+        engine.set_running(false);
+        engine.set_stop_ms(None);
+        engine.seek_ms(1_200);
+        assert!(engine.stopped());
+        let (rendered, last) = render_until_silent(&mut engine, 0.3);
+        assert!(last > 0, "the tail was cut off");
+        assert!(
+            rendered[last + 1..]
+                .iter()
+                .all(|sample| sample.abs() <= 1e-4)
+        );
+        // Playing on runs past the old stop.
+        engine.set_running(true);
+        let after = render_seconds(&mut engine, 0.5);
+        assert!(!engine.stopped());
+        assert!(rms(&after[RATE as usize / 4..]) > 0.5);
+        assert!(engine.position_ms() > 1_500);
     }
 
     #[test]

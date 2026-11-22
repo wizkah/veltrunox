@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Region playback (ADR-010): the shared state holds a play range and a play mode (to the end of the recording, to the end of the region, looped) instead of a loop range; `play_region` starts a region in one step and `set_play_mode` changes the mode, replacing `set_loop`. Playback to the region end stops in the audio engine at that sample with a short fade, and the server pauses at the computed instant (not by polling). The bridge exposes the range, the mode and both commands to the app.
 - Holding the position handle still for a moment lets the recording play on from there; moving it again scrubs again. A stopped recording plays only while the handle is held and stops again when it is let go.
 - Audible scrubbing: dragging the position handle plays a short piece (120 ms, as recorded, with short fades) at each position instead of staying silent, and the shared position holds under the handle while it is dragged, then runs on from where it is let go.
 - Design specification v0.1 and design tokens (`docs/design/`): player, waveform with labels and region lanes, library, states, accessibility and UI acceptance criteria.

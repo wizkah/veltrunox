@@ -5,8 +5,9 @@ mod convert;
 pub use convert::{
     InvalidEntry, analysis_from_dto, analysis_to_dto, bookmarks_from_dto, bookmarks_to_dto,
     intent_from_message, intent_to_message, label_to_dto, library_entry_from_dto,
-    library_entry_to_dto, peaks_from_bytes, peaks_to_bytes, range_from_dto, range_to_dto,
-    region_to_dto, state_from_dto, state_to_dto, waveform_info_to_dto,
+    library_entry_to_dto, peaks_from_bytes, peaks_to_bytes, play_mode_from_dto, play_mode_to_dto,
+    range_from_dto, range_to_dto, region_to_dto, state_from_dto, state_to_dto,
+    waveform_info_to_dto,
 };
 
 use serde::{Deserialize, Serialize};
@@ -50,10 +51,20 @@ pub struct PlaybackStateDto {
     pub speed: f64,
     pub tuning_hz: f64,
     pub key_shift_semitones: i8,
-    pub loop_range: Option<RangeDto>,
+    /// The region being played, if any.
+    pub play_range: Option<RangeDto>,
+    pub play_mode: PlayModeDto,
     pub scrubbing: bool,
     /// Output volume of the server in percent.
     pub volume_percent: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PlayModeDto {
+    ToEnd,
+    ToRegionEnd,
+    Loop,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -98,7 +109,8 @@ pub enum ClientMessageDto {
     SetSpeed { speed: f64 },
     SetTuning { tuning_hz: f64 },
     SetKey { key_shift_semitones: i8 },
-    SetLoop { loop_range: Option<RangeDto> },
+    PlayRegion { range: RangeDto },
+    SetPlayMode { play_mode: PlayModeDto },
     SetVolume { volume_percent: u8 },
 }
 
@@ -266,10 +278,11 @@ mod tests {
             speed: 0.5,
             tuning_hz: 440.0,
             key_shift_semitones: -2,
-            loop_range: Some(RangeDto {
+            play_range: Some(RangeDto {
                 start_ms: 1000,
                 end_ms: 2000,
             }),
+            play_mode: PlayModeDto::ToRegionEnd,
             scrubbing: false,
             volume_percent: 70,
         });
@@ -280,7 +293,8 @@ mod tests {
                 r#"{"type":"state","revision":3,"recording_id":2,"position_ms":1500,"#,
                 r#""position_server_time_ms":90000,"running":true,"speed":0.5,"#,
                 r#""tuning_hz":440.0,"key_shift_semitones":-2,"#,
-                r#""loop_range":{"start_ms":1000,"end_ms":2000},"scrubbing":false,"volume_percent":70}"#
+                r#""play_range":{"start_ms":1000,"end_ms":2000},"play_mode":"to_region_end","#,
+                r#""scrubbing":false,"volume_percent":70}"#
             )
         );
         assert_eq!(

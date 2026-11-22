@@ -2,9 +2,10 @@
 
 mod support;
 
+use std::time::{Duration, Instant};
 use support::{TestClient, start_server, store_with_recording};
 use veltrunox_client_app::{ChannelEvent, ServerEvent};
-use veltrunox_core::{Intent, Millis, RecordingId, Speed};
+use veltrunox_core::{Intent, Millis, PlayMode, RecordingId, Speed, TimeRange};
 
 const RECORDING: RecordingId = RecordingId::new(1);
 
@@ -158,4 +159,36 @@ async fn a_joining_client_learns_that_the_server_has_no_audio_output() {
         _ => None,
     });
     assert!(!available);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn both_clients_see_the_pause_at_the_region_end_at_the_right_time() {
+    let url = start_server(store_with_recording()).await;
+    let mut first = TestClient::connect(&url);
+    let mut second = TestClient::connect(&url);
+    let range = TimeRange::new(Millis::new(1_000), Millis::new(1_600)).unwrap();
+
+    first
+        .connection
+        .send_intent(Intent::SelectRecording(RECORDING));
+    first
+        .connection
+        .send_intent(Intent::SetPlayMode(PlayMode::ToRegionEnd));
+    first.connection.send_intent(Intent::PlayRegion(range));
+    let started = Instant::now();
+
+    for client in [&mut first, &mut second] {
+        let playing = client.state_where(|state| state.running);
+        assert_eq!(playing.play_range, Some(range));
+        assert_eq!(playing.play_mode, PlayMode::ToRegionEnd);
+        let ended = client.state_where(|state| !state.running);
+        assert_eq!(ended.reference.position, range.end());
+        assert_eq!(ended.play_range, None);
+        assert_eq!(ended.play_mode, PlayMode::ToRegionEnd);
+    }
+    let elapsed = started.elapsed();
+    assert!(
+        (Duration::from_millis(550)..Duration::from_millis(800)).contains(&elapsed),
+        "paused after {elapsed:?}"
+    );
 }

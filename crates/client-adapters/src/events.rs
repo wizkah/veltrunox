@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn a_state_with_invalid_values_fails_the_channel() {
-        let bad = r#"{"type":"state","revision":1,"recording_id":null,"position_ms":0,"position_server_time_ms":0,"running":false,"speed":9.0,"tuning_hz":440.0,"key_shift_semitones":0,"loop_range":null,"scrubbing":false}"#;
+        let bad = r#"{"type":"state","revision":1,"recording_id":null,"position_ms":0,"position_server_time_ms":0,"running":false,"speed":9.0,"tuning_hz":440.0,"key_shift_semitones":0,"play_range":null,"play_mode":"to_end","scrubbing":false}"#;
         assert_eq!(
             channel_event_from(bad),
             Some(ChannelEvent::Link(LinkEvent::Failed))

@@ -8,7 +8,7 @@ use std::time::Duration;
 use veltrunox_client_adapters::{EventConnection, connect_events};
 use veltrunox_client_app::{ChannelEvent, LinkEvent, ServerEvent};
 use veltrunox_core::{PlaybackState, RecordingTitle};
-use veltrunox_server_adapters::{AppState, SqliteStore, SystemClock, router};
+use veltrunox_server_adapters::{AppState, SqliteStore, SystemClock, router, watch_end};
 use veltrunox_server_app::RecordingRepository;
 
 pub const WAIT: Duration = Duration::from_secs(5);
@@ -16,6 +16,7 @@ pub const WAIT: Duration = Duration::from_secs(5);
 /// Starts the server on a free local port over `store`; returns its base URL.
 pub async fn start_server(store: Arc<SqliteStore>) -> String {
     let app = AppState::new(store, Arc::new(SystemClock::new()));
+    watch_end(&app);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     tokio::spawn(async move { axum::serve(listener, router(app)).await.unwrap() });

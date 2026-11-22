@@ -3,7 +3,9 @@
 
 use super::engine::{Engine, Pcm};
 use std::sync::Arc;
-use veltrunox_core::{Millis, PlaybackState, RecordingId, TuningHz, Volume, pitch_shift_semitones};
+use veltrunox_core::{
+    Millis, PlayMode, PlaybackState, RecordingId, TuningHz, Volume, pitch_shift_semitones,
+};
 
 /// A position that differs from the expected one by more than this is a jump
 /// and seeks the engine; smaller differences are timing noise.
@@ -16,7 +18,10 @@ pub enum Command {
     Running(bool),
     Speed(f64),
     Pitch(f64),
+    /// The range that wraps; `None` plays on.
     Loop(Option<(u64, u64)>),
+    /// The position where playback ends; `None` plays on.
+    Stop(Option<u64>),
     Seek(u64),
     /// Plays a short piece at the position, for the dragged position handle.
     Scrub(u64),
@@ -122,12 +127,11 @@ impl PlayerCore {
         if previous.is_none_or(|last| last.settings.speed != state.settings.speed) {
             sink.send(Command::Speed(state.settings.speed.factor()));
         }
-        if previous.is_none_or(|last| last.loop_range != state.loop_range) {
-            sink.send(Command::Loop(
-                state
-                    .loop_range
-                    .map(|range| (range.start().value(), range.end().value())),
-            ));
+        if previous.is_none_or(|last| looping(&last) != looping(state)) {
+            sink.send(Command::Loop(looping(state)));
+        }
+        if previous.and_then(|last| stopping(&last)) != stopping(state) {
+            sink.send(Command::Stop(stopping(state)));
         }
         let target = state.position_at(now);
         let jumped = previous.is_none_or(|last| {
@@ -163,12 +167,28 @@ impl PlayerCore {
     }
 }
 
+/// The range the engine wraps in: the play range in loop mode.
+fn looping(state: &PlaybackState) -> Option<(u64, u64)> {
+    state
+        .play_range
+        .filter(|_| state.play_mode == PlayMode::Loop)
+        .map(|range| (range.start().value(), range.end().value()))
+}
+
+/// The position the engine stops at: the end of the play range in to-region-end mode.
+fn stopping(state: &PlaybackState) -> Option<u64> {
+    state
+        .play_range
+        .filter(|_| state.play_mode == PlayMode::ToRegionEnd)
+        .map(|range| range.end().value())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use veltrunox_core::{
-        KeyShift, Speed, TimeRange, pause, play, seek, select_recording, set_key, set_loop,
-        set_speed,
+        KeyShift, Speed, TimeRange, end_region, pause, play, play_region, seek, select_recording,
+        set_key, set_play_mode, set_speed,
     };
 
     #[derive(Debug, PartialEq)]
@@ -179,6 +199,7 @@ mod tests {
         Speed(f64),
         Pitch(f64),
         Loop(Option<(u64, u64)>),
+        Stop(Option<u64>),
         Seek(u64),
         Scrub(u64),
         Volume(u8),
@@ -199,6 +220,7 @@ mod tests {
                 Command::Speed(speed) => Seen::Speed(speed),
                 Command::Pitch(pitch) => Seen::Pitch(pitch),
                 Command::Loop(range) => Seen::Loop(range),
+                Command::Stop(position) => Seen::Stop(position),
                 Command::Seek(position) => Seen::Seek(position),
                 Command::Scrub(position) => Seen::Scrub(position),
                 Command::Volume(volume) => Seen::Volume(volume.percent()),
@@ -331,7 +353,7 @@ mod tests {
     }
 
     #[test]
-    fn speed_key_and_loop_changes_reach_the_engine() {
+    fn speed_key_and_play_mode_changes_reach_the_engine() {
         let mut core = PlayerCore::default();
         let state = selected();
         apply(&mut core, &state, 0);
@@ -339,11 +361,35 @@ mod tests {
         assert_eq!(apply(&mut core, &faster, 0), [Seen::Speed(1.5)]);
         let keyed = set_key(&faster, KeyShift::new(2).unwrap()).unwrap();
         assert_eq!(apply(&mut core, &keyed, 0), [Seen::Pitch(2.0)]);
+    }
+
+    #[test]
+    fn a_region_reaches_the_engine_as_loop_or_stop_by_mode() {
+        let mut core = PlayerCore::default();
+        let state = selected();
+        apply(&mut core, &state, 0);
         let range = TimeRange::new(Millis::new(1_000), Millis::new(2_000)).unwrap();
-        let looped = set_loop(&keyed, Some(range), Millis::ZERO).unwrap();
+        // To end: the range is ignored, the engine only moves to the start.
+        let region = play_region(&state, range, Millis::ZERO).unwrap();
+        assert_eq!(
+            apply(&mut core, &region, 0),
+            [Seen::Seek(1_000), Seen::Running(true)]
+        );
+        let looped = set_play_mode(&region, PlayMode::Loop, Millis::ZERO).unwrap();
         assert_eq!(
             apply(&mut core, &looped, 0),
             [Seen::Loop(Some((1_000, 2_000)))]
+        );
+        let stopping = set_play_mode(&looped, PlayMode::ToRegionEnd, Millis::ZERO).unwrap();
+        assert_eq!(
+            apply(&mut core, &stopping, 0),
+            [Seen::Loop(None), Seen::Stop(Some(2_000))]
+        );
+        // The server pauses at the region end and clears the range.
+        let ended = end_region(&stopping, Millis::new(1_000)).unwrap();
+        assert_eq!(
+            apply(&mut core, &ended, 1_000),
+            [Seen::Stop(None), Seen::Running(false), Seen::Seek(2_000)]
         );
     }
 

@@ -51,6 +51,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlayerCommand dco_decode_box_autoadd_player_command(dynamic raw);
 
   @protected
+  TimeSpan dco_decode_box_autoadd_time_span(dynamic raw);
+
+  @protected
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
 
   @protected
@@ -78,7 +81,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisValues? dco_decode_opt_box_autoadd_analysis_values(dynamic raw);
 
   @protected
+  TimeSpan? dco_decode_opt_box_autoadd_time_span(dynamic raw);
+
+  @protected
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  PlayModeChoice dco_decode_play_mode_choice(dynamic raw);
 
   @protected
   PlaybackView dco_decode_playback_view(dynamic raw);
@@ -94,6 +103,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   TargetTempo dco_decode_target_tempo(dynamic raw);
+
+  @protected
+  TimeSpan dco_decode_time_span(dynamic raw);
 
   @protected
   BigInt dco_decode_u_64(dynamic raw);
@@ -140,6 +152,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  TimeSpan sse_decode_box_autoadd_time_span(SseDeserializer deserializer);
+
+  @protected
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
@@ -171,7 +186,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  TimeSpan? sse_decode_opt_box_autoadd_time_span(SseDeserializer deserializer);
+
+  @protected
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  PlayModeChoice sse_decode_play_mode_choice(SseDeserializer deserializer);
 
   @protected
   PlaybackView sse_decode_playback_view(SseDeserializer deserializer);
@@ -187,6 +208,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   TargetTempo sse_decode_target_tempo(SseDeserializer deserializer);
+
+  @protected
+  TimeSpan sse_decode_time_span(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_u_64(SseDeserializer deserializer);
@@ -243,6 +267,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_time_span(
+    TimeSpan self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
 
   @protected
@@ -282,7 +312,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_time_span(
+    TimeSpan? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_play_mode_choice(
+    PlayModeChoice self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_playback_view(PlaybackView self, SseSerializer serializer);
@@ -298,6 +340,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_target_tempo(TargetTempo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_time_span(TimeSpan self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_64(BigInt self, SseSerializer serializer);

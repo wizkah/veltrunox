@@ -494,6 +494,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  TimeSpan dco_decode_box_autoadd_time_span(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_time_span(raw);
+  }
+
+  @protected
   BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_u_64(raw);
@@ -548,17 +554,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  TimeSpan? dco_decode_opt_box_autoadd_time_span(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_time_span(raw);
+  }
+
+  @protected
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
   }
 
   @protected
+  PlayModeChoice dco_decode_play_mode_choice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return PlayModeChoice.values[raw as int];
+  }
+
+  @protected
   PlaybackView dco_decode_playback_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return PlaybackView(
       revision: dco_decode_u_64(arr[0]),
       recordingId: dco_decode_opt_box_autoadd_u_64(arr[1]),
@@ -567,8 +585,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       speed: dco_decode_f_64(arr[4]),
       tuningHz: dco_decode_f_64(arr[5]),
       keyShiftSemitones: dco_decode_i_8(arr[6]),
-      scrubbing: dco_decode_bool(arr[7]),
-      volumePercent: dco_decode_u_8(arr[8]),
+      playRange: dco_decode_opt_box_autoadd_time_span(arr[7]),
+      playMode: dco_decode_play_mode_choice(arr[8]),
+      scrubbing: dco_decode_bool(arr[9]),
+      volumePercent: dco_decode_u_8(arr[10]),
     );
   }
 
@@ -593,6 +613,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 6:
         return PlayerCommand_SetKey(keyShiftSemitones: dco_decode_i_8(raw[1]));
       case 7:
+        return PlayerCommand_PlayRegion(
+          startMs: dco_decode_u_64(raw[1]),
+          endMs: dco_decode_u_64(raw[2]),
+        );
+      case 8:
+        return PlayerCommand_SetPlayMode(
+          playMode: dco_decode_play_mode_choice(raw[1]),
+        );
+      case 9:
         return PlayerCommand_SetVolume(volumePercent: dco_decode_u_8(raw[1]));
       default:
         throw Exception("unreachable");
@@ -648,6 +677,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return TargetTempo(
       speed: dco_decode_f_64(arr[0]),
       supported: dco_decode_bool(arr[1]),
+    );
+  }
+
+  @protected
+  TimeSpan dco_decode_time_span(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return TimeSpan(
+      startMs: dco_decode_u_64(arr[0]),
+      endMs: dco_decode_u_64(arr[1]),
     );
   }
 
@@ -744,6 +785,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  TimeSpan sse_decode_box_autoadd_time_span(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_time_span(deserializer));
+  }
+
+  @protected
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_64(deserializer));
@@ -820,6 +867,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  TimeSpan? sse_decode_opt_box_autoadd_time_span(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_time_span(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -828,6 +886,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  PlayModeChoice sse_decode_play_mode_choice(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return PlayModeChoice.values[inner];
   }
 
   @protected
@@ -840,6 +905,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_speed = sse_decode_f_64(deserializer);
     var var_tuningHz = sse_decode_f_64(deserializer);
     var var_keyShiftSemitones = sse_decode_i_8(deserializer);
+    var var_playRange = sse_decode_opt_box_autoadd_time_span(deserializer);
+    var var_playMode = sse_decode_play_mode_choice(deserializer);
     var var_scrubbing = sse_decode_bool(deserializer);
     var var_volumePercent = sse_decode_u_8(deserializer);
     return PlaybackView(
@@ -850,6 +917,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       speed: var_speed,
       tuningHz: var_tuningHz,
       keyShiftSemitones: var_keyShiftSemitones,
+      playRange: var_playRange,
+      playMode: var_playMode,
       scrubbing: var_scrubbing,
       volumePercent: var_volumePercent,
     );
@@ -881,6 +950,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_keyShiftSemitones = sse_decode_i_8(deserializer);
         return PlayerCommand_SetKey(keyShiftSemitones: var_keyShiftSemitones);
       case 7:
+        var var_startMs = sse_decode_u_64(deserializer);
+        var var_endMs = sse_decode_u_64(deserializer);
+        return PlayerCommand_PlayRegion(startMs: var_startMs, endMs: var_endMs);
+      case 8:
+        var var_playMode = sse_decode_play_mode_choice(deserializer);
+        return PlayerCommand_SetPlayMode(playMode: var_playMode);
+      case 9:
         var var_volumePercent = sse_decode_u_8(deserializer);
         return PlayerCommand_SetVolume(volumePercent: var_volumePercent);
       default:
@@ -937,6 +1013,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_speed = sse_decode_f_64(deserializer);
     var var_supported = sse_decode_bool(deserializer);
     return TargetTempo(speed: var_speed, supported: var_supported);
+  }
+
+  @protected
+  TimeSpan sse_decode_time_span(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_startMs = sse_decode_u_64(deserializer);
+    var var_endMs = sse_decode_u_64(deserializer);
+    return TimeSpan(startMs: var_startMs, endMs: var_endMs);
   }
 
   @protected
@@ -1040,6 +1124,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_time_span(
+    TimeSpan self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_time_span(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(self, serializer);
@@ -1118,6 +1211,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_time_span(
+    TimeSpan? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_time_span(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1125,6 +1231,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_box_autoadd_u_64(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_play_mode_choice(
+    PlayModeChoice self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -1137,6 +1252,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.speed, serializer);
     sse_encode_f_64(self.tuningHz, serializer);
     sse_encode_i_8(self.keyShiftSemitones, serializer);
+    sse_encode_opt_box_autoadd_time_span(self.playRange, serializer);
+    sse_encode_play_mode_choice(self.playMode, serializer);
     sse_encode_bool(self.scrubbing, serializer);
     sse_encode_u_8(self.volumePercent, serializer);
   }
@@ -1164,8 +1281,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case PlayerCommand_SetKey(keyShiftSemitones: final keyShiftSemitones):
         sse_encode_i_32(6, serializer);
         sse_encode_i_8(keyShiftSemitones, serializer);
-      case PlayerCommand_SetVolume(volumePercent: final volumePercent):
+      case PlayerCommand_PlayRegion(startMs: final startMs, endMs: final endMs):
         sse_encode_i_32(7, serializer);
+        sse_encode_u_64(startMs, serializer);
+        sse_encode_u_64(endMs, serializer);
+      case PlayerCommand_SetPlayMode(playMode: final playMode):
+        sse_encode_i_32(8, serializer);
+        sse_encode_play_mode_choice(playMode, serializer);
+      case PlayerCommand_SetVolume(volumePercent: final volumePercent):
+        sse_encode_i_32(9, serializer);
         sse_encode_u_8(volumePercent, serializer);
     }
   }
@@ -1207,6 +1331,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_f_64(self.speed, serializer);
     sse_encode_bool(self.supported, serializer);
+  }
+
+  @protected
+  void sse_encode_time_span(TimeSpan self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.startMs, serializer);
+    sse_encode_u_64(self.endMs, serializer);
   }
 
   @protected
