@@ -50,6 +50,8 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -78,8 +80,8 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
-          npx playwright test
           cargo build -p veltrunox-server --manifest-path ../Cargo.toml
+          npx playwright test
           npx playwright test -c playwright.reconnect.config.ts
       - uses: actions/upload-artifact@v4
         if: failure()
