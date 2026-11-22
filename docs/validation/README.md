@@ -217,10 +217,11 @@ Environment: macOS (Apple silicon), native tests; Raspberry Pi 4 Model B (Debian
 | Unit tests of the player core: one piece per new position, none while the handle is held still, the running state is not touched while dragging, the release puts the engine on the final position and resumes (or stays paused) | Pass |
 | Unit test of the shared state: the position holds while scrubbing and runs on after the release | Pass |
 | Pi: the new build is installed and the service starts | Pass |
+| Pi, listening by the user: scrubbing sounds good (reported, no details on length, loudness or clicks) | Pass (manual, once) |
 
 Limits:
 
-- Not listened to yet. How the pieces sound on the Pi (clicks, length, loudness against normal playing) and whether the time display now stays under the handle is not judged.
+- The listening was one informal session; clicks, piece length and loudness against normal playing were not judged separately. Whether the time display holds under the handle was not examined separately.
 - The pieces play at the recording's own speed and pitch; speed, key and tuning settings do not apply to them.
 - Reason for playing from the recording directly: after a seek the time stretcher needs about 55 ms before sound comes out (measured at 44.1 kHz), too long for dragging at 20 positions per second.
 
