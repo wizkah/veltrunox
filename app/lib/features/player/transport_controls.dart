@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../design/tokens/app_geometry.dart';
 import '../../shared_ui/app_icon_button.dart';
 import 'player_texts.dart';
 
@@ -24,16 +25,18 @@ class TransportControls extends StatelessWidget {
         tooltip: PlayerTexts.restart,
         onPressed: onRestart,
         icon: Icons.skip_previous,
-        extent: 64,
-        iconSize: 40,
+        framed: true,
+        extent: AppSize.touchTarget,
+        iconSize: 44,
       ),
+      const SizedBox(width: AppSpace.s6),
       AppIconButton(
         tooltip: running ? PlayerTexts.pause : PlayerTexts.play,
         onPressed: onTogglePlay,
         icon: running ? Icons.pause : Icons.play_arrow,
         prominent: true,
-        extent: 88,
-        iconSize: 56,
+        extent: AppSize.touchTarget * 1.5,
+        iconSize: 72,
       ),
     ],
   );
