@@ -39,3 +39,12 @@ unsafe_code = "deny"
 all = { level = "warn", priority = -1 }
 unwrap_used = "warn"
 expect_used = "warn"
+
+# Decoding and time stretching are far too slow unoptimised: a song took seconds to load in
+# debug builds. Dependencies and the audio crate are optimised there; the other workspace
+# crates stay debuggable.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev.package.veltrunox-server-adapters]
+opt-level = 3
