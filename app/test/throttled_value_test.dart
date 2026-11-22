@@ -34,6 +34,22 @@ void main() {
     expect(sent, [1]);
   });
 
+  testWidgets('a cancelled throttle drops the waiting value but works on', (
+    tester,
+  ) async {
+    final sent = <int>[];
+    final throttled = ThrottledValue<int>(sent.add)
+      ..add(1)
+      ..add(2)
+      ..cancel();
+    await tester.pump(const Duration(seconds: 1));
+    expect(sent, [1]);
+
+    throttled.add(3);
+    expect(sent, [1, 3]);
+    throttled.dispose();
+  });
+
   test('the next tenth comes sooner at a higher speed', () {
     expect(
       untilNextTenth(1234, 1).inMilliseconds,

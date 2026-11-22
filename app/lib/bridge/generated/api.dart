@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `forward`, `from_state`, `into_intent`, `target_tempo`, `view`, `with_channel`
+// These functions are ignored because they are not marked as `pub`: `forward`, `from_state`, `into_intent`, `send_intent`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `from`, `from`
 
 /// Loads the recording list from the server at `server_url`.
@@ -25,6 +25,16 @@ Future<void> reanalyseRecording({
   recordingId: recordingId,
 );
 
+/// The length of a recording in milliseconds from its stored scan; `None` while there is none
+/// (not scanned yet) or the server cannot be reached.
+Future<BigInt?> recordingLengthMs({
+  required String serverUrl,
+  required BigInt recordingId,
+}) => RustLib.instance.api.crateApiRecordingLengthMs(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+);
+
 Future<TargetTempo> speedForTargetBpm({
   required double targetBpm,
   required double recordingBpm,
@@ -32,6 +42,10 @@ Future<TargetTempo> speedForTargetBpm({
   targetBpm: targetBpm,
   recordingBpm: recordingBpm,
 );
+
+/// Whether the server accepts this tuning; it must not be sent otherwise.
+Future<bool> tuningSupported({required double tuningHz}) =>
+    RustLib.instance.api.crateApiTuningSupported(tuningHz: tuningHz);
 
 /// Opens the real-time channel and pushes connection changes, playback state,
 /// bookmark notices and rejections to `updates`. The channel reconnects by itself
@@ -42,6 +56,15 @@ Stream<SessionUpdate> watchSession({required String serverUrl}) =>
 /// The playback position now, extrapolated from the latest state; `None` before the first state.
 Future<BigInt?> playbackPositionMs() =>
     RustLib.instance.api.crateApiPlaybackPositionMs();
+
+/// The position handle is dragged to `position_ms`; the server hears it at most about 20 times a
+/// second and keeps the sound muted meanwhile.
+Future<void> scrubTo({required BigInt positionMs}) =>
+    RustLib.instance.api.crateApiScrubTo(positionMs: positionMs);
+
+/// The position handle is let go at `position_ms`: always sent, so the last position is never lost.
+Future<void> endScrub({required BigInt positionMs}) =>
+    RustLib.instance.api.crateApiEndScrub(positionMs: positionMs);
 
 /// Sends a command to the shared player. Out-of-range values are rejected here
 /// and the server rejects them again; the answer arrives as a session update.

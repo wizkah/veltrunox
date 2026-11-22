@@ -64,6 +64,16 @@ final playerRejectionProvider = StreamProvider<String>(
   (ref) => ref.watch(playerSourceProvider).rejections(),
 );
 
+/// The length of a recording in milliseconds. It comes from the scan that also
+/// yields the analysis, so it is only asked for once the recording is `scanned`
+/// (no request that is bound to fail); `null` before.
+final playerLengthProvider =
+    FutureProvider.family<int?, ({int recordingId, bool scanned})>(
+      (ref, key) => key.scanned
+          ? ref.watch(playerSourceProvider).recordingLength(key.recordingId)
+          : Future.value(),
+    );
+
 /// Turns user actions into commands for the shared player.
 final playerControllerProvider = Provider<PlayerController>(
   (ref) => PlayerController(ref.watch(playerSourceProvider)),
@@ -79,7 +89,16 @@ class PlayerController {
       running ? _source.pause() : _source.play();
   Future<void> restart() => _source.seek(0);
   Future<void> setSpeed(double speed) => _source.setSpeed(speed);
-  Future<void> setTuning(double hertz) => _source.setTuning(hertz);
+  Future<void> scrub(int positionMs) => _source.scrub(positionMs);
+  Future<void> endScrub(int positionMs) => _source.endScrub(positionMs);
+
+  /// Sets the tuning. `false` if it is outside the supported range.
+  Future<bool> setTuning(double hertz) async {
+    if (!await _source.tuningSupported(hertz)) return false;
+    await _source.setTuning(hertz);
+    return true;
+  }
+
   Future<void> setKey(int semitones) => _source.setKey(semitones);
   Future<void> setVolume(int percent) => _source.setVolume(percent);
 

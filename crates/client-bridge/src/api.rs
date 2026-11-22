@@ -8,8 +8,8 @@ use crate::frb_generated::StreamSink;
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
 use veltrunox_client_adapters::{EventChannel, HttpServerLink, SystemTimer, open_channel};
 use veltrunox_client_app::{
-    ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkEvent, ServerEvent, SessionView,
-    ViewChange, analyse_again, load_library,
+    ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkEvent, ScrubThrottle, ServerEvent,
+    SessionView, ViewChange, analyse_again, load_length, load_library,
 };
 use veltrunox_core::{
     AnalysisProgress, Bpm, Intent, KeyMode, KeyShift, LibraryEntry, Millis, RecordingId, Speed,
@@ -87,6 +87,16 @@ pub async fn reanalyse_recording(server_url: String, recording_id: u64) -> Resul
         .map_err(|error| error.to_string())
 }
 
+/// The length of a recording in milliseconds from its stored scan; `None` while there is none
+/// (not scanned yet) or the server cannot be reached.
+pub async fn recording_length_ms(server_url: String, recording_id: u64) -> Option<u64> {
+    let link = HttpServerLink::new(&server_url);
+    load_length(&link, RecordingId::new(recording_id))
+        .await
+        .ok()
+        .map(Millis::value)
+}
+
 /// The speed that plays a recording of `recording_bpm` at `target_bpm`.
 pub struct TargetTempo {
     pub speed: f64,
@@ -114,6 +124,15 @@ fn target_tempo(target_bpm: f64, recording_bpm: f64) -> Result<TargetTempo, Stri
             supported: false,
         },
     })
+}
+
+/// Whether the server accepts this tuning; it must not be sent otherwise.
+pub async fn tuning_supported(tuning_hz: f64) -> bool {
+    tuning_in_range(tuning_hz)
+}
+
+fn tuning_in_range(tuning_hz: f64) -> bool {
+    TuningHz::new(tuning_hz).is_ok()
 }
 
 /// State of the real-time channel as the user interface needs it.
@@ -265,10 +284,37 @@ pub async fn playback_position_ms() -> Option<u64> {
     view().position_now(local_now()).map(Millis::value)
 }
 
+/// Limits the seek intents of the position handle while it is dragged.
+static SCRUB: Mutex<Option<ScrubThrottle>> = Mutex::new(None);
+
+fn with_scrub<T>(action: impl FnOnce(&mut ScrubThrottle) -> T) -> T {
+    let mut guard = SCRUB.lock().unwrap_or_else(PoisonError::into_inner);
+    action(guard.get_or_insert_with(|| ScrubThrottle::new(ScrubThrottle::DEFAULT_INTERVAL)))
+}
+
+/// The position handle is dragged to `position_ms`; the server hears it at most about 20 times a
+/// second and keeps the sound muted meanwhile.
+pub async fn scrub_to(position_ms: u64) -> Result<(), String> {
+    let position = Millis::position(position_ms).map_err(|error| error.to_string())?;
+    match with_scrub(|throttle| throttle.drag(position, local_now())) {
+        Some(intent) => send_intent(intent),
+        None => Ok(()),
+    }
+}
+
+/// The position handle is let go at `position_ms`: always sent, so the last position is never lost.
+pub async fn end_scrub(position_ms: u64) -> Result<(), String> {
+    let position = Millis::position(position_ms).map_err(|error| error.to_string())?;
+    send_intent(with_scrub(|throttle| throttle.release(position)))
+}
+
 /// Sends a command to the shared player. Out-of-range values are rejected here
 /// and the server rejects them again; the answer arrives as a session update.
 pub async fn send_command(command: PlayerCommand) -> Result<(), String> {
-    let intent = command.into_intent().map_err(|error| error.to_string())?;
+    send_intent(command.into_intent().map_err(|error| error.to_string())?)
+}
+
+fn send_intent(intent: Intent) -> Result<(), String> {
     with_channel(|channel| match channel {
         Some(channel) => channel
             .send_intent(intent)
@@ -311,6 +357,12 @@ impl From<ConnectionStatus> for ConnectionState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_tuning_is_supported_between_300_and_500_hertz() {
+        assert!(tuning_in_range(300.0) && tuning_in_range(432.5) && tuning_in_range(500.0));
+        assert!(!tuning_in_range(299.9) && !tuning_in_range(600.0) && !tuning_in_range(f64::NAN));
+    }
 
     #[test]
     fn commands_become_intents() {

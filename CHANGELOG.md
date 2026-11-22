@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Player: a position slider with scrubbing (the length comes from the stored scan; the slider appears once a recording is analysed); the speed slider takes effect while it is dragged and shows the wanted tempo under the handle; the tuning slider is replaced by a field for the wanted tuning in Hz (300–500, with a message otherwise) that sets it back to the analysed value. Loops and regions are not part of this.
 - Output volume (ADR-009): a slider in the player sets the volume of the server for everyone, and every client shows the current value. The server sets the sound card's mixer where there is one (ALSA, for example the Pi's headphone output) and scales the audio itself otherwise; at start-up it reads the mixer.
 - Pausing puts the audio engine on the frozen position, so repeated pauses no longer move the sound ahead of the shared position.
 - The position display reads the position when the displayed tenth changes while playing, so the tenths advance evenly.

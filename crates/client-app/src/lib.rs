@@ -16,7 +16,7 @@ pub enum ChannelEvent {
 }
 
 use std::future::Future;
-use veltrunox_core::{Bookmarks, LibraryEntry, RecordingId};
+use veltrunox_core::{Bookmarks, LibraryEntry, Millis, RecordingId};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinkError {
@@ -41,6 +41,11 @@ pub trait ServerLink {
         &self,
         recording: RecordingId,
     ) -> impl Future<Output = Result<(), LinkError>>;
+    /// The length of the recording as stored by its scan; an error while there is none.
+    fn fetch_length(
+        &self,
+        recording: RecordingId,
+    ) -> impl Future<Output = Result<Millis, LinkError>>;
 }
 
 /// Use case: load the recording list from the server.
@@ -62,4 +67,12 @@ pub async fn analyse_again(
     recording: RecordingId,
 ) -> Result<(), LinkError> {
     link.request_analysis(recording).await
+}
+
+/// Use case: the length of a recording, for the position control.
+pub async fn load_length(
+    link: &impl ServerLink,
+    recording: RecordingId,
+) -> Result<Millis, LinkError> {
+    link.fetch_length(recording).await
 }

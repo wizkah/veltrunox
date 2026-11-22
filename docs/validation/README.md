@@ -187,3 +187,23 @@ Limits:
 - The pause alignment is checked at the level of the commands sent to the engine; whether repeated pausing no longer shifts the sound was not measured on the Pi.
 - The evenness of the displayed tenths was judged by eye in a browser by the user, during playback and after pausing ("feels right"); it was not measured. The position is still read through the bridge call, so a slow call would still show.
 - A volume changed outside the server (for example with `alsamixer`) is not noticed until the next change through the server.
+
+## Position slider, live speed and tuning field (2026-11-22)
+
+Environment: macOS (Apple silicon), debug and wasm builds, native and Flutter tests, Playwright with the web app; one Mac server with one real MP3 for a browser check; Raspberry Pi 4 Model B (Debian 12), release build cross-built on the Mac and installed with `install.sh`.
+
+| Check | Result |
+|---|---|
+| Rust: the client fetches the length from the waveform endpoint of a running server (30 000 ms for a 30 s file) and gets an error for a recording without a scan; a tuning is in range from 300 to 500 Hz and not outside (including NaN) | Pass (tests) |
+| Flutter widget tests: the position slider follows the position and spans the length, is absent and asks for no length without an analysis, sends scrub commands while dragged and the final position on release; the speed slider sends while dragged and shows the wanted tempo before the state arrives; the tuning field sends a confirmed value (decimal comma), shows a message for 600 Hz and for text, and there is no tuning slider; a throttle cancelled by the final value does not deliver the older value afterwards | Pass |
+| Playwright (library, two clients, late joiner) | Pass |
+| Browser against a local server with a real MP3, paused: a click on the position slider moved the position to 2:14.5 and the display followed; dragging the speed slider to 1.38× showed 203,7 bpm (148,0 bpm recording); 432 in the tuning field set 432 Hz; 600 showed a message and kept the value | Pass (manual, once, by eye) |
+| Pi: the installed service starts, lists the recordings and reports the audio output at 48 kHz | Pass |
+
+Limits:
+
+- Nothing was listened to. Whether scrubbing and position jumps sound right (muted fallback while dragging), whether the tempo follows the slider cleanly while dragging and how the tuning field sounds on the Pi is not judged.
+- The position slider appears only for analysed recordings (the length is read once the scan is done); a recording whose analysis failed shows none.
+- Whether the slider handle briefly jumps back after the release before the new state arrives was not examined; it was not measured how often the bridge calls arrive while dragging.
+- The slider was tried with mouse input in one browser, not on a touch device.
+

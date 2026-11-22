@@ -34,10 +34,15 @@ class ThrottledValue<T> {
     add(value);
   }
 
-  /// Stops a pending delivery, for example when the owner goes away.
-  void dispose() {
+  /// Drops a waiting value, so it cannot arrive after a final value that was
+  /// sent directly.
+  void cancel() {
     _timer?.cancel();
     _timer = null;
+    _waiting = null;
     _hasWaiting = false;
   }
+
+  /// Stops a pending delivery, for example when the owner goes away.
+  void dispose() => cancel();
 }

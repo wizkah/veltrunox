@@ -5,8 +5,8 @@ import 'package:veltrunox_app/features/player/player_analysis.dart';
 import 'package:veltrunox_app/features/player/player_bar.dart';
 import 'package:veltrunox_app/features/player/player_controller.dart';
 import 'package:veltrunox_app/features/player/player_state.dart';
+import 'package:veltrunox_app/features/player/number_input.dart';
 import 'package:veltrunox_app/features/player/position_display.dart';
-import 'package:veltrunox_app/features/player/tempo_input.dart';
 
 import 'fake_player_source.dart';
 
@@ -38,6 +38,21 @@ Future<FakePlayerSource> _pumpBar(
   await tester.pump();
   return player;
 }
+
+/// The slider of the row with the given label.
+Finder _sliderOf(String label) => find.descendant(
+  of: find.ancestor(of: find.text(label), matching: find.byType(Row)).first,
+  matching: find.byType(Slider),
+);
+
+Future<void> _enter(WidgetTester tester, Finder field, String text) async {
+  await tester.enterText(field, text);
+  await tester.testTextInput.receiveAction(TextInputAction.done);
+  await tester.pump();
+  await tester.pump();
+}
+
+const _analysis = PlayerAnalysis(tuningHz: 443, tempoBpm: 120);
 
 void main() {
   testWidgets('invites to choose a recording while none is loaded', (
@@ -179,7 +194,7 @@ void main() {
     testWidgets('a wanted tempo sets the speed', (tester) async {
       final player = await _pumpBar(tester, state: changed, analysis: analysis);
 
-      await tester.enterText(find.byType(TextField), '96');
+      await tester.enterText(find.byType(TextField).first, '96');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
       await tester.pump();
@@ -190,7 +205,7 @@ void main() {
     testWidgets('a tempo outside the speed range is refused', (tester) async {
       final player = await _pumpBar(tester, state: changed, analysis: analysis);
 
-      await tester.enterText(find.byType(TextField), '300');
+      await tester.enterText(find.byType(TextField).first, '300');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
       await tester.pump();
@@ -202,7 +217,7 @@ void main() {
     testWidgets('text that is no tempo is not sent', (tester) async {
       final player = await _pumpBar(tester, state: changed, analysis: analysis);
 
-      await tester.enterText(find.byType(TextField), 'schnell');
+      await tester.enterText(find.byType(TextField).first, 'schnell');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
 
@@ -212,13 +227,13 @@ void main() {
   });
 
   test('tempo input accepts a decimal comma and rejects the rest', () {
-    expect(parseBpm('96'), 96);
-    expect(parseBpm(' 96,5 '), 96.5);
-    expect(parseBpm('96.5'), 96.5);
-    expect(parseBpm('0'), isNull);
-    expect(parseBpm('-3'), isNull);
-    expect(parseBpm('abc'), isNull);
-    expect(parseBpm(''), isNull);
+    expect(parsePositiveNumber('96'), 96);
+    expect(parsePositiveNumber(' 96,5 '), 96.5);
+    expect(parsePositiveNumber('96.5'), 96.5);
+    expect(parsePositiveNumber('0'), isNull);
+    expect(parsePositiveNumber('-3'), isNull);
+    expect(parsePositiveNumber('abc'), isNull);
+    expect(parsePositiveNumber(''), isNull);
   });
 
   test('positions are shown as minutes, seconds and tenths', () {
@@ -248,11 +263,137 @@ void main() {
     await tester.pump();
     expect(find.text('40 %'), findsOneWidget);
 
-    await tester.drag(find.byType(Slider).first, const Offset(-60, 0));
+    await tester.drag(_sliderOf('Lautstärke'), const Offset(-60, 0));
     await tester.pump();
     expect(
       player.calls.where((call) => call.startsWith('volume ')),
       isNotEmpty,
     );
+  });
+
+  group('position slider', () {
+    testWidgets('follows the playback position and spans the length', (
+      tester,
+    ) async {
+      final player = FakePlayerSource()..currentPosition = 30000;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [playerSourceProvider.overrideWithValue(player)],
+          child: const MaterialApp(
+            home: Scaffold(body: PlayerBar(analysis: _analysis)),
+          ),
+        ),
+      );
+      player.states.add(_loaded);
+      await tester.pump();
+      await tester.pump();
+
+      final slider = tester.widget<Slider>(_sliderOf('Position'));
+      expect(slider.value, 30000);
+      expect(slider.max, 180000);
+      expect(find.text('0:30.0'), findsWidgets);
+    });
+
+    testWidgets('is not shown for a recording without a scan', (tester) async {
+      final player = await _pumpBar(tester, state: _loaded);
+
+      expect(find.text('Position'), findsNothing);
+      expect(player.lengthRequests, isEmpty);
+    });
+
+    testWidgets('scrubs while dragged and ends with the final position', (
+      tester,
+    ) async {
+      final player = await _pumpBar(
+        tester,
+        state: _loaded,
+        analysis: _analysis,
+      );
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(_sliderOf('Position')),
+      );
+      await gesture.moveBy(const Offset(40, 0));
+      await tester.pump();
+      expect(
+        player.calls.where((call) => call.startsWith('scrub ')),
+        isNotEmpty,
+      );
+      expect(
+        player.calls.where((call) => call.startsWith('endScrub')),
+        isEmpty,
+      );
+
+      await gesture.up();
+      await tester.pump();
+      expect(player.calls.last, startsWith('endScrub '));
+    });
+  });
+
+  group('speed slider', () {
+    const analysis = PlayerAnalysis(tuningHz: 443, tempoBpm: 120);
+
+    testWidgets('sends the speed while dragged and shows the wanted tempo', (
+      tester,
+    ) async {
+      final player = await _pumpBar(tester, state: _loaded, analysis: analysis);
+      expect(find.text('120,0 bpm'), findsOneWidget);
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(_sliderOf('Geschwindigkeit')),
+      );
+      await gesture.moveBy(const Offset(60, 0));
+      await tester.pump();
+
+      expect(
+        player.calls.where((call) => call.startsWith('speed ')),
+        isNotEmpty,
+      );
+      // The state still says 1×, yet the tempo already follows the handle.
+      expect(find.text('120,0 bpm'), findsNothing);
+      expect(find.textContaining(' bpm'), findsOneWidget);
+
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 100));
+      final sent = player.calls.where((call) => call.startsWith('speed '));
+      expect(sent.last, isNot(sent.first));
+    });
+  });
+
+  group('tuning field', () {
+    const analysis = PlayerAnalysis(tuningHz: 443, tempoBpm: 120);
+
+    testWidgets('has no slider and shows the shared tuning', (tester) async {
+      await _pumpBar(tester, state: _loaded);
+
+      expect(_sliderOf('Stimmung'), findsNothing);
+      expect(find.text('440 Hz'), findsOneWidget);
+    });
+
+    testWidgets('a confirmed value is sent', (tester) async {
+      final player = await _pumpBar(tester, state: _loaded, analysis: analysis);
+
+      await _enter(tester, find.byType(TextField).last, '432,5');
+
+      expect(player.calls, ['tuning 432.5']);
+    });
+
+    testWidgets('a value the core refuses shows a message', (tester) async {
+      final player = await _pumpBar(tester, state: _loaded, analysis: analysis);
+
+      await _enter(tester, find.byType(TextField).last, '600');
+
+      expect(player.calls, isEmpty);
+      expect(find.text('Nur 300–500 Hz erlaubt'), findsOneWidget);
+    });
+
+    testWidgets('text that is no number is not sent', (tester) async {
+      final player = await _pumpBar(tester, state: _loaded, analysis: analysis);
+
+      await _enter(tester, find.byType(TextField).last, 'tief');
+
+      expect(player.calls, isEmpty);
+      expect(find.text('Keine Zahl'), findsOneWidget);
+    });
   });
 }

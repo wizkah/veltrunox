@@ -6,6 +6,7 @@ import 'player_controller.dart';
 import 'player_state.dart';
 import 'player_texts.dart';
 import 'position_display.dart';
+import 'position_slider.dart';
 import 'settings_controls.dart';
 import 'transport_controls.dart';
 import 'volume_control.dart';
@@ -49,10 +50,25 @@ class _LoadedPlayer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.watch(playerControllerProvider);
     final position = ref.watch(playerPositionProvider).value ?? 0;
+    final length = ref
+        .watch(
+          playerLengthProvider((
+            recordingId: state.recordingId!,
+            scanned: analysis != null,
+          )),
+        )
+        .value;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         PositionDisplay(positionMs: position),
+        if (length != null && length > 0)
+          PositionSlider(
+            positionMs: position.clamp(0, length),
+            lengthMs: length,
+            onScrub: controller.scrub,
+            onScrubEnd: controller.endScrub,
+          ),
         TransportControls(
           running: state.running,
           onTogglePlay: () => controller.togglePlay(running: state.running),

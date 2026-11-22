@@ -10,10 +10,10 @@ pub use timer::SystemTimer;
 
 use reqwest::Client;
 use veltrunox_client_app::{LinkError, ServerLink};
-use veltrunox_core::{Bookmarks, LibraryEntry, RecordingId};
+use veltrunox_core::{Bookmarks, LibraryEntry, Millis, RecordingId};
 use veltrunox_protocol::{
-    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, RECORDINGS_PATH, RecordingListDto,
-    bookmarks_from_dto, library_entry_from_dto,
+    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, RECORDINGS_PATH, RecordingListDto, WAVEFORM_PATH,
+    WaveformInfoDto, bookmarks_from_dto, library_entry_from_dto,
 };
 
 pub struct HttpServerLink {
@@ -78,5 +78,22 @@ impl ServerLink for HttpServerLink {
             .and_then(reqwest::Response::error_for_status)
             .map_err(|error| LinkError::Unreachable(error.to_string()))?;
         Ok(())
+    }
+
+    async fn fetch_length(&self, recording: RecordingId) -> Result<Millis, LinkError> {
+        let path = WAVEFORM_PATH.replace("{id}", &recording.value().to_string());
+        let response = self
+            .client
+            .get(format!("{}{}", self.base_url, path))
+            .send()
+            .await
+            .and_then(reqwest::Response::error_for_status)
+            .map_err(|error| LinkError::Unreachable(error.to_string()))?;
+        let info: WaveformInfoDto = response
+            .json()
+            .await
+            .map_err(|error| LinkError::InvalidResponse(error.to_string()))?;
+        Millis::position(info.length_ms)
+            .map_err(|error| LinkError::InvalidResponse(error.to_string()))
     }
 }

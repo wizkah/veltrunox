@@ -35,6 +35,21 @@ class BridgePlayerSource implements PlayerSource {
       _send(rust.PlayerCommand.seek(positionMs: BigInt.from(positionMs)));
 
   @override
+  Future<void> scrub(int positionMs) =>
+      rust.scrubTo(positionMs: BigInt.from(positionMs));
+
+  @override
+  Future<void> endScrub(int positionMs) =>
+      rust.endScrub(positionMs: BigInt.from(positionMs));
+
+  @override
+  Future<int?> recordingLength(int recordingId) async =>
+      (await rust.recordingLengthMs(
+        serverUrl: _session.serverUrl,
+        recordingId: BigInt.from(recordingId),
+      ))?.toInt();
+
+  @override
   Future<void> setSpeed(double speed) =>
       _send(rust.PlayerCommand.setSpeed(speed: speed));
 
@@ -49,6 +64,10 @@ class BridgePlayerSource implements PlayerSource {
   @override
   Future<void> setVolume(int percent) =>
       _send(rust.PlayerCommand.setVolume(volumePercent: percent));
+
+  @override
+  Future<bool> tuningSupported(double hertz) =>
+      rust.tuningSupported(tuningHz: hertz);
 
   @override
   Future<TargetTempo> speedForTargetTempo({

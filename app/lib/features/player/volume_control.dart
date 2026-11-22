@@ -39,6 +39,9 @@ class _VolumeControlState extends State<VolumeControl> {
     max: 100,
     format: PlayerTexts.volumeValue,
     onChanging: (value) => _live.add(value.round()),
-    onChanged: (value) => widget.onChanged(value.round()),
+    onChanged: (value) {
+      _live.cancel();
+      widget.onChanged(value.round());
+    },
   );
 }

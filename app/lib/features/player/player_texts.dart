@@ -13,6 +13,10 @@ abstract final class PlayerTexts {
   static const targetTempo = 'Soll-bpm';
   static const tempoInvalid = 'Keine Zahl';
   static const tempoOutOfRange = 'Außerhalb von 0,5× bis 2×';
+  static const position = 'Position';
+  static const tuningTarget = 'Soll-Hz';
+  static const tuningInvalid = 'Keine Zahl';
+  static const tuningOutOfRange = 'Nur 300–500 Hz erlaubt';
   static const volume = 'Lautstärke';
   static const resetToAnalysis = 'Auf Analysewert zurücksetzen';
 
