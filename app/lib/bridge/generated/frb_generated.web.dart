@@ -35,6 +35,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AccessError dco_decode_access_error(dynamic raw);
+
+  @protected
+  AccessStatusInfo dco_decode_access_status_info(dynamic raw);
+
+  @protected
   AnalysisState dco_decode_analysis_state(dynamic raw);
 
   @protected
@@ -50,10 +56,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisValues dco_decode_box_autoadd_analysis_values(dynamic raw);
 
   @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw);
+
+  @protected
   PlaybackView dco_decode_box_autoadd_playback_view(dynamic raw);
 
   @protected
   PlayerCommand dco_decode_box_autoadd_player_command(dynamic raw);
+
+  @protected
+  RightsInfo dco_decode_box_autoadd_rights_info(dynamic raw);
+
+  @protected
+  RoleChoice dco_decode_box_autoadd_role_choice(dynamic raw);
 
   @protected
   TimeSpan dco_decode_box_autoadd_time_span(dynamic raw);
@@ -89,6 +104,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RegionItem> dco_decode_list_region_item(dynamic raw);
 
   @protected
+  List<UserItem> dco_decode_list_user_item(dynamic raw);
+
+  @protected
   List<WaveformLevelData> dco_decode_list_waveform_level_data(dynamic raw);
 
   @protected
@@ -96,6 +114,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisValues? dco_decode_opt_box_autoadd_analysis_values(dynamic raw);
+
+  @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
+  RoleChoice? dco_decode_opt_box_autoadd_role_choice(dynamic raw);
 
   @protected
   TimeSpan? dco_decode_opt_box_autoadd_time_span(dynamic raw);
@@ -119,7 +143,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RegionItem dco_decode_region_item(dynamic raw);
 
   @protected
+  RightsInfo dco_decode_rights_info(dynamic raw);
+
+  @protected
+  RoleChoice dco_decode_role_choice(dynamic raw);
+
+  @protected
   SessionUpdate dco_decode_session_update(dynamic raw);
+
+  @protected
+  SignInResult dco_decode_sign_in_result(dynamic raw);
 
   @protected
   TargetTempo dco_decode_target_tempo(dynamic raw);
@@ -140,6 +173,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  UserItem dco_decode_user_item(dynamic raw);
+
+  @protected
   WaveformData dco_decode_waveform_data(dynamic raw);
 
   @protected
@@ -155,6 +191,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
+  AccessError sse_decode_access_error(SseDeserializer deserializer);
+
+  @protected
+  AccessStatusInfo sse_decode_access_status_info(SseDeserializer deserializer);
 
   @protected
   AnalysisState sse_decode_analysis_state(SseDeserializer deserializer);
@@ -174,6 +216,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
   PlaybackView sse_decode_box_autoadd_playback_view(
     SseDeserializer deserializer,
   );
@@ -182,6 +227,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlayerCommand sse_decode_box_autoadd_player_command(
     SseDeserializer deserializer,
   );
+
+  @protected
+  RightsInfo sse_decode_box_autoadd_rights_info(SseDeserializer deserializer);
+
+  @protected
+  RoleChoice sse_decode_box_autoadd_role_choice(SseDeserializer deserializer);
 
   @protected
   TimeSpan sse_decode_box_autoadd_time_span(SseDeserializer deserializer);
@@ -219,6 +270,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RegionItem> sse_decode_list_region_item(SseDeserializer deserializer);
 
   @protected
+  List<UserItem> sse_decode_list_user_item(SseDeserializer deserializer);
+
+  @protected
   List<WaveformLevelData> sse_decode_list_waveform_level_data(
     SseDeserializer deserializer,
   );
@@ -228,6 +282,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisValues? sse_decode_opt_box_autoadd_analysis_values(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  RoleChoice? sse_decode_opt_box_autoadd_role_choice(
     SseDeserializer deserializer,
   );
 
@@ -253,7 +315,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RegionItem sse_decode_region_item(SseDeserializer deserializer);
 
   @protected
+  RightsInfo sse_decode_rights_info(SseDeserializer deserializer);
+
+  @protected
+  RoleChoice sse_decode_role_choice(SseDeserializer deserializer);
+
+  @protected
   SessionUpdate sse_decode_session_update(SseDeserializer deserializer);
+
+  @protected
+  SignInResult sse_decode_sign_in_result(SseDeserializer deserializer);
 
   @protected
   TargetTempo sse_decode_target_tempo(SseDeserializer deserializer);
@@ -272,6 +343,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  UserItem sse_decode_user_item(SseDeserializer deserializer);
 
   @protected
   WaveformData sse_decode_waveform_data(SseDeserializer deserializer);
@@ -297,6 +371,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_access_error(AccessError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_access_status_info(
+    AccessStatusInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_analysis_state(AnalysisState self, SseSerializer serializer);
 
   @protected
@@ -318,6 +401,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_playback_view(
     PlaybackView self,
     SseSerializer serializer,
@@ -326,6 +412,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_player_command(
     PlayerCommand self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_rights_info(
+    RightsInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_role_choice(
+    RoleChoice self,
     SseSerializer serializer,
   );
 
@@ -381,6 +479,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_user_item(List<UserItem> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_waveform_level_data(
     List<WaveformLevelData> self,
     SseSerializer serializer,
@@ -392,6 +493,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_analysis_values(
     AnalysisValues? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_role_choice(
+    RoleChoice? self,
     SseSerializer serializer,
   );
 
@@ -423,7 +533,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_region_item(RegionItem self, SseSerializer serializer);
 
   @protected
+  void sse_encode_rights_info(RightsInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_role_choice(RoleChoice self, SseSerializer serializer);
+
+  @protected
   void sse_encode_session_update(SessionUpdate self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sign_in_result(SignInResult self, SseSerializer serializer);
 
   @protected
   void sse_encode_target_tempo(TargetTempo self, SseSerializer serializer);
@@ -442,6 +561,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_user_item(UserItem self, SseSerializer serializer);
 
   @protected
   void sse_encode_waveform_data(WaveformData self, SseSerializer serializer);

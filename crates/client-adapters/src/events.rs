@@ -1,8 +1,9 @@
 //! Real-time channel client (WebSocket); works natively and on `wasm32`.
 
+use crate::access::rights_from_dto;
 use ewebsock::{Options, WsEvent, WsMessage, WsSender};
 use std::ops::ControlFlow;
-use veltrunox_client_app::{ChannelEvent, LinkError, LinkEvent, ServerEvent};
+use veltrunox_client_app::{ChannelAccess, ChannelEvent, LinkError, LinkEvent, ServerEvent};
 use veltrunox_core::{Intent, Millis, RecordingId};
 use veltrunox_protocol::{
     ClientMessageDto, EVENTS_PATH, PROTOCOL_VERSION, ServerEventDto, intent_to_message,
@@ -18,6 +19,21 @@ impl EventConnection {
     /// Sends an intent; the server answers with the new state or a rejection.
     pub fn send_intent(&mut self, intent: Intent) {
         self.send(&intent_to_message(intent));
+    }
+
+    /// Presents the client to a server that asks for sign-in; must be the first message.
+    pub fn send_access(&mut self, access: &ChannelAccess) {
+        match access {
+            ChannelAccess::Open => {}
+            ChannelAccess::Token(token) => self.send(&ClientMessageDto::Auth {
+                token: Some(token.clone()),
+                guest: false,
+            }),
+            ChannelAccess::Guest => self.send(&ClientMessageDto::Auth {
+                token: None,
+                guest: true,
+            }),
+        }
     }
 
     /// Asks the server for its time; the answer feeds the clock estimate.
@@ -101,6 +117,9 @@ fn channel_event_from(text: &str) -> Option<ChannelEvent> {
             client_time: Millis::new(client_time_ms),
             server_time: Millis::new(server_time_ms),
         })),
+        ServerEventDto::Authenticated(identity) => Some(ChannelEvent::Server(
+            ServerEvent::Authenticated(rights_from_dto(&identity)),
+        )),
         ServerEventDto::Rejected { reason } => {
             Some(ChannelEvent::Server(ServerEvent::Rejected(reason)))
         }

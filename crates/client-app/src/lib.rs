@@ -1,10 +1,14 @@
 //! Client use cases and the ports they need. Free of network and UI types.
 
+mod access;
 mod connection;
 mod reconnect;
 mod session;
 mod waveform;
 
+pub use access::{
+    AccessStatus, ChannelAccess, Credentials, ManagedUser, NewUser, Rights, SignedIn, UserChange,
+};
 pub use connection::{ConnectionMonitor, ConnectionStatus, LinkEvent};
 pub use reconnect::{CLOCK_SYNC_INTERVAL, ReconnectPolicy, Timer};
 pub use session::{ScrubThrottle, ServerEvent, SessionView, ViewChange};
@@ -20,7 +24,7 @@ pub enum ChannelEvent {
 use std::future::Future;
 use veltrunox_core::{
     BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, RecordingId, Region,
-    TimeRange, Version,
+    TimeRange, UserId, Version,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -37,6 +41,15 @@ pub enum LinkError {
     /// The server refused the values of a bookmark.
     #[error("the server refused the bookmark: {0}")]
     Refused(String),
+    /// Not signed in, or the token is no longer valid.
+    #[error("sign-in required")]
+    Unauthorized,
+    /// Signed in, but the role may not do this.
+    #[error("not allowed")]
+    Forbidden,
+    /// Too many failed sign-ins; the server asks to wait.
+    #[error("too many failed sign-ins; try again in {retry_after_seconds} seconds")]
+    TooManyAttempts { retry_after_seconds: u64 },
 }
 
 /// Port: requests to the server. The future is not required to be `Send`
@@ -114,6 +127,30 @@ pub trait ServerLink {
         name: &BookmarkName,
         position: Millis,
     ) -> impl Future<Output = Result<Label, LinkError>>;
+    /// What may be known without signing in.
+    fn fetch_access_status(&self) -> impl Future<Output = Result<AccessStatus, LinkError>>;
+    /// Creates the first admin and signs in; only works while no user exists.
+    fn setup_first_admin(
+        &self,
+        credentials: &Credentials,
+    ) -> impl Future<Output = Result<SignedIn, LinkError>>;
+    fn sign_in(
+        &self,
+        credentials: &Credentials,
+    ) -> impl Future<Output = Result<SignedIn, LinkError>>;
+    /// Ends the session of this link's token.
+    fn sign_out(&self) -> impl Future<Output = Result<(), LinkError>>;
+    /// The rights of this link's token, or of a guest while guests are let in.
+    fn fetch_rights(&self) -> impl Future<Output = Result<Rights, LinkError>>;
+    fn fetch_users(&self) -> impl Future<Output = Result<Vec<ManagedUser>, LinkError>>;
+    fn create_user(&self, user: &NewUser) -> impl Future<Output = Result<ManagedUser, LinkError>>;
+    fn change_user(
+        &self,
+        id: UserId,
+        change: &UserChange,
+    ) -> impl Future<Output = Result<(), LinkError>>;
+    fn remove_user(&self, id: UserId) -> impl Future<Output = Result<(), LinkError>>;
+    fn switch_guest_access(&self, enabled: bool) -> impl Future<Output = Result<(), LinkError>>;
 }
 
 /// Use case: load the recording list from the server.
@@ -237,4 +274,64 @@ pub async fn convert_region_to_label(
     position: Millis,
 ) -> Result<Label, LinkError> {
     link.region_into_label(id, expected, name, position).await
+}
+
+/// Use case: what may be known before signing in (first start, guest access).
+pub async fn load_access_status(link: &impl ServerLink) -> Result<AccessStatus, LinkError> {
+    link.fetch_access_status().await
+}
+
+/// Use case: set up the first admin at the first start.
+pub async fn set_up_first_admin(
+    link: &impl ServerLink,
+    credentials: &Credentials,
+) -> Result<SignedIn, LinkError> {
+    link.setup_first_admin(credentials).await
+}
+
+/// Use case: sign in with user name and password.
+pub async fn sign_in(
+    link: &impl ServerLink,
+    credentials: &Credentials,
+) -> Result<SignedIn, LinkError> {
+    link.sign_in(credentials).await
+}
+
+/// Use case: sign out; the token stops working on the server.
+pub async fn sign_out(link: &impl ServerLink) -> Result<(), LinkError> {
+    link.sign_out().await
+}
+
+/// Use case: learn what the current sign-in (or guest access) may do.
+pub async fn load_rights(link: &impl ServerLink) -> Result<Rights, LinkError> {
+    link.fetch_rights().await
+}
+
+/// Use case (admin): list all users.
+pub async fn load_users(link: &impl ServerLink) -> Result<Vec<ManagedUser>, LinkError> {
+    link.fetch_users().await
+}
+
+/// Use case (admin): add a user.
+pub async fn add_user(link: &impl ServerLink, user: &NewUser) -> Result<ManagedUser, LinkError> {
+    link.create_user(user).await
+}
+
+/// Use case (admin): change role, activity or password of a user.
+pub async fn edit_user(
+    link: &impl ServerLink,
+    id: UserId,
+    change: &UserChange,
+) -> Result<(), LinkError> {
+    link.change_user(id, change).await
+}
+
+/// Use case (admin): delete a user.
+pub async fn delete_user(link: &impl ServerLink, id: UserId) -> Result<(), LinkError> {
+    link.remove_user(id).await
+}
+
+/// Use case (admin): let guests in or not.
+pub async fn set_guest_access(link: &impl ServerLink, enabled: bool) -> Result<(), LinkError> {
+    link.switch_guest_access(enabled).await
 }

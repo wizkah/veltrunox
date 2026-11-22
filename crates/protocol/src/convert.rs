@@ -236,7 +236,7 @@ pub fn intent_to_message(intent: Intent) -> ClientMessageDto {
 /// The intent a message carries after validation; `None` for messages that are not intents.
 pub fn intent_from_message(message: &ClientMessageDto) -> Result<Option<Intent>, InvalidValue> {
     Ok(Some(match message {
-        ClientMessageDto::Ping { .. } => return Ok(None),
+        ClientMessageDto::Ping { .. } | ClientMessageDto::Auth { .. } => return Ok(None),
         ClientMessageDto::SelectRecording { recording_id } => {
             Intent::SelectRecording(RecordingId::new(*recording_id))
         }

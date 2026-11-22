@@ -1,6 +1,7 @@
 //! Domain types and pure operations shared by server and client.
 
 mod analysis;
+mod auth;
 mod bookmark;
 mod playback;
 mod recording;
@@ -11,6 +12,9 @@ mod waveform;
 pub use analysis::{
     AnalysisInfo, AnalysisProgress, Confidence, KeyMode, LibraryEntry, MusicalKey, PitchClass,
     RecordingAnalysis,
+};
+pub use auth::{
+    Capability, InvalidUser, MIN_PASSWORD_CHARS, Role, UserId, UserName, check_password,
 };
 pub use bookmark::{
     BookmarkId, BookmarkName, Bookmarks, Label, Region, Version, VersionConflict, check_version,

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openSignedIn } from './support';
 
 // Flutter web draws to a canvas; its accessibility layer exposes the texts as DOM.
 // Another semantics node can cover a button, so a real mouse click is intercepted.
@@ -21,8 +22,7 @@ async function showPlayer(page: Page) {
 }
 
 async function open(page: Page) {
-  await page.goto('/');
-  await page.locator('flt-semantics-placeholder').evaluate((element) => (element as HTMLElement).click());
+  await openSignedIn(page);
   await expect(page.getByText('Verbunden')).toBeVisible();
 }
 

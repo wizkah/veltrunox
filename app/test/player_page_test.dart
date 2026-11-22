@@ -15,6 +15,7 @@ import 'package:veltrunox_app/features/player/player_controller.dart';
 import 'package:veltrunox_app/features/player/player_state.dart';
 
 import 'fake_marker_source.dart';
+import 'fake_access_source.dart';
 import 'fake_player_source.dart';
 
 class _Recordings implements RecordingSource {
@@ -81,6 +82,7 @@ Future<_App> _pump(WidgetTester tester, {double width = 1400}) async {
       playerSourceProvider.overrideWithValue(player),
       recordingSourceProvider.overrideWithValue(_Recordings()),
       markerSourceProvider.overrideWithValue(markers),
+      ...signedInAs(),
       connectionSourceProvider.overrideWithValue(_Connection()),
     ],
   );
@@ -94,6 +96,8 @@ Future<_App> _pump(WidgetTester tester, {double width = 1400}) async {
       child: const VeltrunoxApp(),
     ),
   );
+  // The sign-in passes first; the app listens to the player only after it.
+  await tester.pumpAndSettle();
   player.states.add(_state());
   await tester.pumpAndSettle();
   return _App(player, markers);
@@ -110,6 +114,7 @@ void main() {
         playerSourceProvider.overrideWithValue(player),
         recordingSourceProvider.overrideWithValue(_Recordings()),
         markerSourceProvider.overrideWithValue(FakeMarkerSource([])),
+        ...signedInAs(),
         connectionSourceProvider.overrideWithValue(_Connection()),
       ],
     );
@@ -123,6 +128,7 @@ void main() {
         child: const VeltrunoxApp(),
       ),
     );
+    await tester.pumpAndSettle();
     expect(find.text('Wiedergabe wird geladen …'), findsOneWidget);
 
     player.states.add(_state(recording: null));

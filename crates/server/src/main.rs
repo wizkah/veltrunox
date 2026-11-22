@@ -9,9 +9,10 @@ use std::{error::Error, path::PathBuf, sync::Arc};
 use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 use veltrunox_core::RecordingTitle;
 use veltrunox_server_adapters::{
-    AppState, AudioPlayback, SqliteStore, SystemClock, import_directory, router, system_volume,
-    watch_end,
+    AppState, Argon2Hasher, AudioPlayback, RandomTokens, SqliteStore, SystemClock, SystemWallClock,
+    import_directory, router, system_volume, watch_end,
 };
+use veltrunox_server_app::AccountService;
 use veltrunox_server_app::RecordingRepository;
 use web::with_web_app;
 
@@ -34,6 +35,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let clock = Arc::new(SystemClock::new());
     let catalog = store.clone();
     let analyses = store.clone();
+    let accounts = Arc::new(AccountService::new(
+        store.clone(),
+        store.clone(),
+        Arc::new(Argon2Hasher::new()),
+        Arc::new(RandomTokens),
+        Arc::new(SystemWallClock),
+    )?);
     let audio_clock = clock.clone();
     let volume = system_volume(config.audio_device.as_deref());
     let app = AppState::with_audio(store, clock, volume, |hooks| {
@@ -45,7 +53,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             audio_clock,
             hooks,
         ))
-    });
+    })
+    .with_accounts(accounts);
     watch_end(&app);
     queue_pending_analyses(&app);
     let listener = tokio::net::TcpListener::bind(&config.address).await?;

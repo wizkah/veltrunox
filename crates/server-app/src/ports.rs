@@ -3,7 +3,8 @@
 use std::path::{Path, PathBuf};
 use veltrunox_core::{
     BookmarkId, BookmarkName, Bookmarks, Label, Millis, PlaybackSettings, PlaybackState, Recording,
-    RecordingAnalysis, RecordingId, RecordingTitle, Region, TimeRange, Version, Waveform,
+    RecordingAnalysis, RecordingId, RecordingTitle, Region, Role, TimeRange, UserId, UserName,
+    Version, Waveform,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -175,4 +176,91 @@ pub trait PlaybackBroadcast: Send + Sync {
     fn bookmarks_changed(&self, recording: RecordingId);
     /// The analysis result or status of this recording changed; clients reload the library.
     fn analysis_changed(&self, recording: RecordingId);
+}
+
+/// Port: wall-clock time in seconds since 1970, for session lifetimes and
+/// login delays (the `Clock` above counts from the server start).
+pub trait WallClock: Send + Sync {
+    fn unix_seconds(&self) -> u64;
+}
+
+/// A stored user account. Only admins and users have accounts; the guest has none.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UserRecord {
+    pub id: UserId,
+    pub name: UserName,
+    pub role: Role,
+    pub password_hash: String,
+    pub active: bool,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum UserStoreError {
+    #[error("a user with this name exists already")]
+    NameTaken,
+    #[error("user not found")]
+    NotFound,
+    #[error(transparent)]
+    Storage(#[from] StorageError),
+}
+
+/// Port: users, their roles and password hashes, and the guest-access switch.
+pub trait UserRepository: Send + Sync {
+    fn count(&self) -> Result<u64, StorageError>;
+    /// Creates the user only if no user exists yet, in one step; `None` otherwise.
+    fn create_first_admin(
+        &self,
+        name: &UserName,
+        password_hash: &str,
+    ) -> Result<Option<UserRecord>, UserStoreError>;
+    fn create(
+        &self,
+        name: &UserName,
+        role: Role,
+        password_hash: &str,
+    ) -> Result<UserRecord, UserStoreError>;
+    /// Looks up by `UserName::key`.
+    fn find_by_name(&self, key: &str) -> Result<Option<UserRecord>, StorageError>;
+    fn find(&self, id: UserId) -> Result<Option<UserRecord>, StorageError>;
+    fn list(&self) -> Result<Vec<UserRecord>, StorageError>;
+    fn set_role(&self, id: UserId, role: Role) -> Result<(), UserStoreError>;
+    fn set_active(&self, id: UserId, active: bool) -> Result<(), UserStoreError>;
+    fn set_password_hash(&self, id: UserId, password_hash: &str) -> Result<(), UserStoreError>;
+    /// Removes the user and their sessions.
+    fn delete(&self, id: UserId) -> Result<(), UserStoreError>;
+    fn guest_enabled(&self) -> Result<bool, StorageError>;
+    fn set_guest_enabled(&self, enabled: bool) -> Result<(), StorageError>;
+}
+
+/// Port: login sessions, known by the digest of their token only.
+pub trait SessionRepository: Send + Sync {
+    fn save(&self, digest: &str, user: UserId, now: u64) -> Result<(), StorageError>;
+    /// The active user of a session that was used within `max_idle` seconds;
+    /// a hit counts as use. Older sessions are removed.
+    fn user_of(
+        &self,
+        digest: &str,
+        now: u64,
+        max_idle: u64,
+    ) -> Result<Option<UserRecord>, StorageError>;
+    fn end(&self, digest: &str) -> Result<(), StorageError>;
+    fn delete_for_user(&self, user: UserId) -> Result<(), StorageError>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{0}")]
+pub struct HashFailure(pub String);
+
+/// Port: hashes and checks passwords with a deliberately slow algorithm.
+pub trait PasswordHasher: Send + Sync {
+    fn hash(&self, password: &str) -> Result<String, HashFailure>;
+    /// `false` for a wrong password and for an unreadable hash.
+    fn verify(&self, password: &str, hash: &str) -> bool;
+}
+
+/// Port: creates session tokens and the digests under which they are stored.
+pub trait SessionTokens: Send + Sync {
+    /// A new unguessable token.
+    fn issue(&self) -> String;
+    fn digest(&self, token: &str) -> String;
 }

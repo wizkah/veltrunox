@@ -214,3 +214,211 @@ impl WaveformRepository for FakeWaveforms {
         Ok(items.iter().find(|(r, _, _)| *r == id).map(|(_, l, _)| *l))
     }
 }
+
+pub use account_fakes::*;
+
+mod account_fakes {
+    use crate::ports::{
+        HashFailure, PasswordHasher, SessionRepository, SessionTokens, StorageError, UserRecord,
+        UserRepository, UserStoreError, WallClock,
+    };
+    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use veltrunox_core::{Role, UserId, UserName};
+
+    #[derive(Default)]
+    pub struct FakeUsers {
+        users: Mutex<Vec<UserRecord>>,
+        guest: Mutex<bool>,
+        sessions: Mutex<Vec<(String, UserId, u64)>>,
+    }
+
+    impl UserRepository for FakeUsers {
+        fn count(&self) -> Result<u64, StorageError> {
+            Ok(self.users.lock().unwrap().len() as u64)
+        }
+
+        fn create_first_admin(
+            &self,
+            name: &UserName,
+            password_hash: &str,
+        ) -> Result<Option<UserRecord>, UserStoreError> {
+            if !self.users.lock().unwrap().is_empty() {
+                return Ok(None);
+            }
+            self.create(name, Role::Admin, password_hash).map(Some)
+        }
+
+        fn create(
+            &self,
+            name: &UserName,
+            role: Role,
+            password_hash: &str,
+        ) -> Result<UserRecord, UserStoreError> {
+            let mut users = self.users.lock().unwrap();
+            if users.iter().any(|user| user.name.key() == name.key()) {
+                return Err(UserStoreError::NameTaken);
+            }
+            let record = UserRecord {
+                id: UserId::new(users.len() as u64 + 1),
+                name: name.clone(),
+                role,
+                password_hash: password_hash.to_owned(),
+                active: true,
+            };
+            users.push(record.clone());
+            Ok(record)
+        }
+
+        fn find_by_name(&self, key: &str) -> Result<Option<UserRecord>, StorageError> {
+            let users = self.users.lock().unwrap();
+            Ok(users.iter().find(|user| user.name.key() == key).cloned())
+        }
+
+        fn find(&self, id: UserId) -> Result<Option<UserRecord>, StorageError> {
+            let users = self.users.lock().unwrap();
+            Ok(users.iter().find(|user| user.id == id).cloned())
+        }
+
+        fn list(&self) -> Result<Vec<UserRecord>, StorageError> {
+            Ok(self.users.lock().unwrap().clone())
+        }
+
+        fn set_role(&self, id: UserId, role: Role) -> Result<(), UserStoreError> {
+            self.change(id, |user| user.role = role)
+        }
+
+        fn set_active(&self, id: UserId, active: bool) -> Result<(), UserStoreError> {
+            self.change(id, |user| user.active = active)
+        }
+
+        fn set_password_hash(&self, id: UserId, hash: &str) -> Result<(), UserStoreError> {
+            self.change(id, |user| user.password_hash = hash.to_owned())
+        }
+
+        fn delete(&self, id: UserId) -> Result<(), UserStoreError> {
+            let mut users = self.users.lock().unwrap();
+            let before = users.len();
+            users.retain(|user| user.id != id);
+            if users.len() == before {
+                return Err(UserStoreError::NotFound);
+            }
+            self.sessions
+                .lock()
+                .unwrap()
+                .retain(|(_, user, _)| *user != id);
+            Ok(())
+        }
+
+        fn guest_enabled(&self) -> Result<bool, StorageError> {
+            Ok(*self.guest.lock().unwrap())
+        }
+
+        fn set_guest_enabled(&self, enabled: bool) -> Result<(), StorageError> {
+            *self.guest.lock().unwrap() = enabled;
+            Ok(())
+        }
+    }
+
+    impl FakeUsers {
+        fn change(
+            &self,
+            id: UserId,
+            apply: impl FnOnce(&mut UserRecord),
+        ) -> Result<(), UserStoreError> {
+            let mut users = self.users.lock().unwrap();
+            let user = users
+                .iter_mut()
+                .find(|user| user.id == id)
+                .ok_or(UserStoreError::NotFound)?;
+            apply(user);
+            Ok(())
+        }
+    }
+
+    impl SessionRepository for FakeUsers {
+        fn save(&self, digest: &str, user: UserId, now: u64) -> Result<(), StorageError> {
+            self.sessions
+                .lock()
+                .unwrap()
+                .push((digest.to_owned(), user, now));
+            Ok(())
+        }
+
+        fn user_of(
+            &self,
+            digest: &str,
+            now: u64,
+            max_idle: u64,
+        ) -> Result<Option<UserRecord>, StorageError> {
+            let mut sessions = self.sessions.lock().unwrap();
+            let Some(entry) = sessions.iter_mut().find(|(known, _, _)| known == digest) else {
+                return Ok(None);
+            };
+            if now.saturating_sub(entry.2) > max_idle {
+                return Ok(None);
+            }
+            entry.2 = now;
+            let user = entry.1;
+            drop(sessions);
+            Ok(self.find(user)?.filter(|user| user.active))
+        }
+
+        fn end(&self, digest: &str) -> Result<(), StorageError> {
+            self.sessions
+                .lock()
+                .unwrap()
+                .retain(|(known, _, _)| known != digest);
+            Ok(())
+        }
+
+        fn delete_for_user(&self, user: UserId) -> Result<(), StorageError> {
+            self.sessions
+                .lock()
+                .unwrap()
+                .retain(|(_, owner, _)| *owner != user);
+            Ok(())
+        }
+    }
+
+    /// "Hashes" by prefixing, so tests need no slow algorithm.
+    pub struct PrefixHasher;
+
+    impl PasswordHasher for PrefixHasher {
+        fn hash(&self, password: &str) -> Result<String, HashFailure> {
+            Ok(format!("hash:{password}"))
+        }
+
+        fn verify(&self, password: &str, hash: &str) -> bool {
+            hash == format!("hash:{password}")
+        }
+    }
+
+    #[derive(Default)]
+    pub struct CountingTokens(AtomicU64);
+
+    impl SessionTokens for CountingTokens {
+        fn issue(&self) -> String {
+            format!("token-{}", self.0.fetch_add(1, Ordering::SeqCst))
+        }
+
+        fn digest(&self, token: &str) -> String {
+            format!("digest-{token}")
+        }
+    }
+
+    #[derive(Default)]
+    pub struct FakeWallClock(pub AtomicU64);
+
+    impl FakeWallClock {
+        pub fn advance(&self, seconds: u64) {
+            self.0.fetch_add(seconds, Ordering::SeqCst);
+        }
+    }
+
+    impl WallClock for FakeWallClock {
+        fn unix_seconds(&self) -> u64 {
+            self.0.load(Ordering::SeqCst)
+        }
+    }
+}

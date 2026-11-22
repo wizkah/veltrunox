@@ -25,6 +25,7 @@ import 'package:veltrunox_app/features/waveform/waveform_renderer.dart';
 import 'package:veltrunox_app/features/waveform/waveform_source.dart';
 
 import 'fake_marker_source.dart';
+import 'fake_access_source.dart';
 import 'fake_player_source.dart';
 import 'fake_waveform_source.dart';
 
@@ -123,6 +124,7 @@ Future<_App> _pump(
       recordingSourceProvider.overrideWithValue(_Recordings(scanned: scanned)),
       markerSourceProvider.overrideWithValue(markers),
       waveformSourceProvider.overrideWithValue(waveforms),
+      ...signedInAs(),
       connectionSourceProvider.overrideWithValue(_Connection()),
     ],
   );
@@ -136,6 +138,8 @@ Future<_App> _pump(
       child: const VeltrunoxApp(),
     ),
   );
+  // The sign-in passes first; the app listens to the player only after it.
+  await tester.pumpAndSettle();
   player.states.add(_state);
   await tester.pumpAndSettle();
   return _App(player, markers, waveforms, container);

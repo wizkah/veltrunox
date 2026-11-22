@@ -4,8 +4,9 @@ use crate::hub::Hub;
 use std::sync::Arc;
 use veltrunox_core::{PlaybackState, Volume};
 use veltrunox_server_app::{
-    AnalysisRepository, AnalysisService, BookmarkRepository, BookmarkService, Clock, MediaCatalog,
-    PlaybackBroadcast, PlaybackService, RecordingRepository, WaveformRepository,
+    AccountService, AnalysisRepository, AnalysisService, BookmarkRepository, BookmarkService,
+    Clock, MediaCatalog, PlaybackBroadcast, PlaybackService, RecordingRepository,
+    WaveformRepository,
 };
 
 /// Everything the endpoints share.
@@ -19,6 +20,8 @@ pub struct AppState {
     pub clock: Arc<dyn Clock>,
     pub analysis: Arc<AnalysisService>,
     pub analysis_queue: Arc<AnalysisQueue>,
+    /// `None` leaves the server open: everybody may do everything.
+    pub accounts: Option<Arc<AccountService>>,
 }
 
 impl AppState {
@@ -116,7 +119,14 @@ impl AppState {
             clock,
             analysis,
             analysis_queue,
+            accounts: None,
         }
+    }
+
+    /// Requires sign-in (or guest access) and checks the rights of every action.
+    pub fn with_accounts(mut self, accounts: Arc<AccountService>) -> Self {
+        self.accounts = Some(accounts);
+        self
     }
 }
 

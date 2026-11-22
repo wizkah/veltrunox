@@ -68,6 +68,27 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (recording_id, level)
     );
 ",
+    "
+    CREATE TABLE users (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        name_key TEXT NOT NULL UNIQUE,
+        role TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1
+    );
+    CREATE TABLE sessions (
+        digest TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        last_used INTEGER NOT NULL
+    );
+    CREATE INDEX sessions_by_user ON sessions(user_id);
+    CREATE TABLE settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    );
+",
 ];
 
 /// Blocking store; callers on an async runtime run it off the runtime threads.
@@ -98,18 +119,18 @@ impl SqliteStore {
         })
     }
 
-    fn connection(&self) -> MutexGuard<'_, Connection> {
+    pub(crate) fn connection(&self) -> MutexGuard<'_, Connection> {
         self.connection
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
     }
 }
 
-fn storage(error: rusqlite::Error) -> StorageError {
+pub(crate) fn storage(error: rusqlite::Error) -> StorageError {
     StorageError(error.to_string())
 }
 
-fn corrupt(what: &str, detail: impl std::fmt::Display) -> StorageError {
+pub(crate) fn corrupt(what: &str, detail: impl std::fmt::Display) -> StorageError {
     StorageError(format!("stored {what} is invalid: {detail}"))
 }
 
@@ -129,11 +150,11 @@ fn migrate(connection: &mut Connection) -> Result<(), StorageError> {
     Ok(())
 }
 
-fn sql_int(value: u64) -> Result<i64, StorageError> {
+pub(crate) fn sql_int(value: u64) -> Result<i64, StorageError> {
     i64::try_from(value).map_err(|_| StorageError("value exceeds the storable range".into()))
 }
 
-fn unsigned(value: i64) -> Result<u64, StorageError> {
+pub(crate) fn unsigned(value: i64) -> Result<u64, StorageError> {
     u64::try_from(value).map_err(|_| corrupt("number", "negative"))
 }
 

@@ -1,6 +1,6 @@
 //! The real-time channel: greets, publishes state, takes intents.
 
-use crate::state::AppState;
+use crate::{access::open_identity, accounts_http::identity_to_dto, state::AppState};
 use axum::{
     extract::{
         State,
@@ -10,9 +10,14 @@ use axum::{
 };
 use std::time::Duration;
 use tokio::{sync::broadcast::error::RecvError, time::Instant};
+use veltrunox_core::Capability;
 use veltrunox_protocol::{
     ClientMessageDto, PROTOCOL_VERSION, ServerEventDto, intent_from_message, state_to_dto,
 };
+use veltrunox_server_app::Identity;
+
+/// A client must sign in within this time after the greeting.
+const AUTH_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The server pings this often; a client silent for two intervals is gone.
 const PING_INTERVAL: Duration = Duration::from_secs(15);
@@ -41,6 +46,18 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
     if send(&mut socket, &greeting).await.is_err() {
         return;
     }
+    let Some(identity) = authenticate(&app, &mut socket).await else {
+        return;
+    };
+    if send(
+        &mut socket,
+        &ServerEventDto::Authenticated(identity_to_dto(&identity)),
+    )
+    .await
+    .is_err()
+    {
+        return;
+    }
     // A joining client gets the current state first; no separate catch-up exists.
     let current = *states.borrow_and_update();
     if send(&mut socket, &ServerEventDto::State(state_to_dto(&current)))
@@ -63,7 +80,7 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
             incoming = socket.recv() => match incoming {
                 Some(Ok(message)) => {
                     last_heard = Instant::now();
-                    handle_incoming(&app, &mut socket, message).await
+                    handle_incoming(&app, &identity, &mut socket, message).await
                 }
                 _ => Outcome::Stop,
             },
@@ -130,10 +147,15 @@ async fn send(socket: &mut WebSocket, event: &ServerEventDto) -> Result<(), ()> 
         .map_err(|_| ())
 }
 
-async fn handle_incoming(app: &AppState, socket: &mut WebSocket, message: Message) -> Outcome {
+async fn handle_incoming(
+    app: &AppState,
+    identity: &Identity,
+    socket: &mut WebSocket,
+    message: Message,
+) -> Outcome {
     match message {
         Message::Text(text) => match serde_json::from_str::<ClientMessageDto>(&text) {
-            Ok(client_message) => handle_message(app, socket, client_message).await,
+            Ok(client_message) => handle_message(app, identity, socket, client_message).await,
             Err(_) => reject(socket, "unrecognised message").await,
         },
         Message::Close(_) => Outcome::Stop,
@@ -145,6 +167,7 @@ async fn handle_incoming(app: &AppState, socket: &mut WebSocket, message: Messag
 
 async fn handle_message(
     app: &AppState,
+    identity: &Identity,
     socket: &mut WebSocket,
     message: ClientMessageDto,
 ) -> Outcome {
@@ -160,6 +183,9 @@ async fn handle_message(
         Ok(None) => return Outcome::Continue,
         Err(error) => return reject(socket, &error.to_string()).await,
     };
+    if !identity.allows(Capability::PlayControl) {
+        return reject(socket, "not allowed").await;
+    }
     let playback = app.playback.clone();
     // Applying an intent may write to the database, which blocks.
     match tokio::task::spawn_blocking(move || playback.apply(intent)).await {
@@ -177,4 +203,51 @@ async fn reject(socket: &mut WebSocket, reason: &str) -> Outcome {
         },
     )
     .await
+}
+
+/// Without accounts everybody is let in. Otherwise the first message must be `auth` with a
+/// valid token or guest access; anything else, or silence, ends the connection.
+async fn authenticate(app: &AppState, socket: &mut WebSocket) -> Option<Identity> {
+    let Some(accounts) = app.accounts.clone() else {
+        return Some(open_identity());
+    };
+    let first = tokio::time::timeout(AUTH_TIMEOUT, async {
+        loop {
+            match socket.recv().await {
+                Some(Ok(Message::Text(text))) => return Some(text),
+                Some(Ok(Message::Ping(_) | Message::Pong(_))) => {}
+                _ => return None,
+            }
+        }
+    })
+    .await
+    .ok()
+    .flatten();
+    let found = match first.and_then(|text| serde_json::from_str::<ClientMessageDto>(&text).ok()) {
+        Some(ClientMessageDto::Auth { token, guest }) => {
+            let resolved = tokio::task::spawn_blocking(move || match (token, guest) {
+                (Some(token), _) => accounts.authenticate(&token).ok().flatten(),
+                (None, true) => accounts.guest().ok(),
+                (None, false) => None,
+            })
+            .await
+            .ok()
+            .flatten();
+            resolved.ok_or("sign-in required")
+        }
+        _ => Err("the first message must be auth"),
+    };
+    match found {
+        Ok(identity) => Some(identity),
+        Err(reason) => {
+            let _ = send(
+                socket,
+                &ServerEventDto::Rejected {
+                    reason: reason.to_owned(),
+                },
+            )
+            .await;
+            None
+        }
+    }
 }

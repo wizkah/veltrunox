@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { openSignedIn } from './support';
 
 const port = process.env.E2E_PORT ?? '8181';
 
@@ -25,7 +26,7 @@ async function startServer() {
     stdio: 'ignore',
   });
   await expect
-    .poll(() => fetch(`http://127.0.0.1:${port}/api/v1/recordings`).then((r) => r.ok, () => false), {
+    .poll(() => fetch(`http://127.0.0.1:${port}/api/v1/status`).then((r) => r.ok, () => false), {
       timeout: 30_000,
     })
     .toBe(true);
@@ -44,8 +45,7 @@ test.afterEach(stopServer);
 
 test('the browser client reconnects after the server restarts', async ({ page }) => {
   await startServer();
-  await page.goto('/');
-  await page.locator('flt-semantics-placeholder').evaluate((element) => (element as HTMLElement).click());
+  await openSignedIn(page);
   await expect(page.getByText('Verbunden')).toBeVisible();
 
   await stopServer();

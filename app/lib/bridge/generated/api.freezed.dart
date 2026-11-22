@@ -13,6 +13,452 @@ part of 'api.dart';
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
+mixin _$AccessError {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is AccessError);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'AccessError()';
+}
+
+
+}
+
+/// @nodoc
+class $AccessErrorCopyWith<$Res>  {
+$AccessErrorCopyWith(AccessError _, $Res Function(AccessError) __);
+}
+
+
+/// Adds pattern-matching-related methods to [AccessError].
+extension AccessErrorPatterns on AccessError {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AccessError_NotSignedIn value)?  notSignedIn,TResult Function( AccessError_NotAllowed value)?  notAllowed,TResult Function( AccessError_TooManyAttempts value)?  tooManyAttempts,TResult Function( AccessError_Refused value)?  refused,TResult Function( AccessError_Unavailable value)?  unavailable,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case AccessError_NotSignedIn() when notSignedIn != null:
+return notSignedIn(_that);case AccessError_NotAllowed() when notAllowed != null:
+return notAllowed(_that);case AccessError_TooManyAttempts() when tooManyAttempts != null:
+return tooManyAttempts(_that);case AccessError_Refused() when refused != null:
+return refused(_that);case AccessError_Unavailable() when unavailable != null:
+return unavailable(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AccessError_NotSignedIn value)  notSignedIn,required TResult Function( AccessError_NotAllowed value)  notAllowed,required TResult Function( AccessError_TooManyAttempts value)  tooManyAttempts,required TResult Function( AccessError_Refused value)  refused,required TResult Function( AccessError_Unavailable value)  unavailable,}){
+final _that = this;
+switch (_that) {
+case AccessError_NotSignedIn():
+return notSignedIn(_that);case AccessError_NotAllowed():
+return notAllowed(_that);case AccessError_TooManyAttempts():
+return tooManyAttempts(_that);case AccessError_Refused():
+return refused(_that);case AccessError_Unavailable():
+return unavailable(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AccessError_NotSignedIn value)?  notSignedIn,TResult? Function( AccessError_NotAllowed value)?  notAllowed,TResult? Function( AccessError_TooManyAttempts value)?  tooManyAttempts,TResult? Function( AccessError_Refused value)?  refused,TResult? Function( AccessError_Unavailable value)?  unavailable,}){
+final _that = this;
+switch (_that) {
+case AccessError_NotSignedIn() when notSignedIn != null:
+return notSignedIn(_that);case AccessError_NotAllowed() when notAllowed != null:
+return notAllowed(_that);case AccessError_TooManyAttempts() when tooManyAttempts != null:
+return tooManyAttempts(_that);case AccessError_Refused() when refused != null:
+return refused(_that);case AccessError_Unavailable() when unavailable != null:
+return unavailable(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  notSignedIn,TResult Function()?  notAllowed,TResult Function( BigInt retryAfterSeconds)?  tooManyAttempts,TResult Function( String reason)?  refused,TResult Function( String detail)?  unavailable,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case AccessError_NotSignedIn() when notSignedIn != null:
+return notSignedIn();case AccessError_NotAllowed() when notAllowed != null:
+return notAllowed();case AccessError_TooManyAttempts() when tooManyAttempts != null:
+return tooManyAttempts(_that.retryAfterSeconds);case AccessError_Refused() when refused != null:
+return refused(_that.reason);case AccessError_Unavailable() when unavailable != null:
+return unavailable(_that.detail);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  notSignedIn,required TResult Function()  notAllowed,required TResult Function( BigInt retryAfterSeconds)  tooManyAttempts,required TResult Function( String reason)  refused,required TResult Function( String detail)  unavailable,}) {final _that = this;
+switch (_that) {
+case AccessError_NotSignedIn():
+return notSignedIn();case AccessError_NotAllowed():
+return notAllowed();case AccessError_TooManyAttempts():
+return tooManyAttempts(_that.retryAfterSeconds);case AccessError_Refused():
+return refused(_that.reason);case AccessError_Unavailable():
+return unavailable(_that.detail);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  notSignedIn,TResult? Function()?  notAllowed,TResult? Function( BigInt retryAfterSeconds)?  tooManyAttempts,TResult? Function( String reason)?  refused,TResult? Function( String detail)?  unavailable,}) {final _that = this;
+switch (_that) {
+case AccessError_NotSignedIn() when notSignedIn != null:
+return notSignedIn();case AccessError_NotAllowed() when notAllowed != null:
+return notAllowed();case AccessError_TooManyAttempts() when tooManyAttempts != null:
+return tooManyAttempts(_that.retryAfterSeconds);case AccessError_Refused() when refused != null:
+return refused(_that.reason);case AccessError_Unavailable() when unavailable != null:
+return unavailable(_that.detail);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class AccessError_NotSignedIn extends AccessError {
+  const AccessError_NotSignedIn(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is AccessError_NotSignedIn);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'AccessError.notSignedIn()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class AccessError_NotAllowed extends AccessError {
+  const AccessError_NotAllowed(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is AccessError_NotAllowed);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'AccessError.notAllowed()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class AccessError_TooManyAttempts extends AccessError {
+  const AccessError_TooManyAttempts({required this.retryAfterSeconds}): super._();
+  
+
+ final  BigInt retryAfterSeconds;
+
+/// Create a copy of AccessError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AccessError_TooManyAttemptsCopyWith<AccessError_TooManyAttempts> get copyWith => _$AccessError_TooManyAttemptsCopyWithImpl<AccessError_TooManyAttempts>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is AccessError_TooManyAttempts&&(identical(other.retryAfterSeconds, retryAfterSeconds) || other.retryAfterSeconds == retryAfterSeconds));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,retryAfterSeconds);
+}
+
+@override
+String toString() {
+    return 'AccessError.tooManyAttempts(retryAfterSeconds: $retryAfterSeconds)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AccessError_TooManyAttemptsCopyWith<$Res> implements $AccessErrorCopyWith<$Res> {
+  factory $AccessError_TooManyAttemptsCopyWith(AccessError_TooManyAttempts value, $Res Function(AccessError_TooManyAttempts) _then) = _$AccessError_TooManyAttemptsCopyWithImpl;
+@useResult
+$Res call({
+ BigInt retryAfterSeconds
+});
+
+
+
+
+}
+/// @nodoc
+class _$AccessError_TooManyAttemptsCopyWithImpl<$Res>
+    implements $AccessError_TooManyAttemptsCopyWith<$Res> {
+  _$AccessError_TooManyAttemptsCopyWithImpl(this._self, this._then);
+
+  final AccessError_TooManyAttempts _self;
+  final $Res Function(AccessError_TooManyAttempts) _then;
+
+/// Create a copy of AccessError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? retryAfterSeconds = null,}) {
+  return _then(AccessError_TooManyAttempts(
+retryAfterSeconds: null == retryAfterSeconds ? _self.retryAfterSeconds : retryAfterSeconds // ignore: cast_nullable_to_non_nullable
+as BigInt,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class AccessError_Refused extends AccessError {
+  const AccessError_Refused({required this.reason}): super._();
+  
+
+ final  String reason;
+
+/// Create a copy of AccessError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AccessError_RefusedCopyWith<AccessError_Refused> get copyWith => _$AccessError_RefusedCopyWithImpl<AccessError_Refused>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is AccessError_Refused&&(identical(other.reason, reason) || other.reason == reason));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,reason);
+}
+
+@override
+String toString() {
+    return 'AccessError.refused(reason: $reason)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AccessError_RefusedCopyWith<$Res> implements $AccessErrorCopyWith<$Res> {
+  factory $AccessError_RefusedCopyWith(AccessError_Refused value, $Res Function(AccessError_Refused) _then) = _$AccessError_RefusedCopyWithImpl;
+@useResult
+$Res call({
+ String reason
+});
+
+
+
+
+}
+/// @nodoc
+class _$AccessError_RefusedCopyWithImpl<$Res>
+    implements $AccessError_RefusedCopyWith<$Res> {
+  _$AccessError_RefusedCopyWithImpl(this._self, this._then);
+
+  final AccessError_Refused _self;
+  final $Res Function(AccessError_Refused) _then;
+
+/// Create a copy of AccessError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? reason = null,}) {
+  return _then(AccessError_Refused(
+reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class AccessError_Unavailable extends AccessError {
+  const AccessError_Unavailable({required this.detail}): super._();
+  
+
+ final  String detail;
+
+/// Create a copy of AccessError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AccessError_UnavailableCopyWith<AccessError_Unavailable> get copyWith => _$AccessError_UnavailableCopyWithImpl<AccessError_Unavailable>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is AccessError_Unavailable&&(identical(other.detail, detail) || other.detail == detail));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,detail);
+}
+
+@override
+String toString() {
+    return 'AccessError.unavailable(detail: $detail)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AccessError_UnavailableCopyWith<$Res> implements $AccessErrorCopyWith<$Res> {
+  factory $AccessError_UnavailableCopyWith(AccessError_Unavailable value, $Res Function(AccessError_Unavailable) _then) = _$AccessError_UnavailableCopyWithImpl;
+@useResult
+$Res call({
+ String detail
+});
+
+
+
+
+}
+/// @nodoc
+class _$AccessError_UnavailableCopyWithImpl<$Res>
+    implements $AccessError_UnavailableCopyWith<$Res> {
+  _$AccessError_UnavailableCopyWithImpl(this._self, this._then);
+
+  final AccessError_Unavailable _self;
+  final $Res Function(AccessError_Unavailable) _then;
+
+/// Create a copy of AccessError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? detail = null,}) {
+  return _then(AccessError_Unavailable(
+detail: null == detail ? _self.detail : detail // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$PlayerCommand {
 
 
@@ -874,7 +1320,7 @@ extension SessionUpdatePatterns on SessionUpdate {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SessionUpdate_Connection value)?  connection,TResult Function( SessionUpdate_Playback value)?  playback,TResult Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult Function( SessionUpdate_AnalysisChanged value)?  analysisChanged,TResult Function( SessionUpdate_Rejected value)?  rejected,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SessionUpdate_Connection value)?  connection,TResult Function( SessionUpdate_Playback value)?  playback,TResult Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult Function( SessionUpdate_AnalysisChanged value)?  analysisChanged,TResult Function( SessionUpdate_Rejected value)?  rejected,TResult Function( SessionUpdate_Rights value)?  rights,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
@@ -882,7 +1328,8 @@ return connection(_that);case SessionUpdate_Playback() when playback != null:
 return playback(_that);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
 return bookmarksChanged(_that);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
 return analysisChanged(_that);case SessionUpdate_Rejected() when rejected != null:
-return rejected(_that);case _:
+return rejected(_that);case SessionUpdate_Rights() when rights != null:
+return rights(_that);case _:
   return orElse();
 
 }
@@ -900,7 +1347,7 @@ return rejected(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SessionUpdate_Connection value)  connection,required TResult Function( SessionUpdate_Playback value)  playback,required TResult Function( SessionUpdate_BookmarksChanged value)  bookmarksChanged,required TResult Function( SessionUpdate_AnalysisChanged value)  analysisChanged,required TResult Function( SessionUpdate_Rejected value)  rejected,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SessionUpdate_Connection value)  connection,required TResult Function( SessionUpdate_Playback value)  playback,required TResult Function( SessionUpdate_BookmarksChanged value)  bookmarksChanged,required TResult Function( SessionUpdate_AnalysisChanged value)  analysisChanged,required TResult Function( SessionUpdate_Rejected value)  rejected,required TResult Function( SessionUpdate_Rights value)  rights,}){
 final _that = this;
 switch (_that) {
 case SessionUpdate_Connection():
@@ -908,7 +1355,8 @@ return connection(_that);case SessionUpdate_Playback():
 return playback(_that);case SessionUpdate_BookmarksChanged():
 return bookmarksChanged(_that);case SessionUpdate_AnalysisChanged():
 return analysisChanged(_that);case SessionUpdate_Rejected():
-return rejected(_that);}
+return rejected(_that);case SessionUpdate_Rights():
+return rights(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -922,7 +1370,7 @@ return rejected(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SessionUpdate_Connection value)?  connection,TResult? Function( SessionUpdate_Playback value)?  playback,TResult? Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult? Function( SessionUpdate_AnalysisChanged value)?  analysisChanged,TResult? Function( SessionUpdate_Rejected value)?  rejected,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SessionUpdate_Connection value)?  connection,TResult? Function( SessionUpdate_Playback value)?  playback,TResult? Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult? Function( SessionUpdate_AnalysisChanged value)?  analysisChanged,TResult? Function( SessionUpdate_Rejected value)?  rejected,TResult? Function( SessionUpdate_Rights value)?  rights,}){
 final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
@@ -930,7 +1378,8 @@ return connection(_that);case SessionUpdate_Playback() when playback != null:
 return playback(_that);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
 return bookmarksChanged(_that);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
 return analysisChanged(_that);case SessionUpdate_Rejected() when rejected != null:
-return rejected(_that);case _:
+return rejected(_that);case SessionUpdate_Rights() when rights != null:
+return rights(_that);case _:
   return null;
 
 }
@@ -947,14 +1396,15 @@ return rejected(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ConnectionState field0)?  connection,TResult Function( PlaybackView field0)?  playback,TResult Function( BigInt recordingId)?  bookmarksChanged,TResult Function( BigInt recordingId)?  analysisChanged,TResult Function( String reason)?  rejected,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ConnectionState field0)?  connection,TResult Function( PlaybackView field0)?  playback,TResult Function( BigInt recordingId)?  bookmarksChanged,TResult Function( BigInt recordingId)?  analysisChanged,TResult Function( String reason)?  rejected,TResult Function( RightsInfo rights)?  rights,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that.field0);case SessionUpdate_Playback() when playback != null:
 return playback(_that.field0);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
 return bookmarksChanged(_that.recordingId);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
 return analysisChanged(_that.recordingId);case SessionUpdate_Rejected() when rejected != null:
-return rejected(_that.reason);case _:
+return rejected(_that.reason);case SessionUpdate_Rights() when rights != null:
+return rights(_that.rights);case _:
   return orElse();
 
 }
@@ -972,14 +1422,15 @@ return rejected(_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ConnectionState field0)  connection,required TResult Function( PlaybackView field0)  playback,required TResult Function( BigInt recordingId)  bookmarksChanged,required TResult Function( BigInt recordingId)  analysisChanged,required TResult Function( String reason)  rejected,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ConnectionState field0)  connection,required TResult Function( PlaybackView field0)  playback,required TResult Function( BigInt recordingId)  bookmarksChanged,required TResult Function( BigInt recordingId)  analysisChanged,required TResult Function( String reason)  rejected,required TResult Function( RightsInfo rights)  rights,}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection():
 return connection(_that.field0);case SessionUpdate_Playback():
 return playback(_that.field0);case SessionUpdate_BookmarksChanged():
 return bookmarksChanged(_that.recordingId);case SessionUpdate_AnalysisChanged():
 return analysisChanged(_that.recordingId);case SessionUpdate_Rejected():
-return rejected(_that.reason);}
+return rejected(_that.reason);case SessionUpdate_Rights():
+return rights(_that.rights);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -993,14 +1444,15 @@ return rejected(_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ConnectionState field0)?  connection,TResult? Function( PlaybackView field0)?  playback,TResult? Function( BigInt recordingId)?  bookmarksChanged,TResult? Function( BigInt recordingId)?  analysisChanged,TResult? Function( String reason)?  rejected,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ConnectionState field0)?  connection,TResult? Function( PlaybackView field0)?  playback,TResult? Function( BigInt recordingId)?  bookmarksChanged,TResult? Function( BigInt recordingId)?  analysisChanged,TResult? Function( String reason)?  rejected,TResult? Function( RightsInfo rights)?  rights,}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that.field0);case SessionUpdate_Playback() when playback != null:
 return playback(_that.field0);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
 return bookmarksChanged(_that.recordingId);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
 return analysisChanged(_that.recordingId);case SessionUpdate_Rejected() when rejected != null:
-return rejected(_that.reason);case _:
+return rejected(_that.reason);case SessionUpdate_Rights() when rights != null:
+return rights(_that.rights);case _:
   return null;
 
 }
@@ -1342,6 +1794,74 @@ class _$SessionUpdate_RejectedCopyWithImpl<$Res>
   return _then(SessionUpdate_Rejected(
 reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
 as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class SessionUpdate_Rights extends SessionUpdate {
+  const SessionUpdate_Rights({required this.rights}): super._();
+  
+
+ final  RightsInfo rights;
+
+/// Create a copy of SessionUpdate
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SessionUpdate_RightsCopyWith<SessionUpdate_Rights> get copyWith => _$SessionUpdate_RightsCopyWithImpl<SessionUpdate_Rights>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionUpdate_Rights&&(identical(other.rights, rights) || other.rights == rights));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,rights);
+}
+
+@override
+String toString() {
+    return 'SessionUpdate.rights(rights: $rights)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SessionUpdate_RightsCopyWith<$Res> implements $SessionUpdateCopyWith<$Res> {
+  factory $SessionUpdate_RightsCopyWith(SessionUpdate_Rights value, $Res Function(SessionUpdate_Rights) _then) = _$SessionUpdate_RightsCopyWithImpl;
+@useResult
+$Res call({
+ RightsInfo rights
+});
+
+
+
+
+}
+/// @nodoc
+class _$SessionUpdate_RightsCopyWithImpl<$Res>
+    implements $SessionUpdate_RightsCopyWith<$Res> {
+  _$SessionUpdate_RightsCopyWithImpl(this._self, this._then);
+
+  final SessionUpdate_Rights _self;
+  final $Res Function(SessionUpdate_Rights) _then;
+
+/// Create a copy of SessionUpdate
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? rights = null,}) {
+  return _then(SessionUpdate_Rights(
+rights: null == rights ? _self.rights : rights // ignore: cast_nullable_to_non_nullable
+as RightsInfo,
   ));
 }
 

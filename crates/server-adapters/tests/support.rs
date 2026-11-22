@@ -8,8 +8,11 @@ use std::time::Duration;
 use veltrunox_client_adapters::{EventConnection, connect_events};
 use veltrunox_client_app::{ChannelEvent, LinkEvent, ServerEvent};
 use veltrunox_core::{PlaybackState, RecordingTitle};
-use veltrunox_server_adapters::{AppState, SqliteStore, SystemClock, router, watch_end};
-use veltrunox_server_app::RecordingRepository;
+use veltrunox_server_adapters::{
+    AppState, Argon2Hasher, RandomTokens, SqliteStore, SystemClock, SystemWallClock, router,
+    watch_end,
+};
+use veltrunox_server_app::{AccountService, RecordingRepository};
 
 pub const WAIT: Duration = Duration::from_secs(5);
 
@@ -17,6 +20,26 @@ pub const WAIT: Duration = Duration::from_secs(5);
 pub async fn start_server(store: Arc<SqliteStore>) -> String {
     let app = AppState::new(store, Arc::new(SystemClock::new()));
     watch_end(&app);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, router(app)).await.unwrap() });
+    format!("http://{address}")
+}
+
+/// Like `start_server`, but with sign-in and rights checks switched on.
+pub async fn secured_server() -> String {
+    let store = store_with_recording();
+    let accounts = Arc::new(
+        AccountService::new(
+            store.clone(),
+            store.clone(),
+            Arc::new(Argon2Hasher::new()),
+            Arc::new(RandomTokens),
+            Arc::new(SystemWallClock),
+        )
+        .unwrap(),
+    );
+    let app = AppState::new(store, Arc::new(SystemClock::new())).with_accounts(accounts);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     tokio::spawn(async move { axum::serve(listener, router(app)).await.unwrap() });

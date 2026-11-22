@@ -1,6 +1,14 @@
 //! Versioned wire messages for HTTP and the real-time channel. No system access.
 
+mod accounts;
 mod convert;
+
+pub use accounts::{
+    CapabilityDto, CredentialsDto, GUEST_ACCESS_PATH, GuestAccessDto, IdentityDto, LOGIN_PATH,
+    LOGOUT_PATH, ME_PATH, NewUserDto, RoleDto, SETUP_PATH, STATUS_PATH, SessionDto, StatusDto,
+    USER_PATH, USERS_PATH, UpdateUserDto, UserDto, capability_from_dto, capability_to_dto,
+    role_from_dto, role_to_dto,
+};
 
 pub use convert::{
     InvalidEntry, analysis_from_dto, analysis_to_dto, bookmarks_from_dto, bookmarks_to_dto,
@@ -83,6 +91,8 @@ pub struct RangeDto {
 pub enum ServerEventDto {
     /// First message after the connection is established.
     Hello { protocol_version: u32 },
+    /// Answer to a valid `auth`: who the client is and what it may do.
+    Authenticated(IdentityDto),
     /// The current state; sent first to a joining client and after every change.
     State(PlaybackStateDto),
     /// Answer to `ping`, for the client's clock estimate.
@@ -105,17 +115,42 @@ pub enum ServerEventDto {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientMessageDto {
-    Ping { client_time_ms: u64 },
-    SelectRecording { recording_id: u64 },
+    Ping {
+        client_time_ms: u64,
+    },
+    /// Must be the first message once the server asks for sign-in: a token from
+    /// `login`, or `guest: true` while guest access is on.
+    Auth {
+        token: Option<String>,
+        guest: bool,
+    },
+    SelectRecording {
+        recording_id: u64,
+    },
     Play,
     Pause,
-    Seek { position_ms: u64, scrubbing: bool },
-    SetSpeed { speed: f64 },
-    SetTuning { tuning_hz: f64 },
-    SetKey { key_shift_semitones: i8 },
-    PlayRegion { range: RangeDto },
-    SetPlayMode { play_mode: PlayModeDto },
-    SetVolume { volume_percent: u8 },
+    Seek {
+        position_ms: u64,
+        scrubbing: bool,
+    },
+    SetSpeed {
+        speed: f64,
+    },
+    SetTuning {
+        tuning_hz: f64,
+    },
+    SetKey {
+        key_shift_semitones: i8,
+    },
+    PlayRegion {
+        range: RangeDto,
+    },
+    SetPlayMode {
+        play_mode: PlayModeDto,
+    },
+    SetVolume {
+        volume_percent: u8,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

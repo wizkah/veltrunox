@@ -24,11 +24,13 @@ const serverUrl = `http://127.0.0.1:${port}`;
 export default defineConfig({
   testDir: './tests',
   testIgnore: 'reconnect.spec.ts',
+  // The first test sets the admin up on a fresh server; the others sign in with it.
+  workers: 1,
   use: { baseURL: serverUrl },
   webServer: {
     command: `cargo run -q -p veltrunox-server -- --config ${configFile}`,
     cwd: '..',
-    url: `${serverUrl}/api/v1/recordings`,
+    url: `${serverUrl}/api/v1/status`,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
   },

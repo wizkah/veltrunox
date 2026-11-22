@@ -9,8 +9,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `bookmark_name`, `forward`, `from_state`, `into_intent`, `invalid`, `range_of`, `send_intent`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `from`, `from`, `from`, `from`
+// These functions are ignored because they are not marked as `pub`: `access`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Access`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Loads the recording list from the server at `server_url`.
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
@@ -203,6 +204,151 @@ Future<void> endScrub({required BigInt positionMs}) =>
 /// and the server rejects them again; the answer arrives as a session update.
 Future<void> sendCommand({required PlayerCommand command}) =>
     RustLib.instance.api.crateApiSendCommand(command: command);
+
+/// What the server tells before sign-in: first start, guest access.
+Future<AccessStatusInfo> accessStatus({required String serverUrl}) =>
+    RustLib.instance.api.crateApiAccessStatus(serverUrl: serverUrl);
+
+/// Creates the first admin and signs in; fails once a user exists.
+Future<SignInResult> setUpAdmin({
+  required String serverUrl,
+  required String userName,
+  required String password,
+}) => RustLib.instance.api.crateApiSetUpAdmin(
+  serverUrl: serverUrl,
+  userName: userName,
+  password: password,
+);
+
+/// Signs in with user name and password.
+Future<SignInResult> signInWithPassword({
+  required String serverUrl,
+  required String userName,
+  required String password,
+}) => RustLib.instance.api.crateApiSignInWithPassword(
+  serverUrl: serverUrl,
+  userName: userName,
+  password: password,
+);
+
+/// Resumes an earlier sign-in with the token it returned; fails if it has expired.
+Future<RightsInfo> resumeSignIn({
+  required String serverUrl,
+  required String token,
+}) => RustLib.instance.api.crateApiResumeSignIn(
+  serverUrl: serverUrl,
+  token: token,
+);
+
+/// Enters as a guest; fails while the server does not let guests in.
+Future<RightsInfo> continueAsGuest({required String serverUrl}) =>
+    RustLib.instance.api.crateApiContinueAsGuest(serverUrl: serverUrl);
+
+/// Signs out: the token stops working on the server and this client forgets it.
+/// Close the session channel afterwards by watching again.
+Future<void> signOutNow({required String serverUrl}) =>
+    RustLib.instance.api.crateApiSignOutNow(serverUrl: serverUrl);
+
+/// The rights of the current sign-in or guest access.
+Future<RightsInfo> currentRights({required String serverUrl}) =>
+    RustLib.instance.api.crateApiCurrentRights(serverUrl: serverUrl);
+
+/// All users; admin only.
+Future<List<UserItem>> listUsers({required String serverUrl}) =>
+    RustLib.instance.api.crateApiListUsers(serverUrl: serverUrl);
+
+/// Adds a user; admin only.
+Future<UserItem> createUser({
+  required String serverUrl,
+  required String userName,
+  required String password,
+  required RoleChoice role,
+}) => RustLib.instance.api.crateApiCreateUser(
+  serverUrl: serverUrl,
+  userName: userName,
+  password: password,
+  role: role,
+);
+
+/// Changes the fields that are present; admin only.
+Future<void> changeUser({
+  required String serverUrl,
+  required BigInt userId,
+  RoleChoice? role,
+  bool? active,
+  String? password,
+}) => RustLib.instance.api.crateApiChangeUser(
+  serverUrl: serverUrl,
+  userId: userId,
+  role: role,
+  active: active,
+  password: password,
+);
+
+/// Deletes a user; admin only.
+Future<void> removeUser({required String serverUrl, required BigInt userId}) =>
+    RustLib.instance.api.crateApiRemoveUser(
+      serverUrl: serverUrl,
+      userId: userId,
+    );
+
+/// Lets guests in or not; admin only.
+Future<void> switchGuestAccess({
+  required String serverUrl,
+  required bool enabled,
+}) => RustLib.instance.api.crateApiSwitchGuestAccess(
+  serverUrl: serverUrl,
+  enabled: enabled,
+);
+
+@freezed
+sealed class AccessError with _$AccessError implements FrbException {
+  const AccessError._();
+
+  /// Wrong user name or password, or the sign-in is no longer valid.
+  const factory AccessError.notSignedIn() = AccessError_NotSignedIn;
+
+  /// The role may not do this.
+  const factory AccessError.notAllowed() = AccessError_NotAllowed;
+
+  /// Too many failed sign-ins; try again after this many seconds.
+  const factory AccessError.tooManyAttempts({
+    required BigInt retryAfterSeconds,
+  }) = AccessError_TooManyAttempts;
+
+  /// The server refused the values; its reason is meant for the person.
+  const factory AccessError.refused({required String reason}) =
+      AccessError_Refused;
+
+  /// The server cannot be reached or answered unexpectedly.
+  const factory AccessError.unavailable({required String detail}) =
+      AccessError_Unavailable;
+}
+
+/// What may be known before signing in.
+class AccessStatusInfo {
+  /// No user exists yet: offer to set up the first admin.
+  final bool setupNeeded;
+
+  /// Offer guest access.
+  final bool guestEnabled;
+
+  const AccessStatusInfo({
+    required this.setupNeeded,
+    required this.guestEnabled,
+  });
+
+  @override
+  int get hashCode => setupNeeded.hashCode ^ guestEnabled.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AccessStatusInfo &&
+          runtimeType == other.runtimeType &&
+          setupNeeded == other.setupNeeded &&
+          guestEnabled == other.guestEnabled;
+}
 
 enum AnalysisState { none, queued, running, failed, done }
 
@@ -473,6 +619,59 @@ class RegionItem {
           endMs == other.endMs;
 }
 
+/// Who the server takes this client for and what it may do. Hide what is not allowed;
+/// the server refuses it anyway.
+class RightsInfo {
+  /// Absent for a guest.
+  final BigInt? userId;
+  final String? userName;
+  final RoleChoice role;
+  final bool canControlPlayback;
+  final bool canEditBookmarks;
+  final bool canUpload;
+  final bool canManageRecordings;
+  final bool canManageUsers;
+
+  const RightsInfo({
+    this.userId,
+    this.userName,
+    required this.role,
+    required this.canControlPlayback,
+    required this.canEditBookmarks,
+    required this.canUpload,
+    required this.canManageRecordings,
+    required this.canManageUsers,
+  });
+
+  @override
+  int get hashCode =>
+      userId.hashCode ^
+      userName.hashCode ^
+      role.hashCode ^
+      canControlPlayback.hashCode ^
+      canEditBookmarks.hashCode ^
+      canUpload.hashCode ^
+      canManageRecordings.hashCode ^
+      canManageUsers.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RightsInfo &&
+          runtimeType == other.runtimeType &&
+          userId == other.userId &&
+          userName == other.userName &&
+          role == other.role &&
+          canControlPlayback == other.canControlPlayback &&
+          canEditBookmarks == other.canEditBookmarks &&
+          canUpload == other.canUpload &&
+          canManageRecordings == other.canManageRecordings &&
+          canManageUsers == other.canManageUsers;
+}
+
+/// The role of a person.
+enum RoleChoice { admin, user, guest }
+
 @freezed
 sealed class SessionUpdate with _$SessionUpdate {
   const SessionUpdate._();
@@ -489,6 +688,30 @@ sealed class SessionUpdate with _$SessionUpdate {
       SessionUpdate_AnalysisChanged;
   const factory SessionUpdate.rejected({required String reason}) =
       SessionUpdate_Rejected;
+
+  /// The server accepted the sign-in of the channel; these are the rights of this client.
+  const factory SessionUpdate.rights({required RightsInfo rights}) =
+      SessionUpdate_Rights;
+}
+
+/// A completed sign-in. Keep `token` (for example in browser storage) to resume it with
+/// `resume_sign_in`; it stays valid for 30 days without use.
+class SignInResult {
+  final String token;
+  final RightsInfo rights;
+
+  const SignInResult({required this.token, required this.rights});
+
+  @override
+  int get hashCode => token.hashCode ^ rights.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SignInResult &&
+          runtimeType == other.runtimeType &&
+          token == other.token &&
+          rights == other.rights;
 }
 
 /// The speed that plays a recording of `recording_bpm` at `target_bpm`.
@@ -529,6 +752,35 @@ class TimeSpan {
           runtimeType == other.runtimeType &&
           startMs == other.startMs &&
           endMs == other.endMs;
+}
+
+/// A user account as the admin sees it.
+class UserItem {
+  final BigInt id;
+  final String userName;
+  final RoleChoice role;
+  final bool active;
+
+  const UserItem({
+    required this.id,
+    required this.userName,
+    required this.role,
+    required this.active,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ userName.hashCode ^ role.hashCode ^ active.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          userName == other.userName &&
+          role == other.role &&
+          active == other.active;
 }
 
 /// The peaks of a recording from coarse to fine, with the length they cover.

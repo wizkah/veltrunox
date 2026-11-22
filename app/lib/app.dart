@@ -7,7 +7,8 @@ import 'composition/library_page.dart';
 import 'composition/player_page.dart';
 import 'design/theme/app_theme.dart';
 import 'features/connection/connection_banner.dart';
-import 'features/connection/connection_indicator.dart';
+import 'composition/shell_status.dart';
+import 'features/access/access_gate.dart';
 import 'features/player/player_notices.dart';
 
 class VeltrunoxApp extends StatelessWidget {
@@ -17,7 +18,7 @@ class VeltrunoxApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'Veltrunox',
     theme: buildAppTheme(),
-    home: const HomePage(),
+    home: AccessGate(builder: (_) => const HomePage()),
   );
 }
 
@@ -32,7 +33,7 @@ class HomePage extends ConsumerWidget {
       child: AppShell(
         destination: destination,
         onSelect: ref.read(shellDestinationProvider.notifier).select,
-        status: const ConnectionIndicator(),
+        status: const ShellStatus(),
         body: Column(
           children: [
             const ConnectionBanner(),

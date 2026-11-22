@@ -1,5 +1,6 @@
 //! Server use cases and the ports they need.
 
+mod accounts;
 mod analysis;
 mod bookmarks;
 mod playback;
@@ -7,13 +8,15 @@ mod ports;
 #[cfg(test)]
 mod testing;
 
+pub use accounts::{AccessStatus, AccountError, AccountService, Identity, Session};
 pub use analysis::AnalysisService;
 pub use bookmarks::BookmarkService;
 pub use playback::{IntentError, PlaybackService};
 pub use ports::{
-    AnalysisFailure, AnalysisRepository, BookmarkError, BookmarkRepository, Clock, MediaCatalog,
-    Owned, PlaybackBroadcast, RecordingAnalyzer, RecordingLengths, RecordingRepository,
-    RecordingScan, StorageError, WaveformRepository,
+    AnalysisFailure, AnalysisRepository, BookmarkError, BookmarkRepository, Clock, HashFailure,
+    MediaCatalog, Owned, PasswordHasher, PlaybackBroadcast, RecordingAnalyzer, RecordingLengths,
+    RecordingRepository, RecordingScan, SessionRepository, SessionTokens, StorageError, UserRecord,
+    UserRepository, UserStoreError, WallClock, WaveformRepository,
 };
 
 use veltrunox_core::Recording;

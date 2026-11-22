@@ -8,15 +8,20 @@ use crate::frb_generated::StreamSink;
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
 use veltrunox_client_adapters::{EventChannel, HttpServerLink, SystemTimer, open_channel};
 use veltrunox_client_app::{
-    ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkEvent, ScrubThrottle, ServerEvent,
-    SessionView, ViewChange, WaveformCache, add_label, add_region, analyse_again,
-    convert_label_to_region, convert_region_to_label, delete_label, delete_region, edit_label,
-    edit_region, load_bookmarks, load_length, load_library, load_waveform,
+    ChannelAccess, ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkError, LinkEvent,
+    ScrubThrottle, ServerEvent, SessionView, ViewChange, WaveformCache, add_label, add_region,
+    analyse_again, convert_label_to_region, convert_region_to_label, delete_label, delete_region,
+    edit_label, edit_region, load_bookmarks, load_length, load_library, load_waveform,
+};
+use veltrunox_client_app::{
+    Credentials, ManagedUser, NewUser, Rights, SignedIn, UserChange, add_user, delete_user,
+    edit_user, load_access_status, load_rights, load_users, set_guest_access, set_up_first_admin,
+    sign_in, sign_out,
 };
 use veltrunox_core::{
-    AnalysisProgress, BookmarkId, BookmarkName, Bpm, Intent, InvalidValue, KeyMode, KeyShift,
-    LibraryEntry, Millis, PlayMode, RecordingId, Speed, TargetSpeed, TimeRange, TuningHz, Version,
-    Volume, speed_for_target_tempo,
+    AnalysisProgress, BookmarkId, BookmarkName, Bpm, Capability, Intent, InvalidValue, KeyMode,
+    KeyShift, LibraryEntry, Millis, PlayMode, RecordingId, Role, Speed, TargetSpeed, TimeRange,
+    TuningHz, UserId, Version, Volume, speed_for_target_tempo,
 };
 
 /// A recording as the user interface needs it.
@@ -51,7 +56,7 @@ pub struct AnalysisValues {
 
 /// Loads the recording list from the server at `server_url`.
 pub async fn list_recordings(server_url: String) -> Result<Vec<RecordingItem>, String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     let entries = load_library(&link)
         .await
         .map_err(|error| error.to_string())?;
@@ -84,7 +89,7 @@ impl From<&LibraryEntry> for RecordingItem {
 
 /// Asks the server to analyse a recording again; the result arrives as a session update.
 pub async fn reanalyse_recording(server_url: String, recording_id: u64) -> Result<(), String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     analyse_again(&link, RecordingId::new(recording_id))
         .await
         .map_err(|error| error.to_string())
@@ -93,7 +98,7 @@ pub async fn reanalyse_recording(server_url: String, recording_id: u64) -> Resul
 /// The length of a recording in milliseconds from its stored scan; `None` while there is none
 /// (not scanned yet) or the server cannot be reached.
 pub async fn recording_length_ms(server_url: String, recording_id: u64) -> Option<u64> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     load_length(&link, RecordingId::new(recording_id))
         .await
         .ok()
@@ -123,7 +128,7 @@ pub async fn recording_waveform(
     server_url: String,
     recording_id: u64,
 ) -> Result<WaveformData, String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     let found = load_waveform(&link, &WAVEFORMS, RecordingId::new(recording_id))
         .await
         .map_err(|error| error.to_string())?;
@@ -172,7 +177,7 @@ pub struct BookmarkSet {
 
 /// Loads the labels and regions of a recording.
 pub async fn list_bookmarks(server_url: String, recording_id: u64) -> Result<BookmarkSet, String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     let found = load_bookmarks(&link, RecordingId::new(recording_id))
         .await
         .map_err(|error| error.to_string())?;
@@ -224,7 +229,7 @@ pub async fn create_label(
     name: String,
     position_ms: u64,
 ) -> Result<(), String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     add_label(
         &link,
         RecordingId::new(recording_id),
@@ -244,7 +249,7 @@ pub async fn change_label(
     name: String,
     position_ms: u64,
 ) -> Result<(), String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     edit_label(
         &link,
         BookmarkId::new(id),
@@ -263,7 +268,7 @@ pub async fn remove_label(
     id: u64,
     expected_version: u64,
 ) -> Result<(), String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     delete_label(&link, BookmarkId::new(id), Version::new(expected_version))
         .await
         .map_err(|error| error.to_string())
@@ -277,7 +282,7 @@ pub async fn create_region(
     start_ms: u64,
     end_ms: u64,
 ) -> Result<(), String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     add_region(
         &link,
         RecordingId::new(recording_id),
@@ -298,7 +303,7 @@ pub async fn change_region(
     start_ms: u64,
     end_ms: u64,
 ) -> Result<(), String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     edit_region(
         &link,
         BookmarkId::new(id),
@@ -317,7 +322,7 @@ pub async fn remove_region(
     id: u64,
     expected_version: u64,
 ) -> Result<(), String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     delete_region(&link, BookmarkId::new(id), Version::new(expected_version))
         .await
         .map_err(|error| error.to_string())
@@ -332,7 +337,7 @@ pub async fn label_to_region(
     start_ms: u64,
     end_ms: u64,
 ) -> Result<(), String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     convert_label_to_region(
         &link,
         BookmarkId::new(id),
@@ -353,7 +358,7 @@ pub async fn region_to_label(
     name: String,
     position_ms: u64,
 ) -> Result<(), String> {
-    let link = HttpServerLink::new(&server_url);
+    let link = link(&server_url);
     convert_region_to_label(
         &link,
         BookmarkId::new(id),
@@ -462,6 +467,10 @@ pub enum SessionUpdate {
     Rejected {
         reason: String,
     },
+    /// The server accepted the sign-in of the channel; these are the rights of this client.
+    Rights {
+        rights: RightsInfo,
+    },
 }
 
 /// What the user asks the shared player to do.
@@ -530,6 +539,7 @@ pub async fn watch_session(
     }));
     let channel = open_channel(
         &server_url,
+        channel_access(),
         Arc::new(SystemTimer),
         local_now,
         move |event| match event {
@@ -572,6 +582,9 @@ fn forward(event: ServerEvent, updates: &StreamSink<SessionUpdate>) {
             })
         }
         ViewChange::Rejected(reason) => Some(SessionUpdate::Rejected { reason }),
+        ViewChange::Rights(rights) => Some(SessionUpdate::Rights {
+            rights: RightsInfo::from(&rights),
+        }),
         // Not shown yet: the interface needs a place for it first (GUI work).
         ViewChange::AudioOutput => None,
     };
@@ -776,4 +789,316 @@ mod tests {
             .is_err()
         );
     }
+}
+
+/// How this client presents itself to the server: set by signing in or by choosing guest
+/// access, used by every request and by the real-time channel.
+static ACCESS: Mutex<Access> = Mutex::new(Access::None);
+
+#[derive(Clone)]
+enum Access {
+    None,
+    Token(String),
+    Guest,
+}
+
+fn access() -> Access {
+    ACCESS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone()
+}
+
+fn set_access(new: Access) {
+    *ACCESS.lock().unwrap_or_else(PoisonError::into_inner) = new;
+}
+
+fn link(server_url: &str) -> HttpServerLink {
+    let token = match access() {
+        Access::Token(token) => Some(token),
+        Access::None | Access::Guest => None,
+    };
+    HttpServerLink::with_token(server_url, token)
+}
+
+fn channel_access() -> ChannelAccess {
+    match access() {
+        Access::None => ChannelAccess::Open,
+        Access::Token(token) => ChannelAccess::Token(token),
+        Access::Guest => ChannelAccess::Guest,
+    }
+}
+
+/// What may be known before signing in.
+/// Why a sign-in or an administration call failed.
+#[derive(Debug)]
+pub enum AccessError {
+    /// Wrong user name or password, or the sign-in is no longer valid.
+    NotSignedIn,
+    /// The role may not do this.
+    NotAllowed,
+    /// Too many failed sign-ins; try again after this many seconds.
+    TooManyAttempts { retry_after_seconds: u64 },
+    /// The server refused the values; its reason is meant for the person.
+    Refused { reason: String },
+    /// The server cannot be reached or answered unexpectedly.
+    Unavailable { detail: String },
+}
+
+impl From<LinkError> for AccessError {
+    fn from(error: LinkError) -> Self {
+        match error {
+            LinkError::Unauthorized => Self::NotSignedIn,
+            LinkError::Forbidden => Self::NotAllowed,
+            LinkError::TooManyAttempts {
+                retry_after_seconds,
+            } => Self::TooManyAttempts {
+                retry_after_seconds,
+            },
+            LinkError::Refused(reason) => Self::Refused { reason },
+            other => Self::Unavailable {
+                detail: other.to_string(),
+            },
+        }
+    }
+}
+
+/// What may be known before signing in.
+pub struct AccessStatusInfo {
+    /// No user exists yet: offer to set up the first admin.
+    pub setup_needed: bool,
+    /// Offer guest access.
+    pub guest_enabled: bool,
+}
+
+/// The role of a person.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum RoleChoice {
+    Admin,
+    User,
+    Guest,
+}
+
+/// Who the server takes this client for and what it may do. Hide what is not allowed;
+/// the server refuses it anyway.
+#[derive(Clone)]
+pub struct RightsInfo {
+    /// Absent for a guest.
+    pub user_id: Option<u64>,
+    pub user_name: Option<String>,
+    pub role: RoleChoice,
+    pub can_control_playback: bool,
+    pub can_edit_bookmarks: bool,
+    pub can_upload: bool,
+    pub can_manage_recordings: bool,
+    pub can_manage_users: bool,
+}
+
+/// A completed sign-in. Keep `token` (for example in browser storage) to resume it with
+/// `resume_sign_in`; it stays valid for 30 days without use.
+pub struct SignInResult {
+    pub token: String,
+    pub rights: RightsInfo,
+}
+
+/// A user account as the admin sees it.
+pub struct UserItem {
+    pub id: u64,
+    pub user_name: String,
+    pub role: RoleChoice,
+    pub active: bool,
+}
+
+impl From<Role> for RoleChoice {
+    fn from(role: Role) -> Self {
+        match role {
+            Role::Admin => Self::Admin,
+            Role::User => Self::User,
+            Role::Guest => Self::Guest,
+        }
+    }
+}
+
+impl From<RoleChoice> for Role {
+    fn from(role: RoleChoice) -> Self {
+        match role {
+            RoleChoice::Admin => Self::Admin,
+            RoleChoice::User => Self::User,
+            RoleChoice::Guest => Self::Guest,
+        }
+    }
+}
+
+impl From<&Rights> for RightsInfo {
+    fn from(rights: &Rights) -> Self {
+        Self {
+            user_id: rights.user_id.map(UserId::value),
+            user_name: rights.user_name.clone(),
+            role: rights.role.into(),
+            can_control_playback: rights.allows(Capability::PlayControl),
+            can_edit_bookmarks: rights.allows(Capability::EditBookmarks),
+            can_upload: rights.allows(Capability::Upload),
+            can_manage_recordings: rights.allows(Capability::ManageRecordings),
+            can_manage_users: rights.allows(Capability::ManageUsers),
+        }
+    }
+}
+
+impl From<&ManagedUser> for UserItem {
+    fn from(user: &ManagedUser) -> Self {
+        Self {
+            id: user.id.value(),
+            user_name: user.user_name.clone(),
+            role: user.role.into(),
+            active: user.active,
+        }
+    }
+}
+
+fn signed_in(done: SignedIn) -> SignInResult {
+    set_access(Access::Token(done.token.clone()));
+    SignInResult {
+        token: done.token,
+        rights: RightsInfo::from(&done.rights),
+    }
+}
+
+/// What the server tells before sign-in: first start, guest access.
+pub async fn access_status(server_url: String) -> Result<AccessStatusInfo, AccessError> {
+    let status = load_access_status(&link(&server_url))
+        .await
+        .map_err(AccessError::from)?;
+    Ok(AccessStatusInfo {
+        setup_needed: status.setup_needed,
+        guest_enabled: status.guest_enabled,
+    })
+}
+
+/// Creates the first admin and signs in; fails once a user exists.
+pub async fn set_up_admin(
+    server_url: String,
+    user_name: String,
+    password: String,
+) -> Result<SignInResult, AccessError> {
+    let credentials = Credentials {
+        user_name,
+        password,
+    };
+    set_up_first_admin(&link(&server_url), &credentials)
+        .await
+        .map(signed_in)
+        .map_err(AccessError::from)
+}
+
+/// Signs in with user name and password.
+pub async fn sign_in_with_password(
+    server_url: String,
+    user_name: String,
+    password: String,
+) -> Result<SignInResult, AccessError> {
+    let credentials = Credentials {
+        user_name,
+        password,
+    };
+    sign_in(&link(&server_url), &credentials)
+        .await
+        .map(signed_in)
+        .map_err(AccessError::from)
+}
+
+/// Resumes an earlier sign-in with the token it returned; fails if it has expired.
+pub async fn resume_sign_in(server_url: String, token: String) -> Result<RightsInfo, AccessError> {
+    let probe = HttpServerLink::with_token(&server_url, Some(token.clone()));
+    let rights = load_rights(&probe).await.map_err(AccessError::from)?;
+    set_access(Access::Token(token));
+    Ok(RightsInfo::from(&rights))
+}
+
+/// Enters as a guest; fails while the server does not let guests in.
+pub async fn continue_as_guest(server_url: String) -> Result<RightsInfo, AccessError> {
+    let rights = load_rights(&HttpServerLink::new(&server_url))
+        .await
+        .map_err(AccessError::from)?;
+    set_access(Access::Guest);
+    Ok(RightsInfo::from(&rights))
+}
+
+/// Signs out: the token stops working on the server and this client forgets it.
+/// Close the session channel afterwards by watching again.
+pub async fn sign_out_now(server_url: String) -> Result<(), AccessError> {
+    let result = match access() {
+        Access::Token(_) => sign_out(&link(&server_url))
+            .await
+            .map_err(AccessError::from),
+        Access::None | Access::Guest => Ok(()),
+    };
+    set_access(Access::None);
+    with_channel(|channel| *channel = None);
+    result
+}
+
+/// The rights of the current sign-in or guest access.
+pub async fn current_rights(server_url: String) -> Result<RightsInfo, AccessError> {
+    load_rights(&link(&server_url))
+        .await
+        .map(|rights| RightsInfo::from(&rights))
+        .map_err(AccessError::from)
+}
+
+/// All users; admin only.
+pub async fn list_users(server_url: String) -> Result<Vec<UserItem>, AccessError> {
+    load_users(&link(&server_url))
+        .await
+        .map(|users| users.iter().map(UserItem::from).collect())
+        .map_err(AccessError::from)
+}
+
+/// Adds a user; admin only.
+pub async fn create_user(
+    server_url: String,
+    user_name: String,
+    password: String,
+    role: RoleChoice,
+) -> Result<UserItem, AccessError> {
+    let user = NewUser {
+        user_name,
+        password,
+        role: role.into(),
+    };
+    add_user(&link(&server_url), &user)
+        .await
+        .map(|created| UserItem::from(&created))
+        .map_err(AccessError::from)
+}
+
+/// Changes the fields that are present; admin only.
+pub async fn change_user(
+    server_url: String,
+    user_id: u64,
+    role: Option<RoleChoice>,
+    active: Option<bool>,
+    password: Option<String>,
+) -> Result<(), AccessError> {
+    let change = UserChange {
+        role: role.map(Role::from),
+        active,
+        password,
+    };
+    edit_user(&link(&server_url), UserId::new(user_id), &change)
+        .await
+        .map_err(AccessError::from)
+}
+
+/// Deletes a user; admin only.
+pub async fn remove_user(server_url: String, user_id: u64) -> Result<(), AccessError> {
+    delete_user(&link(&server_url), UserId::new(user_id))
+        .await
+        .map_err(AccessError::from)
+}
+
+/// Lets guests in or not; admin only.
+pub async fn switch_guest_access(server_url: String, enabled: bool) -> Result<(), AccessError> {
+    set_guest_access(&link(&server_url), enabled)
+        .await
+        .map_err(AccessError::from)
 }

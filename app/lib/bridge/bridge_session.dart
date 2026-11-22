@@ -8,12 +8,10 @@ import 'generated/api.dart' as rust;
 /// connection and player sources. Keeps the latest values so a feature that
 /// starts listening late still sees the current state.
 class BridgeSession {
-  BridgeSession({required this.serverUrl}) {
-    _subscription = _open();
-  }
+  BridgeSession({required this.serverUrl});
 
   final String serverUrl;
-  late StreamSubscription<rust.SessionUpdate> _subscription;
+  StreamSubscription<rust.SessionUpdate>? _subscription;
 
   ConnectionStatus? _connection;
   PlayerState? _player;
@@ -45,9 +43,23 @@ class BridgeSession {
 
   /// Replaces the channel by a new one that connects at once. The shared
   /// state arrives again with the first message of the new connection.
-  Future<void> reconnect() async {
-    await _subscription.cancel();
+  Future<void> reconnect() => open();
+
+  /// Opens the session with the access the Rust client core holds now,
+  /// replacing an open one. Call it after signing in.
+  Future<void> open() async {
+    await _subscription?.cancel();
+    _connection = null;
+    _player = null;
     _subscription = _open();
+  }
+
+  /// Stops listening, for example when signing out.
+  Future<void> close() async {
+    await _subscription?.cancel();
+    _subscription = null;
+    _connection = null;
+    _player = null;
   }
 
   StreamSubscription<rust.SessionUpdate> _open() =>
@@ -63,7 +75,7 @@ class BridgeSession {
   }
 
   Future<void> dispose() async {
-    await _subscription.cancel();
+    await _subscription?.cancel();
     await _connections.close();
     await _players.close();
     await _rejections.close();
@@ -84,6 +96,9 @@ class BridgeSession {
         _analysisChanges.add(recordingId.toInt());
       case rust.SessionUpdate_BookmarksChanged(:final recordingId):
         _bookmarkChanges.add(recordingId.toInt());
+      case rust.SessionUpdate_Rights():
+        // The interface shows sign-in and rights in a later step.
+        break;
     }
   }
 

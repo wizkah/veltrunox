@@ -10,7 +10,7 @@ use std::time::Duration;
 use support::{WAIT, store_with_recording};
 use tokio::runtime::Runtime;
 use veltrunox_client_adapters::{SystemTimer, open_channel};
-use veltrunox_client_app::{ChannelEvent, LinkEvent, ServerEvent};
+use veltrunox_client_app::{ChannelAccess, ChannelEvent, LinkEvent, ServerEvent};
 use veltrunox_core::{Intent, Millis, RecordingId};
 use veltrunox_server_adapters::{AppState, SystemClock, router};
 
@@ -45,6 +45,7 @@ fn the_channel_reconnects_after_the_server_restarts() {
     let (sender, events) = mpsc::channel();
     let channel = open_channel(
         &format!("http://{address}"),
+        ChannelAccess::Open,
         Arc::new(SystemTimer),
         || Millis::new(0),
         move |event| {
@@ -85,6 +86,7 @@ fn the_channel_keeps_trying_until_the_server_appears() {
     let (sender, events) = mpsc::channel();
     let _channel = open_channel(
         &format!("http://{address}"),
+        ChannelAccess::Open,
         Arc::new(SystemTimer),
         || Millis::new(0),
         move |event| {

@@ -2,6 +2,7 @@
 //! clock offset to the server and the throttled scrubbing input. Pure logic
 //! with time passed in, so it runs the same natively and in the browser.
 
+use crate::access::Rights;
 use veltrunox_core::{Intent, Millis, PlaybackState, RecordingId};
 
 /// What the server tells a client over the real-time channel.
@@ -18,6 +19,8 @@ pub enum ServerEvent {
     AnalysisChanged(RecordingId),
     /// Whether the server can play sound.
     AudioOutput(bool),
+    /// The server accepted the sign-in of the channel.
+    Authenticated(Rights),
 }
 
 /// What changed for the user interface after an event.
@@ -29,6 +32,8 @@ pub enum ViewChange {
     AnalysisChanged(RecordingId),
     AudioOutput,
     Rejected(String),
+    /// The rights of the signed-in person, for the interface.
+    Rights(Rights),
 }
 
 /// Estimated difference `server time - client time` in milliseconds.
@@ -98,6 +103,7 @@ impl SessionView {
             ServerEvent::Rejected(reason) => ViewChange::Rejected(reason),
             ServerEvent::BookmarksChanged(recording) => ViewChange::BookmarksChanged(recording),
             ServerEvent::AnalysisChanged(recording) => ViewChange::AnalysisChanged(recording),
+            ServerEvent::Authenticated(rights) => ViewChange::Rights(rights),
             ServerEvent::AudioOutput(available) => {
                 if self.audio_output.replace(available) == Some(available) {
                     ViewChange::Nothing
@@ -339,5 +345,21 @@ mod tests {
             }
         );
         assert!(throttle.drag(ms(10), ms(1)).is_some());
+    }
+
+    #[test]
+    fn the_rights_of_the_sign_in_reach_the_interface() {
+        use veltrunox_core::{Capability, Role};
+        let rights = Rights {
+            user_id: None,
+            user_name: None,
+            role: Role::Guest,
+            capabilities: vec![Capability::PlayControl],
+        };
+        let mut view = SessionView::new();
+        assert_eq!(
+            view.handle(ServerEvent::Authenticated(rights.clone()), ms(0)),
+            ViewChange::Rights(rights)
+        );
     }
 }

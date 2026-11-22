@@ -13,6 +13,7 @@ import 'package:veltrunox_app/features/library/recording_source.dart';
 import 'package:veltrunox_app/features/library/recording_summary.dart';
 import 'package:veltrunox_app/features/player/player_controller.dart';
 
+import 'fake_access_source.dart';
 import 'fake_player_source.dart';
 
 class _FakeSource implements RecordingSource {
@@ -53,6 +54,7 @@ Widget _app(
   overrides: [
     playerSourceProvider.overrideWithValue(player ?? FakePlayerSource()),
     recordingSourceProvider.overrideWithValue(source),
+    ...signedInAs(),
     connectionSourceProvider.overrideWithValue(connection ?? _FakeConnection()),
   ],
   child: const VeltrunoxApp(),

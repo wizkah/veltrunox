@@ -5,7 +5,7 @@ use crate::events::{EventConnection, connect_events};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use veltrunox_client_app::{
-    CLOCK_SYNC_INTERVAL, ChannelEvent, LinkError, LinkEvent, ReconnectPolicy, Timer,
+    CLOCK_SYNC_INTERVAL, ChannelAccess, ChannelEvent, LinkError, LinkEvent, ReconnectPolicy, Timer,
 };
 use veltrunox_core::{Intent, Millis};
 
@@ -50,6 +50,7 @@ struct Control {
 struct Supervisor {
     id: u64,
     url: String,
+    access: ChannelAccess,
     timer: Arc<dyn Timer>,
     clock: fn() -> Millis,
     on_event: Box<EventSink>,
@@ -65,6 +66,7 @@ pub struct EventChannel {
 /// a connection that cannot be made is retried, so this cannot fail.
 pub fn open_channel(
     base_url: &str,
+    access: ChannelAccess,
     timer: Arc<dyn Timer>,
     clock: fn() -> Millis,
     on_event: impl Fn(ChannelEvent) + Send + Sync + 'static,
@@ -72,6 +74,7 @@ pub fn open_channel(
     let supervisor = Arc::new(Supervisor {
         id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
         url: base_url.to_owned(),
+        access,
         timer,
         clock,
         on_event: Box::new(on_event),
@@ -171,6 +174,9 @@ impl Supervisor {
         (self.on_event)(event.clone());
         match event {
             ChannelEvent::Link(LinkEvent::Greeted) => {
+                // Signing in comes first; a failed send only means the connection was lost again.
+                let access = self.access.clone();
+                let _ = self.with_connection(|connection| connection.send_access(&access));
                 // A failed ping only means the connection was lost again; the retry follows.
                 let _ = self.ping();
                 self.schedule_clock_sync(generation);
