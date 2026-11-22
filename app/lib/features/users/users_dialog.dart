@@ -61,7 +61,7 @@ class UsersDialog extends ConsumerWidget {
                     AsyncError() => _Failed(
                       onRetry: () => ref.invalidate(usersProvider),
                     ),
-                    _ => const Center(
+                    _ => Center(
                       child: ActivityStatus(
                         state: ActivityState.loading,
                         label: UsersTexts.loading,
@@ -87,7 +87,7 @@ class _Failed extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-      const Text(UsersTexts.failure),
+      Text(UsersTexts.failure),
       const SizedBox(height: AppSpace.s3),
       ActionButton(label: UsersTexts.retry, onPressed: onRetry),
     ],

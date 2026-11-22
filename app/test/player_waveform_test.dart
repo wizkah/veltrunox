@@ -40,6 +40,7 @@ class _Recordings with NoRecordingActions implements RecordingSource {
     RecordingSummary(
       id: 1,
       title: 'Soundcheck',
+      lengthMs: scanned ? 180000 : null,
       analysis: scanned
           ? const AnalysisInfo(
               status: AnalysisStatus.done,

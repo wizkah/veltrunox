@@ -41,12 +41,12 @@ class KeyDropdown extends StatelessWidget {
   Widget build(BuildContext context) => Wrap(
     crossAxisAlignment: WrapCrossAlignment.center,
     children: [
-      const SizedBox(width: 152, child: Text(PlayerTexts.key)),
+      SizedBox(width: 152, child: Text(PlayerTexts.key)),
       DropdownButton<int>(
         style: Theme.of(context).textTheme.bodyMedium,
         dropdownColor: AppColors.surfaceRaised,
         value: semitones.clamp(-range, range),
-        hint: const Text(PlayerTexts.keyChoice),
+        hint: Text(PlayerTexts.keyChoice),
         items: [
           for (var shift = range; shift >= -range; shift--)
             DropdownMenuItem(value: shift, child: Text(_label(shift))),

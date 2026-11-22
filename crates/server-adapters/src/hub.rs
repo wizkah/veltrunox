@@ -10,6 +10,7 @@ pub struct Hub {
     state: watch::Sender<PlaybackState>,
     bookmarks: broadcast::Sender<RecordingId>,
     analysis: broadcast::Sender<RecordingId>,
+    library: broadcast::Sender<()>,
     audio_output: watch::Sender<bool>,
 }
 
@@ -19,6 +20,7 @@ impl Hub {
             state: watch::channel(initial).0,
             bookmarks: broadcast::channel(64).0,
             analysis: broadcast::channel(64).0,
+            library: broadcast::channel(16).0,
             // Until a device is opened there is no sound.
             audio_output: watch::channel(false).0,
         }
@@ -40,6 +42,10 @@ impl Hub {
         self.analysis.subscribe()
     }
 
+    pub fn subscribe_library(&self) -> broadcast::Receiver<()> {
+        self.library.subscribe()
+    }
+
     pub fn subscribe_bookmarks(&self) -> broadcast::Receiver<RecordingId> {
         self.bookmarks.subscribe()
     }
@@ -57,5 +63,9 @@ impl PlaybackBroadcast for Hub {
 
     fn analysis_changed(&self, recording: RecordingId) {
         let _ = self.analysis.send(recording);
+    }
+
+    fn library_changed(&self) {
+        let _ = self.library.send(());
     }
 }

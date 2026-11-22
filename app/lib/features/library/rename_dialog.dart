@@ -39,7 +39,7 @@ class _RenameDialogState extends State<RenameDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text(LibraryTexts.renameTitle),
+    title: Text(LibraryTexts.renameTitle),
     content: TextField(
       controller: _controller,
       autofocus: true,
@@ -52,9 +52,9 @@ class _RenameDialogState extends State<RenameDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
-        child: const Text(LibraryTexts.cancel),
+        child: Text(LibraryTexts.cancel),
       ),
-      FilledButton(onPressed: _submit, child: const Text(LibraryTexts.save)),
+      FilledButton(onPressed: _submit, child: Text(LibraryTexts.save)),
     ],
   );
 }

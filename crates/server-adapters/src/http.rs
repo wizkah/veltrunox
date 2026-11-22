@@ -153,7 +153,7 @@ async fn rename_recording(
     })
     .await?;
     // The library entry changed; clients read it again.
-    hub.analysis_changed(id);
+    hub.library_changed();
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -183,7 +183,7 @@ async fn delete_recording(
         Ok(())
     })
     .await?;
-    hub.analysis_changed(id);
+    hub.library_changed();
     Ok(StatusCode::NO_CONTENT)
 }
 

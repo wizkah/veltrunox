@@ -30,14 +30,8 @@ class AccountMenu extends ConsumerWidget {
           child: Text(AccessTexts.signedInAs(_name(rights))),
         ),
         if (rights.canManageUsers)
-          const PopupMenuItem(
-            value: _Choice.users,
-            child: Text(AccessTexts.users),
-          ),
-        const PopupMenuItem(
-          value: _Choice.signOut,
-          child: Text(AccessTexts.signOut),
-        ),
+          PopupMenuItem(value: _Choice.users, child: Text(AccessTexts.users)),
+        PopupMenuItem(value: _Choice.signOut, child: Text(AccessTexts.signOut)),
       ],
     );
   }

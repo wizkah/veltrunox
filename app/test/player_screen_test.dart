@@ -43,7 +43,11 @@ Future<FakePlayerSource> _pumpBar(
       child: MaterialApp(
         home: Scaffold(
           body: PlayerNotices(
-            child: PlayerScreen(onChooseRecording: () {}, analysis: analysis),
+            child: PlayerScreen(
+              onChooseRecording: () {},
+              analysis: analysis,
+              lengthMs: analysis == null ? null : 180000,
+            ),
           ),
         ),
       ),
@@ -340,6 +344,73 @@ void main() {
     );
   });
 
+  group('without a connection', () {
+    Future<FakePlayerSource> pumpWith(
+      WidgetTester tester, {
+      required bool connected,
+      FakePlayerSource? player,
+    }) async {
+      _useTallScreen(tester);
+      final source = player ?? FakePlayerSource();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [playerSourceProvider.overrideWithValue(source)],
+          child: MaterialApp(
+            home: Scaffold(
+              body: PlayerNotices(
+                child: PlayerScreen(
+                  onChooseRecording: () {},
+                  analysis: _analysis,
+                  lengthMs: 180000,
+                  connected: connected,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      source.states.add(_loaded);
+      await tester.pump();
+      await tester.pump();
+      return source;
+    }
+
+    testWidgets('nothing the user does reaches the server (D-22)', (
+      tester,
+    ) async {
+      final player = await pumpWith(tester, connected: false);
+
+      await tester.tap(find.byTooltip('Abspielen'), warnIfMissed: false);
+      await tester.drag(
+        _sliderOf('Geschwindigkeit'),
+        const Offset(80, 0),
+        warnIfMissed: false,
+      );
+      await tester.pump();
+
+      expect(player.calls, isEmpty);
+    });
+
+    testWidgets('a value dragged but not sent is reset to the shared one', (
+      tester,
+    ) async {
+      final player = FakePlayerSource();
+      await pumpWith(tester, connected: true, player: player);
+      final gesture = await tester.startGesture(
+        tester.getCenter(_sliderOf('Geschwindigkeit')),
+      );
+      await gesture.moveBy(const Offset(120, 0));
+      await tester.pump();
+      expect(find.text('1.00×'), findsNothing);
+
+      await pumpWith(tester, connected: false, player: player);
+      await tester.pump();
+
+      expect(find.text('1.00×'), findsOneWidget);
+      await gesture.cancel();
+    });
+  });
+
   group('position slider', () {
     testWidgets('follows the playback position and spans the length', (
       tester,
@@ -355,6 +426,7 @@ void main() {
                 child: PlayerScreen(
                   onChooseRecording: () {},
                   analysis: _analysis,
+                  lengthMs: 180000,
                 ),
               ),
             ),
@@ -374,11 +446,10 @@ void main() {
     testWidgets('is shown disabled for a recording without a scan', (
       tester,
     ) async {
-      final player = await _pumpBar(tester, state: _loaded);
+      await _pumpBar(tester, state: _loaded);
 
       expect(find.byKey(positionSliderKey), findsOneWidget);
       expect(tester.widget<Slider>(_sliderOf('Position')).onChanged, isNull);
-      expect(player.lengthRequests, isEmpty);
     });
 
     testWidgets('scrubs while dragged and ends with the final position', (

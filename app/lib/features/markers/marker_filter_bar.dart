@@ -16,7 +16,7 @@ class MarkerFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SegmentedButton<MarkerFilter>(
-    segments: const [
+    segments: [
       ButtonSegment(
         value: MarkerFilter.all,
         label: Text(MarkerTexts.filterAll),

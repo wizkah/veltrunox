@@ -48,17 +48,6 @@ class FakePlayerSource implements PlayerSource {
   Future<void> endScrub(int positionMs) async =>
       calls.add('endScrub $positionMs');
 
-  /// What `recordingLength` answers; `null` for a recording without a scan.
-  int? length = 180000;
-
-  final lengthRequests = <int>[];
-
-  @override
-  Future<int?> recordingLength(int recordingId) async {
-    lengthRequests.add(recordingId);
-    return length;
-  }
-
   @override
   Future<void> setSpeed(double speed) async => calls.add('speed $speed');
 

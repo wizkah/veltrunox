@@ -8,6 +8,9 @@ import 'library_texts.dart';
 import 'upload_controller.dart';
 import 'upload_state.dart';
 
+/// How many refused files the summary of a batch names.
+const _failuresShown = 3;
+
 /// The upload button with what the upload is doing: sending, done or failed.
 class UploadBar extends ConsumerWidget {
   const UploadBar({super.key});
@@ -34,10 +37,28 @@ class UploadBar extends ConsumerWidget {
   static List<Widget> _status(UploadState state, VoidCallback dismiss) {
     final status = switch (state) {
       UploadIdle() => null,
-      UploadSending(:final fileName) => ActivityStatus(
-        state: ActivityState.loading,
-        label: LibraryTexts.uploading(fileName),
-      ),
+      UploadSending(:final fileName, :final position, :final total) =>
+        ActivityStatus(
+          state: ActivityState.loading,
+          label: LibraryTexts.uploading(
+            fileName,
+            position: position,
+            total: total,
+          ),
+        ),
+      UploadBatchDone(:final uploaded, :final existing, :final failures) =>
+        ActivityStatus(
+          state: failures.isEmpty ? ActivityState.success : ActivityState.error,
+          label: [
+            LibraryTexts.uploadSummary(
+              uploaded: uploaded,
+              existing: existing,
+              failed: failures.length,
+            ),
+            for (final failure in failures.take(_failuresShown))
+              LibraryTexts.uploadFailed(failure.fileName, failure.reason),
+          ].join('\n'),
+        ),
       UploadDone(:final title, :final existing) => ActivityStatus(
         state: ActivityState.success,
         label: existing

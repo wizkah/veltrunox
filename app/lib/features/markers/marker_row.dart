@@ -47,7 +47,7 @@ class MarkerRow extends StatelessWidget {
             _MarkerAction.edit => onEdit(),
             _MarkerAction.delete => onDelete(),
           },
-          itemBuilder: (_) => const [
+          itemBuilder: (_) => [
             PopupMenuItem(
               value: _MarkerAction.edit,
               child: Text(MarkerTexts.edit),

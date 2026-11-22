@@ -34,6 +34,9 @@ abstract interface class RecordingSource {
   /// Ids of recordings whose analysis status or result changed.
   Stream<int> analysisChanges();
 
+  /// Fires when recordings were added, renamed or removed, by anyone.
+  Stream<void> libraryChanges();
+
   /// Asks the server to analyse the recording again.
   Future<void> reanalyse(int recordingId);
 

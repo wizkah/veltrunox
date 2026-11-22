@@ -28,6 +28,8 @@ struct Opened {
     format: Box<dyn FormatReader>,
     decoder: Box<dyn AudioDecoder>,
     track_id: u32,
+    /// Number of frames the container announces, if it does.
+    total_frames: Option<u64>,
 }
 
 fn open(path: &Path) -> Result<Opened, DecodeError> {
@@ -54,10 +56,12 @@ fn open(path: &Path) -> Result<Opened, DecodeError> {
     let decoder = symphonia::default::get_codecs()
         .make_audio_decoder(parameters, &AudioDecoderOptions::default())?;
     let track_id = track.id;
+    let total_frames = track.num_frames;
     Ok(Opened {
         format,
         decoder,
         track_id,
+        total_frames,
     })
 }
 
@@ -68,6 +72,7 @@ pub fn probe_file(path: &Path) -> Result<(), DecodeError> {
         mut format,
         mut decoder,
         track_id,
+        ..
     } = open(path)?;
     while let Some(packet) = format.next_packet()? {
         if packet.track_id != track_id {
@@ -84,11 +89,20 @@ pub fn probe_file(path: &Path) -> Result<(), DecodeError> {
 
 /// Decodes the whole file; mono is doubled, channels beyond the second are dropped.
 pub fn decode_file(path: &Path) -> Result<Pcm, DecodeError> {
+    decode_file_reporting(path, &|_| {})
+}
+
+/// Like `decode_file`; `report` is told how far the decoding has come in percent while the
+/// file is read (only if the container announces its length).
+pub fn decode_file_reporting(path: &Path, report: &dyn Fn(u8)) -> Result<Pcm, DecodeError> {
     let Opened {
         mut format,
         mut decoder,
         track_id,
+        total_frames,
     } = open(path)?;
+    let mut decoded_frames = 0u64;
+    let mut reported = 0u8;
 
     let mut stereo = Vec::new();
     let mut interleaved: Vec<f32> = Vec::new();
@@ -103,6 +117,14 @@ pub fn decode_file(path: &Path) -> Result<Pcm, DecodeError> {
             Err(error) => return Err(error.into()),
         };
         sample_rate = buffer.spec().rate();
+        decoded_frames += buffer.frames() as u64;
+        if let Some(total) = total_frames.filter(|total| *total > 0) {
+            let percent = (decoded_frames.saturating_mul(100) / total).min(100) as u8;
+            if percent > reported {
+                reported = percent;
+                report(percent);
+            }
+        }
         let channels = buffer.spec().channels().count();
         interleaved.resize(buffer.samples_interleaved(), 0.0);
         buffer.copy_to_slice_interleaved(&mut interleaved);

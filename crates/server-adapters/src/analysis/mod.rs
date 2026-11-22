@@ -20,19 +20,30 @@ pub enum AnalysisError {
 
 /// Analyses a decoded recording. CPU-bound: run it off the real-time paths.
 pub fn analyse(pcm: &Pcm) -> Result<RecordingAnalysis, AnalysisError> {
+    analyse_reporting(pcm, &|_| {})
+}
+
+/// Like `analyse`; `report` is told how far the analysis has come in percent (0 to 100).
+pub fn analyse_reporting(
+    pcm: &Pcm,
+    report: &dyn Fn(u8),
+) -> Result<RecordingAnalysis, AnalysisError> {
     let mono = pcm.mono();
     if mono.len() < spectrum::FFT_SIZE {
         return Err(AnalysisError::TooShort);
     }
     let frames = spectrum::frames(&mono, pcm.sample_rate());
     drop(mono);
+    report(30);
 
     let all_peaks: Vec<_> = frames.peaks.iter().flatten().copied().collect();
     let (tuning, tuning_confidence) = match tuning::estimate(&all_peaks) {
         Some(found) => (found.tuning, found.confidence),
         None => (TuningHz::CONCERT_PITCH, Confidence::new(1.0)),
     };
+    report(60);
     let key = key::estimate(&frames.peaks, tuning).ok_or(AnalysisError::NoTonalContent)?;
+    report(80);
     let tempo = tempo::estimate(&frames.onset_strength, frames.hop_seconds)
         .ok_or(AnalysisError::NoRhythm)?;
 

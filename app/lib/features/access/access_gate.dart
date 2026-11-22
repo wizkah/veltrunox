@@ -45,7 +45,7 @@ class _Checking extends StatelessWidget {
   const _Checking();
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
+  Widget build(BuildContext context) => Scaffold(
     body: Center(
       child: ActivityStatus(
         state: ActivityState.loading,

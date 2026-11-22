@@ -145,7 +145,7 @@ class _PlayerWaveformState extends ConsumerState<PlayerWaveform> {
     ToastNotice.show(
       context,
       kind: ToastKind.error,
-      message: MarkerTexts.saveFailed,
+      message: _markerWriter.failureMessage,
     );
   }
 

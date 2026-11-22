@@ -6,7 +6,7 @@ test('uploads a file, which appears in the library, and notices a repeat', async
 
   async function upload(name: string, content: Buffer) {
     const chooser = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: 'Aufnahme hochladen' }).dispatchEvent('click');
+    await page.getByRole('button', { name: 'Aufnahmen hochladen' }).dispatchEvent('click');
     await (await chooser).setFiles({ name, mimeType: 'audio/wav', buffer: content });
   }
 

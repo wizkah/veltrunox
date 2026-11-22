@@ -42,7 +42,7 @@ class RecordingTile extends StatelessWidget {
         ? null
         : AnalysisSummary(analysis: recording.analysis),
     trailing: loaded
-        ? const Icon(
+        ? Icon(
             Icons.graphic_eq,
             color: AppColors.accentSoft,
             semanticLabel: LibraryTexts.loaded,

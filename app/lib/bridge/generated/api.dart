@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `access`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `user_reason`, `view`, `with_channel`, `with_scrub`
+// These functions are ignored because they are not marked as `pub`: `access`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `user_reason`, `view`, `with_channel`, `with_scrub`, `write_failure`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Access`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
@@ -54,16 +54,6 @@ Future<void> deleteRecordingForGood({
   required String serverUrl,
   required BigInt recordingId,
 }) => RustLib.instance.api.crateApiDeleteRecordingForGood(
-  serverUrl: serverUrl,
-  recordingId: recordingId,
-);
-
-/// The length of a recording in milliseconds from its stored scan; `None` while there is none
-/// (not scanned yet) or the server cannot be reached.
-Future<BigInt?> recordingLengthMs({
-  required String serverUrl,
-  required BigInt recordingId,
-}) => RustLib.instance.api.crateApiRecordingLengthMs(
   serverUrl: serverUrl,
   recordingId: recordingId,
 );
@@ -603,7 +593,13 @@ sealed class PlayerCommand with _$PlayerCommand {
 class RecordingItem {
   final BigInt id;
   final String title;
+
+  /// Length of the audio in milliseconds; `None` until the recording has been scanned.
+  final BigInt? lengthMs;
   final AnalysisState analysisState;
+
+  /// How far the running analysis has come, 0 to 100; only meaningful in the state `Running`.
+  final int analysisPercent;
 
   /// Why the analysis failed; only set in the state `Failed`.
   final String? analysisFailure;
@@ -614,7 +610,9 @@ class RecordingItem {
   const RecordingItem({
     required this.id,
     required this.title,
+    this.lengthMs,
     required this.analysisState,
+    required this.analysisPercent,
     this.analysisFailure,
     this.analysis,
   });
@@ -623,7 +621,9 @@ class RecordingItem {
   int get hashCode =>
       id.hashCode ^
       title.hashCode ^
+      lengthMs.hashCode ^
       analysisState.hashCode ^
+      analysisPercent.hashCode ^
       analysisFailure.hashCode ^
       analysis.hashCode;
 
@@ -634,7 +634,9 @@ class RecordingItem {
           runtimeType == other.runtimeType &&
           id == other.id &&
           title == other.title &&
+          lengthMs == other.lengthMs &&
           analysisState == other.analysisState &&
+          analysisPercent == other.analysisPercent &&
           analysisFailure == other.analysisFailure &&
           analysis == other.analysis;
 }
@@ -742,6 +744,9 @@ sealed class SessionUpdate with _$SessionUpdate {
   /// The analysis of this recording changed; load the library again.
   const factory SessionUpdate.analysisChanged({required BigInt recordingId}) =
       SessionUpdate_AnalysisChanged;
+
+  /// Recordings were added, renamed or removed; load the library again.
+  const factory SessionUpdate.libraryChanged() = SessionUpdate_LibraryChanged;
   const factory SessionUpdate.rejected({required String reason}) =
       SessionUpdate_Rejected;
 

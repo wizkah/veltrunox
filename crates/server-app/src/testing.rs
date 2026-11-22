@@ -143,6 +143,8 @@ impl PlaybackBroadcast for FakeBroadcast {
     fn analysis_changed(&self, recording: RecordingId) {
         self.analysis.lock().unwrap().push(recording);
     }
+
+    fn library_changed(&self) {}
 }
 
 pub struct FakeMedia(Option<PathBuf>);

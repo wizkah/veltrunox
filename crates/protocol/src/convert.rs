@@ -89,10 +89,13 @@ pub fn library_entry_to_dto(entry: &LibraryEntry) -> RecordingSummaryDto {
     RecordingSummaryDto {
         id: entry.recording.id.value(),
         title: entry.recording.title.as_str().to_owned(),
+        length_ms: entry.length.map(Millis::value),
         analysis_progress: match &entry.analysis.progress {
             AnalysisProgress::None => AnalysisProgressDto::None,
             AnalysisProgress::Queued => AnalysisProgressDto::Queued,
-            AnalysisProgress::Running => AnalysisProgressDto::Running,
+            AnalysisProgress::Running(percent) => {
+                AnalysisProgressDto::Running { percent: *percent }
+            }
             AnalysisProgress::Failed(reason) => AnalysisProgressDto::Failed {
                 reason: reason.clone(),
             },
@@ -116,11 +119,14 @@ pub fn library_entry_from_dto(dto: &RecordingSummaryDto) -> Result<LibraryEntry,
             id: RecordingId::new(dto.id),
             title: RecordingTitle::new(&dto.title)?,
         },
+        length: dto.length_ms.map(Millis::position).transpose()?,
         analysis: AnalysisInfo {
             progress: match &dto.analysis_progress {
                 AnalysisProgressDto::None => AnalysisProgress::None,
                 AnalysisProgressDto::Queued => AnalysisProgress::Queued,
-                AnalysisProgressDto::Running => AnalysisProgress::Running,
+                AnalysisProgressDto::Running { percent } => {
+                    AnalysisProgress::Running((*percent).min(100))
+                }
                 AnalysisProgressDto::Failed { reason } => AnalysisProgress::Failed(reason.clone()),
                 AnalysisProgressDto::Done => AnalysisProgress::Done,
             },
@@ -356,6 +362,7 @@ mod tests {
                 id: RecordingId::new(7),
                 title: RecordingTitle::new("Intro").unwrap(),
             },
+            length: Some(Millis::new(61_000)),
             analysis: AnalysisInfo {
                 progress: AnalysisProgress::Done,
                 result: Some(RecordingAnalysis {
@@ -382,6 +389,7 @@ mod tests {
                 id: RecordingId::new(1),
                 title: RecordingTitle::new("x").unwrap(),
             },
+            length: None,
             analysis: AnalysisInfo::default(),
         });
         dto.analysis = Some(AnalysisResultDto {

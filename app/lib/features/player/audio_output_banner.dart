@@ -26,7 +26,7 @@ class AudioOutputBanner extends ConsumerWidget {
             width: AppSize.borderWidth,
           ),
         ),
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.symmetric(
             horizontal: AppSpace.s4,
             vertical: AppSpace.s2,

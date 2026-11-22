@@ -240,3 +240,18 @@ Environment: Flutter widget tests; Raspberry Pi 4 Model B, release build install
 
 Limits: the 130 ms rest time was chosen by estimate (the scrub piece lasts 120 ms). While playing on, the handle stays where it was held and does not follow the position until it is let go. The listening check was informal; no drift measurement over many pauses.
 
+
+## Library length, library notice, analysis percentage, several uploads, languages (2026-11-22)
+
+Environment: macOS (Apple silicon), debug builds, headless Chromium (Playwright) with the web app rebuilt by `scripts/build-web.sh` (browser language set to German), real server on a temporary data directory. Not run on the Raspberry Pi and not with real recordings.
+
+| Check | Result |
+|---|---|
+| Rust workspace tests, `cargo fmt --check` | Pass |
+| Library entry carries the length (protocol round trip, HTTP upload test: 3 s file lists 3000 ms once scanned) | Pass |
+| `library_changed` is sent after upload and rename (hub notice in the HTTP tests; wire format and client mapping in unit tests) | Pass |
+| Percentage: wire format, steps of 5 points only while running, mapping of the scan stages onto 0–100 (unit tests); a first version overflowed in the scan stage and was caught by the browser run, now covered by a test | Pass |
+| Flutter tests (258): several files sent one after the other with summary and a refused file among them; running analysis with percent; length in the details; reload on `library_changed`; controls dead and dragged value reset without a connection; conflict notice; language switch, start language, server reasons and decimal separator per language | Pass |
+| Playwright, 9 runs plus the reconnect run | Pass |
+
+Limits: the weights of the scan stages (decoding 40 %, waveform 5 %, analysis 55 %) are estimates, not measured. English texts were not reviewed by a native speaker. Texts of the browser's own widgets keep the browser's language. The upload of several files was tested with fakes in Flutter and with one file at a time in the browser (the file dialog of the browser test supplies one file); the progress display was not watched in the browser during a long scan.

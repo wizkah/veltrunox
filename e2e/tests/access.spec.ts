@@ -53,14 +53,14 @@ test('access follows the guest switch and the role', async ({ page }) => {
     await enableAccessibility(page);
     await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Als Gast fortfahren' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Aufnahme hochladen' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Aufnahmen hochladen' })).toHaveCount(0);
 
     // Guest access on: the guest gets in and may upload, but not manage.
     await api(page, 'PUT', '/api/v1/guest-access', admin, { enabled: true });
     await page.reload();
     await enableAccessibility(page);
     await page.getByRole('button', { name: 'Als Gast fortfahren' }).dispatchEvent('click');
-    await expect(page.getByRole('button', { name: 'Aufnahme hochladen' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Aufnahmen hochladen' })).toBeVisible();
     await page.getByRole('button', { name: /^Access Song/ }).first().dispatchEvent('click');
     await expect(page.getByRole('button', { name: 'Umbenennen' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Löschen', exact: true })).toHaveCount(0);
@@ -74,7 +74,7 @@ test('access follows the guest switch and the role', async ({ page }) => {
 test('a user uploads but neither manages recordings nor users', async ({ page }) => {
   await adminToken(page);
   await openSignedIn(page, MEMBER);
-  await expect(page.getByRole('button', { name: 'Aufnahme hochladen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aufnahmen hochladen' })).toBeVisible();
   await page.getByRole('button', { name: /^Access Song/ }).first().dispatchEvent('click');
   await expect(page.getByRole('button', { name: 'Umbenennen' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Löschen', exact: true })).toHaveCount(0);
@@ -96,5 +96,5 @@ test('signing out returns to the sign-in', async ({ page }) => {
   await openAccountMenu(page);
   await page.getByRole('menuitem', { name: 'Abmelden' }).click();
   await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Aufnahme hochladen' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Aufnahmen hochladen' })).toHaveCount(0);
 });

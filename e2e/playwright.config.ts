@@ -26,7 +26,8 @@ export default defineConfig({
   testIgnore: 'reconnect.spec.ts',
   // The first test sets the admin up on a fresh server; the others sign in with it.
   workers: 1,
-  use: { baseURL: serverUrl },
+  // The interface follows the browser's language; the tests read the German texts.
+  use: { baseURL: serverUrl, locale: 'de-DE' },
   webServer: {
     command: `cargo run -q -p veltrunox-server -- --config ${configFile}`,
     cwd: '..',

@@ -5,16 +5,17 @@ import 'shell_texts.dart';
 
 /// The places the navigation leads to.
 enum ShellDestination {
-  player(ShellTexts.player, Icons.play_circle_outline, Icons.play_circle),
-  library(
-    ShellTexts.library,
-    Icons.library_music_outlined,
-    Icons.library_music,
-  );
+  player(Icons.play_circle_outline, Icons.play_circle),
+  library(Icons.library_music_outlined, Icons.library_music);
 
-  const ShellDestination(this.label, this.icon, this.selectedIcon);
+  const ShellDestination(this.icon, this.selectedIcon);
 
-  final String label;
+  /// The name in the current language.
+  String get label => switch (this) {
+    player => ShellTexts.player,
+    library => ShellTexts.library,
+  };
+
   final IconData icon;
   final IconData selectedIcon;
 }

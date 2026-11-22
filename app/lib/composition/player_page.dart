@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../app_shell/shell_destination.dart';
+import '../features/connection/connection_controller.dart';
+import '../features/connection/connection_status.dart';
 import '../features/markers/marker.dart';
 import '../features/markers/marker_panel.dart';
 import '../features/markers/marker_sheet_button.dart';
@@ -23,16 +25,9 @@ class PlayerPage extends ConsumerWidget {
     );
     final recording = ref.watch(loadedRecordingProvider);
     final analysis = ref.watch(loadedAnalysisProvider);
-    final lengthMs = recordingId == null
-        ? null
-        : ref
-              .watch(
-                playerLengthProvider((
-                  recordingId: recordingId,
-                  scanned: analysis != null,
-                )),
-              )
-              .value;
+    final lengthMs = recording?.lengthMs;
+    final connected =
+        ref.watch(connectionStatusProvider).value == ConnectionStatus.connected;
     final player = ref.read(playerControllerProvider);
     Widget panel() => MarkerPanel(
       recordingId: recordingId!,
@@ -57,8 +52,10 @@ class PlayerPage extends ConsumerWidget {
       title: recording?.title,
       waveform: recordingId == null
           ? null
-          : PlayerWaveform(recordingId: recordingId, scanned: analysis != null),
+          : PlayerWaveform(recordingId: recordingId, scanned: lengthMs != null),
       analysis: analysis,
+      lengthMs: lengthMs,
+      connected: connected,
       markers: recordingId == null ? null : panel(),
       markerOpener: recordingId == null
           ? null

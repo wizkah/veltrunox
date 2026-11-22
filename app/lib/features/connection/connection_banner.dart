@@ -38,8 +38,8 @@ class ConnectionBanner extends ConsumerWidget {
             runSpacing: AppSpace.s2,
             children: [
               const Icon(Icons.cloud_off, color: AppColors.error),
-              const Text(ConnectionTexts.lost),
-              const Text(ConnectionTexts.lostHint),
+              Text(ConnectionTexts.lost),
+              Text(ConnectionTexts.lostHint),
               ActionButton(
                 label: ConnectionTexts.reconnect,
                 kind: ActionKind.secondary,

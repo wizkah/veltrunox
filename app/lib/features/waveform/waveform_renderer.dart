@@ -11,13 +11,13 @@ import 'waveform_texts.dart';
 /// [data] it shows that the waveform is loading (or missing), never a
 /// plausible-looking empty one.
 class WaveformRenderer extends StatefulWidget {
-  const WaveformRenderer({
+  WaveformRenderer({
     required this.data,
     required this.viewport,
     this.height = WaveformGeometry.waveformHeight,
-    this.missingText = WaveformTexts.loading,
+    String? missingText,
     super.key,
-  });
+  }) : missingText = missingText ?? WaveformTexts.loading;
 
   final WaveformData? data;
   final TimeViewport viewport;
@@ -68,7 +68,7 @@ class _WaveformRendererState extends State<WaveformRenderer> {
             )
           : Semantics(
               image: true,
-              label: 'Wellenform',
+              label: WaveformTexts.title,
               child: CustomPaint(painter: _PeakPainter(columns)),
             ),
     );

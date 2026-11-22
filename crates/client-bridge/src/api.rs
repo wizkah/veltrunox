@@ -11,8 +11,8 @@ use veltrunox_client_app::{
     ChannelAccess, ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkError, LinkEvent,
     ScrubThrottle, ServerEvent, SessionView, ViewChange, WaveformCache, add_label, add_recording,
     add_region, analyse_again, convert_label_to_region, convert_region_to_label, delete_label,
-    delete_recording, delete_region, edit_label, edit_region, load_bookmarks, load_length,
-    load_library, load_waveform, rename_recording,
+    delete_recording, delete_region, edit_label, edit_region, load_bookmarks, load_library,
+    load_waveform, rename_recording,
 };
 use veltrunox_client_app::{
     Credentials, ManagedUser, NewUser, Rights, SignedIn, UserChange, add_user, delete_user,
@@ -29,7 +29,11 @@ use veltrunox_core::{
 pub struct RecordingItem {
     pub id: u64,
     pub title: String,
+    /// Length of the audio in milliseconds; `None` until the recording has been scanned.
+    pub length_ms: Option<u64>,
     pub analysis_state: AnalysisState,
+    /// How far the running analysis has come, 0 to 100; only meaningful in the state `Running`.
+    pub analysis_percent: u8,
     /// Why the analysis failed; only set in the state `Failed`.
     pub analysis_failure: Option<String>,
     /// The estimated values; only set once the analysis is done.
@@ -69,14 +73,19 @@ impl From<&LibraryEntry> for RecordingItem {
         let (analysis_state, analysis_failure) = match &entry.analysis.progress {
             AnalysisProgress::None => (AnalysisState::None, None),
             AnalysisProgress::Queued => (AnalysisState::Queued, None),
-            AnalysisProgress::Running => (AnalysisState::Running, None),
+            AnalysisProgress::Running(_) => (AnalysisState::Running, None),
             AnalysisProgress::Failed(reason) => (AnalysisState::Failed, Some(reason.clone())),
             AnalysisProgress::Done => (AnalysisState::Done, None),
         };
         Self {
             id: entry.recording.id.value(),
             title: entry.recording.title.as_str().to_owned(),
+            length_ms: entry.length.map(Millis::value),
             analysis_state,
+            analysis_percent: match entry.analysis.progress {
+                AnalysisProgress::Running(percent) => percent,
+                _ => 0,
+            },
             analysis_failure,
             analysis: entry.analysis.result.map(|found| AnalysisValues {
                 tuning_hz: found.tuning.hertz(),
@@ -150,16 +159,6 @@ fn user_reason(error: &LinkError) -> String {
         LinkError::Refused(reason) => reason.clone(),
         other => other.to_string(),
     }
-}
-
-/// The length of a recording in milliseconds from its stored scan; `None` while there is none
-/// (not scanned yet) or the server cannot be reached.
-pub async fn recording_length_ms(server_url: String, recording_id: u64) -> Option<u64> {
-    let link = link(&server_url);
-    load_length(&link, RecordingId::new(recording_id))
-        .await
-        .ok()
-        .map(Millis::value)
 }
 
 /// One resolution of a waveform: per block the minimum, then the maximum, as signed bytes.
@@ -263,6 +262,18 @@ pub async fn list_bookmarks(server_url: String, recording_id: u64) -> Result<Boo
     })
 }
 
+/// What a failed marker write reports as its reason when someone else changed the marker
+/// meanwhile; the interface tells the user in its own words (it knows this word as
+/// `conflictReason` in `bridge_marker_source.dart`).
+const CONFLICT_REASON: &str = "conflict";
+
+fn write_failure(error: &LinkError) -> String {
+    match error {
+        LinkError::Conflict { .. } => CONFLICT_REASON.to_owned(),
+        other => other.to_string(),
+    }
+}
+
 fn bookmark_name(name: &str) -> Result<BookmarkName, String> {
     BookmarkName::new(name).map_err(|error| error.to_string())
 }
@@ -295,7 +306,7 @@ pub async fn create_label(
     )
     .await
     .map(drop)
-    .map_err(|error| error.to_string())
+    .map_err(|error| write_failure(&error))
 }
 
 /// Renames or moves a label seen at `expected_version`.
@@ -316,7 +327,7 @@ pub async fn change_label(
     )
     .await
     .map(drop)
-    .map_err(|error| error.to_string())
+    .map_err(|error| write_failure(&error))
 }
 
 /// Deletes a label seen at `expected_version`.
@@ -328,7 +339,7 @@ pub async fn remove_label(
     let link = link(&server_url);
     delete_label(&link, BookmarkId::new(id), Version::new(expected_version))
         .await
-        .map_err(|error| error.to_string())
+        .map_err(|error| write_failure(&error))
 }
 
 /// Adds a region from `start_ms` up to `end_ms`.
@@ -348,7 +359,7 @@ pub async fn create_region(
     )
     .await
     .map(drop)
-    .map_err(|error| error.to_string())
+    .map_err(|error| write_failure(&error))
 }
 
 /// Renames or resizes a region seen at `expected_version`.
@@ -370,7 +381,7 @@ pub async fn change_region(
     )
     .await
     .map(drop)
-    .map_err(|error| error.to_string())
+    .map_err(|error| write_failure(&error))
 }
 
 /// Deletes a region seen at `expected_version`.
@@ -382,7 +393,7 @@ pub async fn remove_region(
     let link = link(&server_url);
     delete_region(&link, BookmarkId::new(id), Version::new(expected_version))
         .await
-        .map_err(|error| error.to_string())
+        .map_err(|error| write_failure(&error))
 }
 
 /// Replaces a label seen at `expected_version` by a region in one step.
@@ -404,7 +415,7 @@ pub async fn label_to_region(
     )
     .await
     .map(drop)
-    .map_err(|error| error.to_string())
+    .map_err(|error| write_failure(&error))
 }
 
 /// Replaces a region seen at `expected_version` by a label in one step.
@@ -425,7 +436,7 @@ pub async fn region_to_label(
     )
     .await
     .map(drop)
-    .map_err(|error| error.to_string())
+    .map_err(|error| write_failure(&error))
 }
 
 /// The speed that plays a recording of `recording_bpm` at `target_bpm`.
@@ -521,6 +532,8 @@ pub enum SessionUpdate {
     AnalysisChanged {
         recording_id: u64,
     },
+    /// Recordings were added, renamed or removed; load the library again.
+    LibraryChanged,
     Rejected {
         reason: String,
     },
@@ -642,6 +655,7 @@ fn forward(event: ServerEvent, updates: &StreamSink<SessionUpdate>) {
                 recording_id: recording.value(),
             })
         }
+        ViewChange::LibraryChanged => Some(SessionUpdate::LibraryChanged),
         ViewChange::Rejected(reason) => Some(SessionUpdate::Rejected { reason }),
         ViewChange::Rights(rights) => Some(SessionUpdate::Rights {
             rights: RightsInfo::from(&rights),

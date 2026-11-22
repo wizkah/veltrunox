@@ -20,7 +20,7 @@ class LibraryFailure extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, color: AppColors.error),
           const SizedBox(height: AppSpace.s2),
-          const Text(LibraryTexts.failure, textAlign: TextAlign.center),
+          Text(LibraryTexts.failure, textAlign: TextAlign.center),
           const SizedBox(height: AppSpace.s3),
           ActionButton(
             label: LibraryTexts.retry,

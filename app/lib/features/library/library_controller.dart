@@ -19,9 +19,17 @@ class LibraryController extends AsyncNotifier<List<RecordingSummary>> {
   @override
   Future<List<RecordingSummary>> build() {
     final source = ref.read(recordingSourceProvider);
-    // A finished analysis changes the list; it is loaded again without a spinner.
-    final changes = source.analysisChanges().listen((_) => _refresh());
-    ref.onDispose(changes.cancel);
+    // A finished analysis or another client's edit changes the list; it is
+    // loaded again without a spinner.
+    final changes = [
+      source.analysisChanges().listen((_) => _refresh()),
+      source.libraryChanges().listen((_) => _refresh()),
+    ];
+    ref.onDispose(() {
+      for (final change in changes) {
+        change.cancel();
+      }
+    });
     return source.listRecordings();
   }
 

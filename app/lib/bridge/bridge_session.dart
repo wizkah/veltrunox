@@ -21,6 +21,7 @@ class BridgeSession {
   final _audioOutputs = StreamController<bool>.broadcast();
   bool? _audioOutput;
   final _analysisChanges = StreamController<int>.broadcast();
+  final _libraryChanges = StreamController<void>.broadcast();
   final _bookmarkChanges = StreamController<int>.broadcast();
 
   Stream<ConnectionStatus> connection() async* {
@@ -46,6 +47,9 @@ class BridgeSession {
 
   /// Ids of recordings whose analysis changed on the server.
   Stream<int> analysisChanges() => _analysisChanges.stream;
+
+  /// Fires when recordings were added, renamed or removed on the server.
+  Stream<void> libraryChanges() => _libraryChanges.stream;
 
   /// Ids of recordings whose markers changed on the server.
   Stream<int> bookmarkChanges() => _bookmarkChanges.stream;
@@ -95,6 +99,7 @@ class BridgeSession {
     await _rejections.close();
     await _audioOutputs.close();
     await _analysisChanges.close();
+    await _libraryChanges.close();
     await _bookmarkChanges.close();
   }
 
@@ -109,6 +114,8 @@ class BridgeSession {
         _rejections.add(reason);
       case rust.SessionUpdate_AnalysisChanged(:final recordingId):
         _analysisChanges.add(recordingId.toInt());
+      case rust.SessionUpdate_LibraryChanged():
+        _libraryChanges.add(null);
       case rust.SessionUpdate_BookmarksChanged(:final recordingId):
         _bookmarkChanges.add(recordingId.toInt());
       case rust.SessionUpdate_Rights():

@@ -71,7 +71,8 @@ pub enum AnalysisProgress {
     #[default]
     None,
     Queued,
-    Running,
+    /// Under way; the value is how far it has come, in percent (0 to 100).
+    Running(u8),
     /// The analysis could not be made; the reason is for the user to read.
     Failed(String),
     Done,
@@ -88,6 +89,8 @@ pub struct AnalysisInfo {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LibraryEntry {
     pub recording: crate::Recording,
+    /// Known once the recording has been scanned, whatever became of its analysis.
+    pub length: Option<crate::Millis>,
     pub analysis: AnalysisInfo,
 }
 

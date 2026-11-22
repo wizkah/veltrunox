@@ -3,6 +3,10 @@ import '../features/markers/marker_source.dart';
 import 'bridge_session.dart';
 import 'generated/api.dart' as rust;
 
+/// What the Rust client core reports when a write met a newer version of the
+/// marker.
+const _conflictReason = 'conflict';
+
 /// Adapter: reads and writes markers through the Rust client core.
 class BridgeMarkerSource implements MarkerSource {
   BridgeMarkerSource({required this.serverUrl, required this.session});
@@ -43,11 +47,13 @@ class BridgeMarkerSource implements MarkerSource {
     int recordingId, {
     required String title,
     required int positionMs,
-  }) => rust.createLabel(
-    serverUrl: serverUrl,
-    recordingId: BigInt.from(recordingId),
-    name: title,
-    positionMs: BigInt.from(positionMs),
+  }) => _write(
+    () => rust.createLabel(
+      serverUrl: serverUrl,
+      recordingId: BigInt.from(recordingId),
+      name: title,
+      positionMs: BigInt.from(positionMs),
+    ),
   );
 
   @override
@@ -55,19 +61,23 @@ class BridgeMarkerSource implements MarkerSource {
     LabelMarker label, {
     required String title,
     required int positionMs,
-  }) => rust.changeLabel(
-    serverUrl: serverUrl,
-    id: BigInt.from(label.id),
-    expectedVersion: BigInt.from(label.version),
-    name: title,
-    positionMs: BigInt.from(positionMs),
+  }) => _write(
+    () => rust.changeLabel(
+      serverUrl: serverUrl,
+      id: BigInt.from(label.id),
+      expectedVersion: BigInt.from(label.version),
+      name: title,
+      positionMs: BigInt.from(positionMs),
+    ),
   );
 
   @override
-  Future<void> deleteLabel(LabelMarker label) => rust.removeLabel(
-    serverUrl: serverUrl,
-    id: BigInt.from(label.id),
-    expectedVersion: BigInt.from(label.version),
+  Future<void> deleteLabel(LabelMarker label) => _write(
+    () => rust.removeLabel(
+      serverUrl: serverUrl,
+      id: BigInt.from(label.id),
+      expectedVersion: BigInt.from(label.version),
+    ),
   );
 
   @override
@@ -76,12 +86,14 @@ class BridgeMarkerSource implements MarkerSource {
     required String title,
     required int startMs,
     required int endMs,
-  }) => rust.createRegion(
-    serverUrl: serverUrl,
-    recordingId: BigInt.from(recordingId),
-    name: title,
-    startMs: BigInt.from(startMs),
-    endMs: BigInt.from(endMs),
+  }) => _write(
+    () => rust.createRegion(
+      serverUrl: serverUrl,
+      recordingId: BigInt.from(recordingId),
+      name: title,
+      startMs: BigInt.from(startMs),
+      endMs: BigInt.from(endMs),
+    ),
   );
 
   @override
@@ -90,20 +102,24 @@ class BridgeMarkerSource implements MarkerSource {
     required String title,
     required int startMs,
     required int endMs,
-  }) => rust.changeRegion(
-    serverUrl: serverUrl,
-    id: BigInt.from(region.id),
-    expectedVersion: BigInt.from(region.version),
-    name: title,
-    startMs: BigInt.from(startMs),
-    endMs: BigInt.from(endMs),
+  }) => _write(
+    () => rust.changeRegion(
+      serverUrl: serverUrl,
+      id: BigInt.from(region.id),
+      expectedVersion: BigInt.from(region.version),
+      name: title,
+      startMs: BigInt.from(startMs),
+      endMs: BigInt.from(endMs),
+    ),
   );
 
   @override
-  Future<void> deleteRegion(RegionMarker region) => rust.removeRegion(
-    serverUrl: serverUrl,
-    id: BigInt.from(region.id),
-    expectedVersion: BigInt.from(region.version),
+  Future<void> deleteRegion(RegionMarker region) => _write(
+    () => rust.removeRegion(
+      serverUrl: serverUrl,
+      id: BigInt.from(region.id),
+      expectedVersion: BigInt.from(region.version),
+    ),
   );
 
   @override
@@ -112,13 +128,15 @@ class BridgeMarkerSource implements MarkerSource {
     required String title,
     required int startMs,
     required int endMs,
-  }) => rust.labelToRegion(
-    serverUrl: serverUrl,
-    id: BigInt.from(label.id),
-    expectedVersion: BigInt.from(label.version),
-    name: title,
-    startMs: BigInt.from(startMs),
-    endMs: BigInt.from(endMs),
+  }) => _write(
+    () => rust.labelToRegion(
+      serverUrl: serverUrl,
+      id: BigInt.from(label.id),
+      expectedVersion: BigInt.from(label.version),
+      name: title,
+      startMs: BigInt.from(startMs),
+      endMs: BigInt.from(endMs),
+    ),
   );
 
   @override
@@ -126,11 +144,24 @@ class BridgeMarkerSource implements MarkerSource {
     RegionMarker region, {
     required String title,
     required int positionMs,
-  }) => rust.regionToLabel(
-    serverUrl: serverUrl,
-    id: BigInt.from(region.id),
-    expectedVersion: BigInt.from(region.version),
-    name: title,
-    positionMs: BigInt.from(positionMs),
+  }) => _write(
+    () => rust.regionToLabel(
+      serverUrl: serverUrl,
+      id: BigInt.from(region.id),
+      expectedVersion: BigInt.from(region.version),
+      name: title,
+      positionMs: BigInt.from(positionMs),
+    ),
   );
+
+  /// A refusal because someone else changed the marker first becomes a
+  /// [MarkerConflictException]; the Rust client core reports it as `conflict`.
+  static Future<void> _write(Future<void> Function() call) async {
+    try {
+      await call();
+    } on Object catch (error) {
+      if (error == _conflictReason) throw const MarkerConflictException();
+      rethrow;
+    }
+  }
 }

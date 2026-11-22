@@ -23,7 +23,7 @@ use std::{
 use tokio::io::AsyncWriteExt;
 use veltrunox_core::{Capability, RecordingTitle};
 use veltrunox_protocol::{FILE_NAME_HEADER, UploadedRecordingDto};
-use veltrunox_server_app::{MediaCatalog, StorageError};
+use veltrunox_server_app::{MediaCatalog, PlaybackBroadcast, StorageError};
 
 /// Prefix of files that are still being received; they are never part of the library.
 const TEMPORARY_PREFIX: &str = ".upload-";
@@ -190,6 +190,7 @@ pub(crate) async fn upload(
     if !existing {
         // The file now lives in the store; a duplicate's temporary file is removed on drop.
         temporary.keep();
+        app.hub.library_changed();
         app.analysis_queue.enqueue(recording.id);
     }
     let status = if existing {

@@ -22,6 +22,7 @@ class _FakeSource with NoRecordingActions implements RecordingSource {
 
   final Future<List<RecordingSummary>> Function() result;
   final changes = StreamController<int>.broadcast();
+  final libraryChanged = StreamController<void>.broadcast();
   final reanalysed = <int>[];
 
   @override
@@ -29,6 +30,9 @@ class _FakeSource with NoRecordingActions implements RecordingSource {
 
   @override
   Stream<int> analysisChanges() => changes.stream;
+
+  @override
+  Stream<void> libraryChanges() => libraryChanged.stream;
 
   @override
   Future<void> reanalyse(int recordingId) async => reanalysed.add(recordingId);
@@ -273,7 +277,7 @@ void main() {
     );
     await _pumpFrames(tester);
 
-    expect(find.text('Analyse läuft …'), findsOneWidget);
+    expect(find.text('Analyse läuft … 0 %'), findsOneWidget);
     expect(find.text('Analyse fehlgeschlagen: zu kurz'), findsOneWidget);
   });
 
@@ -302,13 +306,58 @@ void main() {
     );
     await tester.pumpWidget(_app(source));
     await _pumpFrames(tester);
-    expect(find.text('Analyse läuft …'), findsOneWidget);
+    expect(find.text('Analyse läuft … 0 %'), findsOneWidget);
 
     analysed = true;
     source.changes.add(1);
     await tester.pumpAndSettle();
 
     expect(find.text('A-Moll · 90,0 bpm · 440,0 Hz'), findsOneWidget);
+  });
+
+  testWidgets('a running analysis shows how far it has come', (tester) async {
+    final source = _FakeSource(
+      () async => [
+        const RecordingSummary(
+          id: 1,
+          title: 'Soundcheck',
+          lengthMs: 95000,
+          analysis: AnalysisInfo(status: AnalysisStatus.running, percent: 40),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(source));
+    await _pumpFrames(tester);
+
+    expect(find.text('Analyse läuft … 40 %'), findsOneWidget);
+
+    await tester.tap(find.text('Soundcheck'));
+    await _pumpFrames(tester);
+    expect(
+      find.textContaining('Länge: 1:35', findRichText: true),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a change of the library by another client reloads the list', (
+    tester,
+  ) async {
+    var titles = ['Soundcheck'];
+    final source = _FakeSource(
+      () async => [
+        for (final (index, title) in titles.indexed)
+          RecordingSummary(id: index + 1, title: title),
+      ],
+    );
+    await tester.pumpWidget(_app(source));
+    await _pumpFrames(tester);
+    expect(find.text('Soundcheck'), findsOneWidget);
+
+    titles = ['Soundcheck', 'Zugabe'];
+    source.libraryChanged.add(null);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Zugabe'), findsOneWidget);
   });
 
   testWidgets('the details ask for a new analysis', (tester) async {

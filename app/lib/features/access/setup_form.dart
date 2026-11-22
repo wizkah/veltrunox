@@ -72,7 +72,7 @@ class _SetupFormState extends State<SetupForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(AccessTexts.setupHint),
+          Text(AccessTexts.setupHint),
           const SizedBox(height: AppSpace.s4),
           FailureNotice(failure: widget.failure),
           TextField(

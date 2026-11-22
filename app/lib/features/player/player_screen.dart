@@ -17,6 +17,8 @@ class PlayerScreen extends ConsumerWidget {
     required this.onChooseRecording,
     this.title,
     this.analysis,
+    this.lengthMs,
+    this.connected = true,
     this.markers,
     this.markerOpener,
     this.waveform,
@@ -29,6 +31,12 @@ class PlayerScreen extends ConsumerWidget {
   /// Name of the loaded recording, once the library knows it.
   final String? title;
   final PlayerAnalysis? analysis;
+
+  /// Length of the loaded recording, once the server has scanned it.
+  final int? lengthMs;
+
+  /// Whether the server is connected; without it the controls are disabled.
+  final bool connected;
   final Widget? markers;
   final Widget? markerOpener;
 
@@ -51,7 +59,7 @@ class PlayerScreen extends ConsumerWidget {
     final state = ref.watch(playerStateProvider);
     final loaded = state.value;
     if (loaded == null) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(AppSpace.s6),
           child: Text(PlayerTexts.waiting),
@@ -67,6 +75,8 @@ class PlayerScreen extends ConsumerWidget {
         final controls = PlayerControls(
           state: loaded,
           analysis: analysis,
+          lengthMs: lengthMs,
+          connected: connected,
           above: _aboveTransport(showMarkerOpener: !beside),
           showPositionSlider: waveform == null,
         );

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1144639265;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 702254679;
 
 // Section: executor
 
@@ -735,45 +735,6 @@ fn wire__crate__api__reanalyse_recording_impl(
                         let output_ok =
                             crate::api::reanalyse_recording(api_server_url, api_recording_id)
                                 .await?;
-                        std::result::Result::Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__recording_length_ms_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "recording_length_ms",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_server_url = <String>::sse_decode(&mut deserializer);
-            let api_recording_id = <u64>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| async move {
-                transform_result_sse::<_, ()>(
-                    (move || async move {
-                        let output_ok = Ok::<_, ()>(
-                            crate::api::recording_length_ms(api_server_url, api_recording_id).await,
-                        )?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -1932,13 +1893,17 @@ impl SseDecode for crate::api::RecordingItem {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <u64>::sse_decode(deserializer);
         let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_lengthMs = <Option<u64>>::sse_decode(deserializer);
         let mut var_analysisState = <crate::api::AnalysisState>::sse_decode(deserializer);
+        let mut var_analysisPercent = <u8>::sse_decode(deserializer);
         let mut var_analysisFailure = <Option<String>>::sse_decode(deserializer);
         let mut var_analysis = <Option<crate::api::AnalysisValues>>::sse_decode(deserializer);
         return crate::api::RecordingItem {
             id: var_id,
             title: var_title,
+            length_ms: var_lengthMs,
             analysis_state: var_analysisState,
+            analysis_percent: var_analysisPercent,
             analysis_failure: var_analysisFailure,
             analysis: var_analysis,
         };
@@ -2026,14 +1991,17 @@ impl SseDecode for crate::api::SessionUpdate {
                 };
             }
             4 => {
+                return crate::api::SessionUpdate::LibraryChanged;
+            }
+            5 => {
                 let mut var_reason = <String>::sse_decode(deserializer);
                 return crate::api::SessionUpdate::Rejected { reason: var_reason };
             }
-            5 => {
+            6 => {
                 let mut var_rights = <crate::api::RightsInfo>::sse_decode(deserializer);
                 return crate::api::SessionUpdate::Rights { rights: var_rights };
             }
-            6 => {
+            7 => {
                 let mut var_available = <bool>::sse_decode(deserializer);
                 return crate::api::SessionUpdate::AudioOutput {
                     available: var_available,
@@ -2190,25 +2158,24 @@ fn pde_ffi_dispatcher_primary_impl(
         15 => wire__crate__api__list_users_impl(port, ptr, rust_vec_len, data_len),
         16 => wire__crate__api__playback_position_ms_impl(port, ptr, rust_vec_len, data_len),
         17 => wire__crate__api__reanalyse_recording_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__recording_length_ms_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__recording_waveform_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__region_to_label_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__remove_label_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__remove_region_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__remove_user_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__rename_recording_to_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__resume_sign_in_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__scrub_to_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__send_command_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__set_up_admin_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__sign_in_with_password_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__sign_out_now_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__speed_for_target_bpm_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__switch_guest_access_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__switch_password_policy_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__tuning_supported_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__upload_recording_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__watch_session_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__recording_waveform_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__region_to_label_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__remove_label_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__remove_region_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__remove_user_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__rename_recording_to_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__resume_sign_in_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__scrub_to_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__send_command_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__set_up_admin_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__sign_in_with_password_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__sign_out_now_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__speed_for_target_bpm_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__switch_guest_access_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__switch_password_policy_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__tuning_supported_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__upload_recording_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__watch_session_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2484,7 +2451,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::RecordingItem {
         [
             self.id.into_into_dart().into_dart(),
             self.title.into_into_dart().into_dart(),
+            self.length_ms.into_into_dart().into_dart(),
             self.analysis_state.into_into_dart().into_dart(),
+            self.analysis_percent.into_into_dart().into_dart(),
             self.analysis_failure.into_into_dart().into_dart(),
             self.analysis.into_into_dart().into_dart(),
         ]
@@ -2571,14 +2540,15 @@ impl flutter_rust_bridge::IntoDart for crate::api::SessionUpdate {
             crate::api::SessionUpdate::AnalysisChanged { recording_id } => {
                 [3.into_dart(), recording_id.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::SessionUpdate::LibraryChanged => [4.into_dart()].into_dart(),
             crate::api::SessionUpdate::Rejected { reason } => {
-                [4.into_dart(), reason.into_into_dart().into_dart()].into_dart()
+                [5.into_dart(), reason.into_into_dart().into_dart()].into_dart()
             }
             crate::api::SessionUpdate::Rights { rights } => {
-                [5.into_dart(), rights.into_into_dart().into_dart()].into_dart()
+                [6.into_dart(), rights.into_into_dart().into_dart()].into_dart()
             }
             crate::api::SessionUpdate::AudioOutput { available } => {
-                [6.into_dart(), available.into_into_dart().into_dart()].into_dart()
+                [7.into_dart(), available.into_into_dart().into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -3097,7 +3067,9 @@ impl SseEncode for crate::api::RecordingItem {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u64>::sse_encode(self.id, serializer);
         <String>::sse_encode(self.title, serializer);
+        <Option<u64>>::sse_encode(self.length_ms, serializer);
         <crate::api::AnalysisState>::sse_encode(self.analysis_state, serializer);
+        <u8>::sse_encode(self.analysis_percent, serializer);
         <Option<String>>::sse_encode(self.analysis_failure, serializer);
         <Option<crate::api::AnalysisValues>>::sse_encode(self.analysis, serializer);
     }
@@ -3165,16 +3137,19 @@ impl SseEncode for crate::api::SessionUpdate {
                 <i32>::sse_encode(3, serializer);
                 <u64>::sse_encode(recording_id, serializer);
             }
-            crate::api::SessionUpdate::Rejected { reason } => {
+            crate::api::SessionUpdate::LibraryChanged => {
                 <i32>::sse_encode(4, serializer);
+            }
+            crate::api::SessionUpdate::Rejected { reason } => {
+                <i32>::sse_encode(5, serializer);
                 <String>::sse_encode(reason, serializer);
             }
             crate::api::SessionUpdate::Rights { rights } => {
-                <i32>::sse_encode(5, serializer);
+                <i32>::sse_encode(6, serializer);
                 <crate::api::RightsInfo>::sse_encode(rights, serializer);
             }
             crate::api::SessionUpdate::AudioOutput { available } => {
-                <i32>::sse_encode(6, serializer);
+                <i32>::sse_encode(7, serializer);
                 <bool>::sse_encode(available, serializer);
             }
             _ => {

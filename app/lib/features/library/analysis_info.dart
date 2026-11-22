@@ -24,9 +24,13 @@ class AnalysisInfo {
     this.status = AnalysisStatus.none,
     this.failure,
     this.values,
+    this.percent = 0,
   });
 
   final AnalysisStatus status;
+
+  /// How far a running analysis has come, 0 to 100.
+  final int percent;
 
   /// Why the analysis failed; only set in [AnalysisStatus.failed].
   final String? failure;

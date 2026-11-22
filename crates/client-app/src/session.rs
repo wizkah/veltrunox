@@ -17,6 +17,8 @@ pub enum ServerEvent {
     BookmarksChanged(RecordingId),
     /// The analysis status or result of this recording changed.
     AnalysisChanged(RecordingId),
+    /// Recordings were added, renamed or removed.
+    LibraryChanged,
     /// Whether the server can play sound.
     AudioOutput(bool),
     /// The server accepted the sign-in of the channel.
@@ -30,6 +32,7 @@ pub enum ViewChange {
     PlaybackState,
     BookmarksChanged(RecordingId),
     AnalysisChanged(RecordingId),
+    LibraryChanged,
     AudioOutput,
     Rejected(String),
     /// The rights of the signed-in person, for the interface.
@@ -103,6 +106,7 @@ impl SessionView {
             ServerEvent::Rejected(reason) => ViewChange::Rejected(reason),
             ServerEvent::BookmarksChanged(recording) => ViewChange::BookmarksChanged(recording),
             ServerEvent::AnalysisChanged(recording) => ViewChange::AnalysisChanged(recording),
+            ServerEvent::LibraryChanged => ViewChange::LibraryChanged,
             ServerEvent::Authenticated(rights) => ViewChange::Rights(rights),
             ServerEvent::AudioOutput(available) => {
                 if self.audio_output.replace(available) == Some(available) {
@@ -216,6 +220,15 @@ mod tests {
             scrubbing: false,
             volume: Volume::default(),
         }
+    }
+
+    #[test]
+    fn a_library_notice_reaches_the_interface() {
+        let mut view = SessionView::new();
+        assert_eq!(
+            view.handle(ServerEvent::LibraryChanged, Millis::new(0)),
+            ViewChange::LibraryChanged
+        );
     }
 
     #[test]

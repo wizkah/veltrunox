@@ -49,7 +49,7 @@ class UserRow extends StatelessWidget {
           onChanged: (role) {
             if (role != null && role != user.role) onRole(role);
           },
-          items: const [
+          items: [
             DropdownMenuItem(
               value: UserRole.user,
               child: Text(UsersTexts.roleUser),

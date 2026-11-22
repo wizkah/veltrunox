@@ -161,4 +161,8 @@ impl PlaybackBroadcast for Fanout {
             .iter()
             .for_each(|target| target.analysis_changed(recording));
     }
+
+    fn library_changed(&self) {
+        self.0.iter().for_each(|target| target.library_changed());
+    }
 }

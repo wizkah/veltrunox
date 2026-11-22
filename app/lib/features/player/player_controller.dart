@@ -70,16 +70,6 @@ final audioOutputProvider = StreamProvider<bool>(
   (ref) => ref.watch(playerSourceProvider).audioOutput(),
 );
 
-/// The length of a recording in milliseconds. It comes from the scan that also
-/// yields the analysis, so it is only asked for once the recording is `scanned`
-/// (no request that is bound to fail); `null` before.
-final playerLengthProvider =
-    FutureProvider.family<int?, ({int recordingId, bool scanned})>(
-      (ref, key) => key.scanned
-          ? ref.watch(playerSourceProvider).recordingLength(key.recordingId)
-          : Future.value(),
-    );
-
 /// Turns user actions into commands for the shared player.
 final playerControllerProvider = Provider<PlayerController>(
   (ref) => PlayerController(

@@ -107,8 +107,8 @@ class _NewUserFormState extends State<NewUserForm> {
       const SizedBox(height: AppSpace.s2),
       DropdownButtonFormField<UserRole>(
         initialValue: _role,
-        decoration: const InputDecoration(labelText: UsersTexts.role),
-        items: const [
+        decoration: InputDecoration(labelText: UsersTexts.role),
+        items: [
           DropdownMenuItem(
             value: UserRole.user,
             child: Text(UsersTexts.roleUser),

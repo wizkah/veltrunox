@@ -58,7 +58,7 @@ class _SignInFormState extends State<SignInForm> {
             controller: _userName,
             autofillHints: const [AutofillHints.username],
             textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(labelText: AccessTexts.userName),
+            decoration: InputDecoration(labelText: AccessTexts.userName),
           ),
           const SizedBox(height: AppSpace.s3),
           PasswordField(

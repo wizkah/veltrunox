@@ -287,6 +287,8 @@ impl PlaybackBroadcast for AudioPlayback {
     fn analysis_changed(&self, recording: RecordingId) {
         self.send(Input::Analysis(recording));
     }
+
+    fn library_changed(&self) {}
 }
 
 fn run(

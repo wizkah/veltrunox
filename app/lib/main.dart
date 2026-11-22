@@ -1,3 +1,5 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +15,7 @@ import 'bridge/bridge_waveform_source.dart';
 import 'bridge/generated/frb_generated.dart';
 import 'features/access/access_controller.dart';
 import 'features/connection/connection_controller.dart';
+import 'features/language/language_controller.dart';
 import 'features/library/audio_file_picker.dart';
 import 'features/library/library_controller.dart';
 import 'features/markers/marker_controller.dart';
@@ -20,6 +23,8 @@ import 'features/player/player_controller.dart';
 import 'features/users/users_controller.dart';
 import 'features/waveform/waveform_source.dart';
 import 'platform/file_picker_adapter.dart';
+import 'shared_ui/app_language.dart';
+import 'storage/shared_preferences_language_store.dart';
 import 'storage/shared_preferences_token_store.dart';
 
 const _configuredServerUrl = String.fromEnvironment('VELTRUNOX_SERVER_URL');
@@ -38,9 +43,17 @@ Future<void> main() async {
   await RustLib.init();
   final serverUrl = _resolveServerUrl();
   final session = BridgeSession(serverUrl: serverUrl);
+  final languageStore = SharedPreferencesLanguageStore();
+  // The language chosen earlier, else the one of the device, else English.
+  final language =
+      await languageStore.read() ??
+      AppLanguage.fromCode(PlatformDispatcher.instance.locale.languageCode) ??
+      AppLanguage.en;
   runApp(
     ProviderScope(
       overrides: [
+        languageStoreProvider.overrideWithValue(languageStore),
+        initialLanguageProvider.overrideWithValue(language),
         accessSourceProvider.overrideWithValue(
           BridgeAccessSource(serverUrl: serverUrl, session: session),
         ),

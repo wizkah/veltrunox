@@ -27,8 +27,6 @@ abstract interface class PlayerSource {
   /// The position handle is let go at `positionMs`; always reaches the server.
   Future<void> endScrub(int positionMs);
 
-  /// The length of the recording in milliseconds; `null` while it has no scan.
-  Future<int?> recordingLength(int recordingId);
   Future<void> setSpeed(double speed);
   Future<void> setTuning(double hertz);
   Future<void> setKey(int semitones);

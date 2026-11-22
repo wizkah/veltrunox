@@ -1,6 +1,8 @@
-/// User-visible texts of the app shell (German for now).
+import '../shared_ui/app_language.dart';
+
+/// User-visible texts of the app shell.
 abstract final class ShellTexts {
   static const appName = 'Veltrunox';
-  static const player = 'Player';
-  static const library = 'Bibliothek';
+  static String get player => tr('Player', 'Player');
+  static String get library => tr('Bibliothek', 'Library');
 }

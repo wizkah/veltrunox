@@ -1,4 +1,4 @@
-/// Where an upload stands. There is one at a time.
+/// Where an upload stands. One batch of files is sent at a time.
 sealed class UploadState {
   const UploadState();
 }
@@ -7,11 +7,14 @@ class UploadIdle extends UploadState {
   const UploadIdle();
 }
 
-/// The file is on its way. The browser reports no byte count, so no percentage.
+/// A file is on its way (number [position] of [total], counted from 1). The
+/// browser reports no byte count, so no percentage.
 class UploadSending extends UploadState {
-  const UploadSending(this.fileName);
+  const UploadSending(this.fileName, {this.position = 1, this.total = 1});
 
   final String fileName;
+  final int position;
+  final int total;
 }
 
 class UploadDone extends UploadState {
@@ -28,4 +31,19 @@ class UploadFailed extends UploadState {
 
   final String fileName;
   final String reason;
+}
+
+/// Several files were sent; some may have been refused.
+class UploadBatchDone extends UploadState {
+  const UploadBatchDone({
+    required this.uploaded,
+    required this.existing,
+    required this.failures,
+  });
+
+  final int uploaded;
+
+  /// Files whose audio was in the library already.
+  final int existing;
+  final List<UploadFailed> failures;
 }

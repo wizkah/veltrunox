@@ -1,7 +1,13 @@
-/// Turns the English reasons the server gives for a refusal into German
-/// sentences. Unknown reasons come back as they are, so nothing is lost.
+import 'app_language.dart';
+
+/// Turns the English reasons the server gives for a refusal into the language
+/// of the interface. In English the server's own wording stands (with a full
+/// stop); a reason without a translation comes back as it is, so nothing is
+/// lost.
 String serverReasonText(String reason) {
   final text = reason.trim();
+  final german = AppLanguage.current == AppLanguage.de;
+  if (!german) return _sentence(text);
   final known = _exact[text];
   if (known != null) return known;
   for (final rule in _patterns) {
@@ -9,6 +15,13 @@ String serverReasonText(String reason) {
     if (match != null) return rule.build(match);
   }
   return text;
+}
+
+/// The reason as a sentence: capital first letter, full stop at the end.
+String _sentence(String text) {
+  if (text.isEmpty) return text;
+  final capital = text[0].toUpperCase() + text.substring(1);
+  return RegExp(r'[.!?]$').hasMatch(capital) ? capital : '$capital.';
 }
 
 const _exact = <String, String>{
@@ -61,6 +74,15 @@ const _exact = <String, String>{
   'the file name is empty': 'Der Dateiname ist leer.',
   'uploading is not set up on this server':
       'Der Upload ist auf diesem Server nicht eingerichtet.',
+  'the recording is too short to analyse':
+      'Die Aufnahme ist zu kurz für die Analyse.',
+  'the recording has no tonal content to find a key in': 'Die Aufnahme hat keinen Klanginhalt, in dem sich eine Tonart finden ließe.',
+  'the recording has no rhythmic structure to find a tempo in':
+      'Die Aufnahme hat keinen Rhythmus, in dem sich ein Tempo finden ließe.',
+  'the recording has no audio file': 'Zur Aufnahme gibt es keine Audiodatei.',
+  'unrecognised message': 'Die Nachricht wurde nicht verstanden.',
+  'binary messages are not supported':
+      'Binäre Nachrichten werden nicht unterstützt.',
 };
 
 typedef _Rule = ({RegExp pattern, String Function(RegExpMatch) build});
@@ -81,6 +103,15 @@ final _patterns = <_Rule>[
   (
     pattern: RegExp(r'^the file is larger than the limit of (\d+) MB$'),
     build: (m) => 'Die Datei ist größer als das Limit von ${m[1]} MB.',
+  ),
+  (
+    pattern: RegExp(r'^cannot read the file'),
+    build: (_) => 'Die Datei lässt sich nicht lesen.',
+  ),
+  (
+    pattern: RegExp(r'^unsupported or damaged audio'),
+    build: (_) =>
+        'Das Audioformat wird nicht unterstützt oder die Datei ist beschädigt.',
   ),
   (
     pattern: RegExp(r'^this is not audio the server can read'),

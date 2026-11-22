@@ -1320,14 +1320,15 @@ extension SessionUpdatePatterns on SessionUpdate {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SessionUpdate_Connection value)?  connection,TResult Function( SessionUpdate_Playback value)?  playback,TResult Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult Function( SessionUpdate_AnalysisChanged value)?  analysisChanged,TResult Function( SessionUpdate_Rejected value)?  rejected,TResult Function( SessionUpdate_Rights value)?  rights,TResult Function( SessionUpdate_AudioOutput value)?  audioOutput,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SessionUpdate_Connection value)?  connection,TResult Function( SessionUpdate_Playback value)?  playback,TResult Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult Function( SessionUpdate_AnalysisChanged value)?  analysisChanged,TResult Function( SessionUpdate_LibraryChanged value)?  libraryChanged,TResult Function( SessionUpdate_Rejected value)?  rejected,TResult Function( SessionUpdate_Rights value)?  rights,TResult Function( SessionUpdate_AudioOutput value)?  audioOutput,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that);case SessionUpdate_Playback() when playback != null:
 return playback(_that);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
 return bookmarksChanged(_that);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
-return analysisChanged(_that);case SessionUpdate_Rejected() when rejected != null:
+return analysisChanged(_that);case SessionUpdate_LibraryChanged() when libraryChanged != null:
+return libraryChanged(_that);case SessionUpdate_Rejected() when rejected != null:
 return rejected(_that);case SessionUpdate_Rights() when rights != null:
 return rights(_that);case SessionUpdate_AudioOutput() when audioOutput != null:
 return audioOutput(_that);case _:
@@ -1348,14 +1349,15 @@ return audioOutput(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SessionUpdate_Connection value)  connection,required TResult Function( SessionUpdate_Playback value)  playback,required TResult Function( SessionUpdate_BookmarksChanged value)  bookmarksChanged,required TResult Function( SessionUpdate_AnalysisChanged value)  analysisChanged,required TResult Function( SessionUpdate_Rejected value)  rejected,required TResult Function( SessionUpdate_Rights value)  rights,required TResult Function( SessionUpdate_AudioOutput value)  audioOutput,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SessionUpdate_Connection value)  connection,required TResult Function( SessionUpdate_Playback value)  playback,required TResult Function( SessionUpdate_BookmarksChanged value)  bookmarksChanged,required TResult Function( SessionUpdate_AnalysisChanged value)  analysisChanged,required TResult Function( SessionUpdate_LibraryChanged value)  libraryChanged,required TResult Function( SessionUpdate_Rejected value)  rejected,required TResult Function( SessionUpdate_Rights value)  rights,required TResult Function( SessionUpdate_AudioOutput value)  audioOutput,}){
 final _that = this;
 switch (_that) {
 case SessionUpdate_Connection():
 return connection(_that);case SessionUpdate_Playback():
 return playback(_that);case SessionUpdate_BookmarksChanged():
 return bookmarksChanged(_that);case SessionUpdate_AnalysisChanged():
-return analysisChanged(_that);case SessionUpdate_Rejected():
+return analysisChanged(_that);case SessionUpdate_LibraryChanged():
+return libraryChanged(_that);case SessionUpdate_Rejected():
 return rejected(_that);case SessionUpdate_Rights():
 return rights(_that);case SessionUpdate_AudioOutput():
 return audioOutput(_that);}
@@ -1372,14 +1374,15 @@ return audioOutput(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SessionUpdate_Connection value)?  connection,TResult? Function( SessionUpdate_Playback value)?  playback,TResult? Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult? Function( SessionUpdate_AnalysisChanged value)?  analysisChanged,TResult? Function( SessionUpdate_Rejected value)?  rejected,TResult? Function( SessionUpdate_Rights value)?  rights,TResult? Function( SessionUpdate_AudioOutput value)?  audioOutput,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SessionUpdate_Connection value)?  connection,TResult? Function( SessionUpdate_Playback value)?  playback,TResult? Function( SessionUpdate_BookmarksChanged value)?  bookmarksChanged,TResult? Function( SessionUpdate_AnalysisChanged value)?  analysisChanged,TResult? Function( SessionUpdate_LibraryChanged value)?  libraryChanged,TResult? Function( SessionUpdate_Rejected value)?  rejected,TResult? Function( SessionUpdate_Rights value)?  rights,TResult? Function( SessionUpdate_AudioOutput value)?  audioOutput,}){
 final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that);case SessionUpdate_Playback() when playback != null:
 return playback(_that);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
 return bookmarksChanged(_that);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
-return analysisChanged(_that);case SessionUpdate_Rejected() when rejected != null:
+return analysisChanged(_that);case SessionUpdate_LibraryChanged() when libraryChanged != null:
+return libraryChanged(_that);case SessionUpdate_Rejected() when rejected != null:
 return rejected(_that);case SessionUpdate_Rights() when rights != null:
 return rights(_that);case SessionUpdate_AudioOutput() when audioOutput != null:
 return audioOutput(_that);case _:
@@ -1399,13 +1402,14 @@ return audioOutput(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ConnectionState field0)?  connection,TResult Function( PlaybackView field0)?  playback,TResult Function( BigInt recordingId)?  bookmarksChanged,TResult Function( BigInt recordingId)?  analysisChanged,TResult Function( String reason)?  rejected,TResult Function( RightsInfo rights)?  rights,TResult Function( bool available)?  audioOutput,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ConnectionState field0)?  connection,TResult Function( PlaybackView field0)?  playback,TResult Function( BigInt recordingId)?  bookmarksChanged,TResult Function( BigInt recordingId)?  analysisChanged,TResult Function()?  libraryChanged,TResult Function( String reason)?  rejected,TResult Function( RightsInfo rights)?  rights,TResult Function( bool available)?  audioOutput,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that.field0);case SessionUpdate_Playback() when playback != null:
 return playback(_that.field0);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
 return bookmarksChanged(_that.recordingId);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
-return analysisChanged(_that.recordingId);case SessionUpdate_Rejected() when rejected != null:
+return analysisChanged(_that.recordingId);case SessionUpdate_LibraryChanged() when libraryChanged != null:
+return libraryChanged();case SessionUpdate_Rejected() when rejected != null:
 return rejected(_that.reason);case SessionUpdate_Rights() when rights != null:
 return rights(_that.rights);case SessionUpdate_AudioOutput() when audioOutput != null:
 return audioOutput(_that.available);case _:
@@ -1426,13 +1430,14 @@ return audioOutput(_that.available);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ConnectionState field0)  connection,required TResult Function( PlaybackView field0)  playback,required TResult Function( BigInt recordingId)  bookmarksChanged,required TResult Function( BigInt recordingId)  analysisChanged,required TResult Function( String reason)  rejected,required TResult Function( RightsInfo rights)  rights,required TResult Function( bool available)  audioOutput,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ConnectionState field0)  connection,required TResult Function( PlaybackView field0)  playback,required TResult Function( BigInt recordingId)  bookmarksChanged,required TResult Function( BigInt recordingId)  analysisChanged,required TResult Function()  libraryChanged,required TResult Function( String reason)  rejected,required TResult Function( RightsInfo rights)  rights,required TResult Function( bool available)  audioOutput,}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection():
 return connection(_that.field0);case SessionUpdate_Playback():
 return playback(_that.field0);case SessionUpdate_BookmarksChanged():
 return bookmarksChanged(_that.recordingId);case SessionUpdate_AnalysisChanged():
-return analysisChanged(_that.recordingId);case SessionUpdate_Rejected():
+return analysisChanged(_that.recordingId);case SessionUpdate_LibraryChanged():
+return libraryChanged();case SessionUpdate_Rejected():
 return rejected(_that.reason);case SessionUpdate_Rights():
 return rights(_that.rights);case SessionUpdate_AudioOutput():
 return audioOutput(_that.available);}
@@ -1449,13 +1454,14 @@ return audioOutput(_that.available);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ConnectionState field0)?  connection,TResult? Function( PlaybackView field0)?  playback,TResult? Function( BigInt recordingId)?  bookmarksChanged,TResult? Function( BigInt recordingId)?  analysisChanged,TResult? Function( String reason)?  rejected,TResult? Function( RightsInfo rights)?  rights,TResult? Function( bool available)?  audioOutput,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ConnectionState field0)?  connection,TResult? Function( PlaybackView field0)?  playback,TResult? Function( BigInt recordingId)?  bookmarksChanged,TResult? Function( BigInt recordingId)?  analysisChanged,TResult? Function()?  libraryChanged,TResult? Function( String reason)?  rejected,TResult? Function( RightsInfo rights)?  rights,TResult? Function( bool available)?  audioOutput,}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that.field0);case SessionUpdate_Playback() when playback != null:
 return playback(_that.field0);case SessionUpdate_BookmarksChanged() when bookmarksChanged != null:
 return bookmarksChanged(_that.recordingId);case SessionUpdate_AnalysisChanged() when analysisChanged != null:
-return analysisChanged(_that.recordingId);case SessionUpdate_Rejected() when rejected != null:
+return analysisChanged(_that.recordingId);case SessionUpdate_LibraryChanged() when libraryChanged != null:
+return libraryChanged();case SessionUpdate_Rejected() when rejected != null:
 return rejected(_that.reason);case SessionUpdate_Rights() when rights != null:
 return rights(_that.rights);case SessionUpdate_AudioOutput() when audioOutput != null:
 return audioOutput(_that.available);case _:
@@ -1737,6 +1743,38 @@ as BigInt,
 
 
 }
+
+/// @nodoc
+
+
+class SessionUpdate_LibraryChanged extends SessionUpdate {
+  const SessionUpdate_LibraryChanged(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionUpdate_LibraryChanged);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'SessionUpdate.libraryChanged()';
+}
+
+
+}
+
+
+
 
 /// @nodoc
 

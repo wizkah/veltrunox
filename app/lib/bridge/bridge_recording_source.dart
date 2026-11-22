@@ -23,6 +23,9 @@ class BridgeRecordingSource implements RecordingSource {
   Stream<int> analysisChanges() => session.analysisChanges();
 
   @override
+  Stream<void> libraryChanges() => session.libraryChanges();
+
+  @override
   Future<void> reanalyse(int recordingId) => rust.reanalyseRecording(
     serverUrl: serverUrl,
     recordingId: BigInt.from(recordingId),
@@ -73,6 +76,7 @@ class BridgeRecordingSource implements RecordingSource {
   static RecordingSummary _summary(rust.RecordingItem item) => RecordingSummary(
     id: item.id.toInt(),
     title: item.title,
+    lengthMs: item.lengthMs?.toInt(),
     analysis: AnalysisInfo(
       status: switch (item.analysisState) {
         rust.AnalysisState.none => AnalysisStatus.none,
@@ -81,6 +85,7 @@ class BridgeRecordingSource implements RecordingSource {
         rust.AnalysisState.failed => AnalysisStatus.failed,
         rust.AnalysisState.done => AnalysisStatus.done,
       },
+      percent: item.analysisPercent,
       failure: item.analysisFailure,
       values: item.analysis.let(
         (values) => AnalysisValues(

@@ -178,6 +178,7 @@ async fn wait_for_scan(url: &str, id: u64) -> Value {
 #[tokio::test]
 async fn an_uploaded_file_becomes_a_recording_that_gets_scanned() {
     let server = open_server("create", 1 << 20).await;
+    let mut notices = server.app.hub.subscribe_library();
     let (status, body) = upload(&server.url, None, "Blue%20Monday.wav", wav(3, 440.0)).await;
     assert_eq!(status, StatusCode::CREATED);
     let created = json_of(&body);
@@ -185,8 +186,13 @@ async fn an_uploaded_file_becomes_a_recording_that_gets_scanned() {
     assert_eq!(created["existing"], false);
     let id = created["id"].as_u64().unwrap();
 
+    assert!(
+        notices.try_recv().is_ok(),
+        "the library change is announced"
+    );
     let entry = wait_for_scan(&server.url, id).await;
     assert_eq!(entry["title"], "Blue Monday");
+    assert_eq!(entry["length_ms"], 3000);
     let (status, _) = call(
         &server.url,
         Method::GET,
@@ -261,6 +267,7 @@ async fn renaming_changes_the_title_and_rejects_bad_requests() {
     let (_, created) = upload(&server.url, None, "old.wav", wav(1, 440.0)).await;
     let id = json_of(&created)["id"].as_u64().unwrap();
     let path = format!("/api/v1/recordings/{id}");
+    let mut notices = server.app.hub.subscribe_library();
 
     let (status, _) = call(
         &server.url,
@@ -271,6 +278,7 @@ async fn renaming_changes_the_title_and_rejects_bad_requests() {
     )
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
+    assert!(notices.try_recv().is_ok(), "the rename is announced");
     assert_eq!(library(&server.url).await[0]["title"], "New name");
     let (status, _) = call(
         &server.url,

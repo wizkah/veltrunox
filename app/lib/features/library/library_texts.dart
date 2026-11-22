@@ -1,59 +1,113 @@
-/// User-visible texts of the library feature (German for now).
+import '../../shared_ui/app_language.dart';
+import '../../shared_ui/server_reason.dart';
+
+/// User-visible texts of the library feature.
 abstract final class LibraryTexts {
-  static const title = 'Aufnahmen';
-  static const empty = 'Noch keine Aufnahmen.';
-  static const noMatch = 'Keine Aufnahme passt zur Suche.';
-  static const loading = 'Aufnahmen werden geladen …';
-  static const failure = 'Die Aufnahmen konnten nicht geladen werden.';
-  static const retry = 'Erneut versuchen';
-  static const major = 'Dur';
-  static const minor = 'Moll';
-  static const analysisQueued = 'Analyse wartet …';
-  static const analysisRunning = 'Analyse läuft …';
-  static const reanalyse = 'Erneut analysieren';
-  static const search = 'Suchen: Titel, Tonart, Tempo';
-  static const clearSearch = 'Suche löschen';
-  static const sort = 'Sortieren';
-  static const sortTitle = 'Titel';
-  static const sortTempo = 'Tempo';
-  static const sortKey = 'Tonart';
-  static const filterAll = 'Alle';
-  static const filterAnalysed = 'Analysiert';
-  static const filterAnalysing = 'Wird analysiert';
-  static const filterFailed = 'Fehlgeschlagen';
-  static const loaded = 'Im Player geladen';
-  static const openInPlayer = 'Im Player öffnen';
-  static const play = 'Abspielen';
-  static const back = 'Zurück zur Liste';
-  static const keyLabel = 'Tonart';
-  static const tempoLabel = 'Tempo';
-  static const tuningLabel = 'Stimmung';
-  static const notAnalysed = 'Noch nicht analysiert';
+  static String get title => tr('Aufnahmen', 'Recordings');
+  static String get empty => tr('Noch keine Aufnahmen.', 'No recordings yet.');
+  static String get noMatch =>
+      tr('Keine Aufnahme passt zur Suche.', 'No recording matches the search.');
+  static String get loading =>
+      tr('Aufnahmen werden geladen …', 'Loading recordings …');
+  static String get failure => tr(
+    'Die Aufnahmen konnten nicht geladen werden.',
+    'The recordings could not be loaded.',
+  );
+  static String get retry => tr('Erneut versuchen', 'Try again');
+  static String get major => tr('Dur', 'major');
+  static String get minor => tr('Moll', 'minor');
+  static String get analysisQueued =>
+      tr('Analyse wartet …', 'Analysis waiting …');
+  static String analysisRunning(int percent) =>
+      tr('Analyse läuft … $percent %', 'Analysing … $percent %');
+  static String get reanalyse => tr('Erneut analysieren', 'Analyse again');
+  static String get search =>
+      tr('Suchen: Titel, Tonart, Tempo', 'Search: title, key, tempo');
+  static String get clearSearch => tr('Suche löschen', 'Clear search');
+  static String get sort => tr('Sortieren', 'Sort');
+  static String get sortTitle => tr('Titel', 'Title');
+  static String get sortTempo => tr('Tempo', 'Tempo');
+  static String get sortKey => tr('Tonart', 'Key');
+  static String get filterAll => tr('Alle', 'All');
+  static String get filterAnalysed => tr('Analysiert', 'Analysed');
+  static String get filterAnalysing => tr('Wird analysiert', 'Being analysed');
+  static String get filterFailed => tr('Fehlgeschlagen', 'Failed');
+  static String get loaded => tr('Im Player geladen', 'Loaded in the player');
+  static String get openInPlayer =>
+      tr('Im Player öffnen', 'Open in the player');
+  static String get play => tr('Abspielen', 'Play');
+  static String get back => tr('Zurück zur Liste', 'Back to the list');
+  static String get keyLabel => tr('Tonart', 'Key');
+  static String get tempoLabel => tr('Tempo', 'Tempo');
+  static String get tuningLabel => tr('Stimmung', 'Tuning');
+  static String get lengthLabel => tr('Länge', 'Length');
+  static String get notAnalysed =>
+      tr('Noch nicht analysiert', 'Not analysed yet');
 
-  static const upload = 'Aufnahme hochladen';
-  static const uploadDismiss = 'Meldung schließen';
-  static const rename = 'Umbenennen';
-  static const renameTitle = 'Aufnahme umbenennen';
-  static const renameField = 'Titel';
-  static const renameEmpty = 'Der Titel darf nicht leer sein.';
-  static const save = 'Speichern';
-  static const cancel = 'Abbrechen';
-  static const delete = 'Löschen';
-  static const deleteTitle = 'Aufnahme löschen?';
-  static const actionFailed = 'Das ist nicht gelungen';
+  static String get upload => tr('Aufnahmen hochladen', 'Upload recordings');
+  static String get uploadDismiss => tr('Meldung schließen', 'Dismiss message');
+  static String get rename => tr('Umbenennen', 'Rename');
+  static String get renameTitle =>
+      tr('Aufnahme umbenennen', 'Rename recording');
+  static String get renameField => tr('Titel', 'Title');
+  static String get renameEmpty =>
+      tr('Der Titel darf nicht leer sein.', 'The title must not be empty.');
+  static String get save => tr('Speichern', 'Save');
+  static String get cancel => tr('Abbrechen', 'Cancel');
+  static String get delete => tr('Löschen', 'Delete');
+  static String get deleteTitle => tr('Aufnahme löschen?', 'Delete recording?');
+  static String get actionFailed =>
+      tr('Das ist nicht gelungen', 'That did not work');
 
-  static String uploading(String fileName) => 'Wird hochgeladen: $fileName';
-  static String uploaded(String title) => 'Hochgeladen: $title';
-  static String uploadedAlready(String title) =>
-      'Schon vorhanden: $title (nicht noch einmal angelegt)';
+  /// [position] of [total] files, counted from 1; no count for a single file.
+  static String uploading(String fileName, {int position = 1, int total = 1}) {
+    final count = total > 1 ? ' ($position/$total)' : '';
+    return tr(
+      'Wird hochgeladen: $fileName$count',
+      'Uploading: $fileName$count',
+    );
+  }
+
+  static String uploaded(String title) =>
+      tr('Hochgeladen: $title', 'Uploaded: $title');
+  static String uploadedAlready(String title) => tr(
+    'Schon vorhanden: $title (nicht noch einmal angelegt)',
+    'Already there: $title (not added again)',
+  );
   static String uploadFailed(String fileName, String reason) =>
       fileName.isEmpty ? reason : '$fileName: $reason';
-  static String deleteMessage(String title) =>
-      '„$title“ wird mit Markierungen und Analyse für alle gelöscht. '
-      'Das lässt sich nicht rückgängig machen.';
 
-  static String playRecording(String title) => 'Abspielen: $title';
-  static String analysisFailed(String? reason) => reason == null
-      ? 'Analyse fehlgeschlagen'
-      : 'Analyse fehlgeschlagen: $reason';
+  /// The result of uploading several files.
+  static String uploadSummary({
+    required int uploaded,
+    required int existing,
+    required int failed,
+  }) {
+    final de = [
+      if (uploaded > 0) '$uploaded hochgeladen',
+      if (existing > 0) '$existing schon vorhanden',
+      if (failed > 0) '$failed fehlgeschlagen',
+    ];
+    final en = [
+      if (uploaded > 0) '$uploaded uploaded',
+      if (existing > 0) '$existing already there',
+      if (failed > 0) '$failed failed',
+    ];
+    return tr(de.join(', '), en.join(', '));
+  }
+
+  static String deleteMessage(String title) => tr(
+    '„$title“ wird mit Markierungen und Analyse für alle gelöscht. '
+        'Das lässt sich nicht rückgängig machen.',
+    '“$title” is deleted for everyone, with its markers and analysis. '
+        'This cannot be undone.',
+  );
+
+  static String playRecording(String title) =>
+      tr('Abspielen: $title', 'Play: $title');
+  static String analysisFailed(String? reason) {
+    if (reason == null) return tr('Analyse fehlgeschlagen', 'Analysis failed');
+    final shown = serverReasonText(reason);
+    return tr('Analyse fehlgeschlagen: $shown', 'Analysis failed: $shown');
+  }
 }

@@ -18,7 +18,7 @@ mod state;
 mod upload;
 mod users;
 
-pub use analysis::{AnalysisError, analyse};
+pub use analysis::{AnalysisError, analyse, analyse_reporting};
 pub use analysis_worker::{AnalysisQueue, FileAnalyzer};
 pub use audio::{
     AudioPlayback, DecodeError, Engine, Pcm, decode_file, list_output_devices, system_volume,

@@ -7,6 +7,7 @@ import 'composition/library_page.dart';
 import 'composition/player_page.dart';
 import 'design/theme/app_theme.dart';
 import 'features/connection/connection_banner.dart';
+import 'features/language/language_controller.dart';
 import 'composition/shell_status.dart';
 import 'features/access/access_controller.dart';
 import 'features/access/access_gate.dart';
@@ -15,15 +16,22 @@ import 'features/player/audio_output_banner.dart';
 import 'features/player/player_controller.dart';
 import 'features/player/player_notices.dart';
 
-class VeltrunoxApp extends StatelessWidget {
+class VeltrunoxApp extends ConsumerWidget {
   const VeltrunoxApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Veltrunox',
-    theme: buildAppTheme(),
-    home: AccessGate(builder: (_) => const HomePage()),
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final language = ref.watch(appLanguageProvider);
+    // The key builds the whole interface anew after a change of language, so
+    // every text is read again; what the screens know sits in providers.
+    return MaterialApp(
+      key: ValueKey(language),
+      title: 'Veltrunox',
+      locale: Locale(language.code),
+      theme: buildAppTheme(),
+      home: AccessGate(builder: (_) => const HomePage()),
+    );
+  }
 }
 
 /// Composes shell, library and player; the features do not know each other.

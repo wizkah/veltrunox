@@ -83,7 +83,7 @@ class MarkerFlows {
     ToastNotice.show(
       context,
       kind: ToastKind.error,
-      message: MarkerTexts.saveFailed,
+      message: controller.failureMessage,
     );
   }
 }

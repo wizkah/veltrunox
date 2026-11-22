@@ -15,8 +15,8 @@ class GuestAccessSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SwitchListTile(
-    title: const Text(UsersTexts.guestAccess),
-    subtitle: const Text(UsersTexts.guestAccessHint),
+    title: Text(UsersTexts.guestAccess),
+    subtitle: Text(UsersTexts.guestAccessHint),
     value: enabled,
     onChanged: onChanged,
   );

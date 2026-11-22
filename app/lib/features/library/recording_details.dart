@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../design/tokens/app_geometry.dart';
 import '../../shared_ui/action_button.dart';
+import '../../shared_ui/clock_format.dart';
 import 'analysis_format.dart';
 import 'analysis_info.dart';
 import 'analysis_summary.dart';
@@ -48,12 +49,14 @@ class RecordingDetails extends StatelessWidget {
             TextButton.icon(
               onPressed: onBack,
               icon: const Icon(Icons.arrow_back),
-              label: const Text(LibraryTexts.back),
+              label: Text(LibraryTexts.back),
             ),
           Text(recording.title, style: theme.headlineMedium),
           const SizedBox(height: AppSpace.s3),
           AnalysisSummary(analysis: analysis),
           const SizedBox(height: AppSpace.s3),
+          if (recording.lengthMs != null)
+            _Value(LibraryTexts.lengthLabel, formatClock(recording.lengthMs!)),
           ..._values(analysis.values),
           const SizedBox(height: AppSpace.s4),
           Wrap(
@@ -103,7 +106,7 @@ class RecordingDetails extends StatelessWidget {
 
   List<Widget> _values(AnalysisValues? values) {
     if (values == null) {
-      return const [Text(LibraryTexts.notAnalysed)];
+      return [Text(LibraryTexts.notAnalysed)];
     }
     return [
       _Value(

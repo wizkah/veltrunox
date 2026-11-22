@@ -46,13 +46,6 @@ class BridgePlayerSource implements PlayerSource {
       rust.endScrub(positionMs: BigInt.from(positionMs));
 
   @override
-  Future<int?> recordingLength(int recordingId) async =>
-      (await rust.recordingLengthMs(
-        serverUrl: _session.serverUrl,
-        recordingId: BigInt.from(recordingId),
-      ))?.toInt();
-
-  @override
   Future<void> setSpeed(double speed) =>
       _send(rust.PlayerCommand.setSpeed(speed: speed));
 

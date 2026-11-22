@@ -1,3 +1,4 @@
+import '../../shared_ui/app_language.dart';
 import 'analysis_info.dart';
 import 'library_texts.dart';
 
@@ -20,8 +21,8 @@ const _tonics = [
 String keyName(int tonic, {required bool minor}) =>
     '${_tonics[tonic % 12]}-${minor ? LibraryTexts.minor : LibraryTexts.major}';
 
-/// One decimal with a decimal comma, like "96,5".
-String decimal(double value) => value.toStringAsFixed(1).replaceAll('.', ',');
+/// One decimal with the decimal separator of the language, like "96,5".
+String decimal(double value) => decimalText(value);
 
 /// The one line under a recording's title.
 String analysisLine(AnalysisInfo analysis) {
@@ -33,7 +34,7 @@ String analysisLine(AnalysisInfo analysis) {
   }
   return switch (analysis.status) {
     AnalysisStatus.queued => LibraryTexts.analysisQueued,
-    AnalysisStatus.running => LibraryTexts.analysisRunning,
+    AnalysisStatus.running => LibraryTexts.analysisRunning(analysis.percent),
     AnalysisStatus.failed => LibraryTexts.analysisFailed(analysis.failure),
     AnalysisStatus.none || AnalysisStatus.done => '',
   };

@@ -15,8 +15,8 @@ class PasswordPolicySwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SwitchListTile(
-    title: const Text(UsersTexts.strictPasswords),
-    subtitle: const Text(UsersTexts.strictPasswordsHint),
+    title: Text(UsersTexts.strictPasswords),
+    subtitle: Text(UsersTexts.strictPasswordsHint),
     value: strict,
     onChanged: onChanged,
   );

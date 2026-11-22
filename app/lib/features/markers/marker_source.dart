@@ -1,5 +1,10 @@
 import 'marker.dart';
 
+/// A write was refused because someone else changed the marker first (D-19).
+class MarkerConflictException implements Exception {
+  const MarkerConflictException();
+}
+
 /// Port: where the markers of a recording come from and are written to. Every
 /// write names the version the user saw; a stale one fails.
 abstract interface class MarkerSource {

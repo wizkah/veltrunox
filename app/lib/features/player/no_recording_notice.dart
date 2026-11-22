@@ -29,10 +29,7 @@ class NoRecordingNotice extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: AppSpace.s2),
-          const Text(
-            PlayerTexts.nothingSelectedHint,
-            textAlign: TextAlign.center,
-          ),
+          Text(PlayerTexts.nothingSelectedHint, textAlign: TextAlign.center),
           const SizedBox(height: AppSpace.s4),
           ActionButton(label: PlayerTexts.choose, onPressed: onChoose),
         ],

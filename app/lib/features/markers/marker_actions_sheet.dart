@@ -17,12 +17,12 @@ Future<MarkerAction?> showMarkerActions(BuildContext context, Marker marker) =>
             ListTile(title: Text(marker.title)),
             ListTile(
               leading: const Icon(Icons.edit_outlined),
-              title: const Text(MarkerTexts.edit),
+              title: Text(MarkerTexts.edit),
               onTap: () => Navigator.of(context).pop(MarkerAction.edit),
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
-              title: const Text(MarkerTexts.delete),
+              title: Text(MarkerTexts.delete),
               onTap: () => Navigator.of(context).pop(MarkerAction.delete),
             ),
           ],

@@ -75,7 +75,7 @@ class _VolumeControlState extends State<VolumeControl> {
         child: Column(
           children: [
             icon,
-            const Text(PlayerTexts.volume),
+            Text(PlayerTexts.volume),
             const SizedBox(height: AppSpace.s2),
             Expanded(
               child: ConstrainedBox(
@@ -93,7 +93,7 @@ class _VolumeControlState extends State<VolumeControl> {
         children: [
           icon,
           const SizedBox(width: AppSpace.s2),
-          const Text(PlayerTexts.volume),
+          Text(PlayerTexts.volume),
           Expanded(child: _slider(shown)),
           SizedBox(width: 64, child: Text(PlayerTexts.volumeValue(shown))),
         ],

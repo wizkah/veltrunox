@@ -24,6 +24,9 @@ class _Recordings implements RecordingSource {
   Completer<UploadedRecording>? pendingUpload;
   RecordingActionException? failure;
 
+  /// Refuses the first upload only.
+  bool failFirst = false;
+
   @override
   Future<List<RecordingSummary>> listRecordings() async => [
     for (final entry in titles.entries)
@@ -34,6 +37,9 @@ class _Recordings implements RecordingSource {
   Stream<int> analysisChanges() => const Stream.empty();
 
   @override
+  Stream<void> libraryChanges() => const Stream.empty();
+
+  @override
   Future<void> reanalyse(int recordingId) async {}
 
   @override
@@ -41,6 +47,10 @@ class _Recordings implements RecordingSource {
     calls.add('upload $fileName ${content.length}');
     final error = failure;
     if (error != null) return Future.error(error);
+    if (failFirst) {
+      failFirst = false;
+      return Future.error(const RecordingActionException('this is not audio'));
+    }
     final pending = pendingUpload;
     if (pending != null) return pending.future;
     titles[2] = 'New song';
@@ -65,13 +75,16 @@ class _Recordings implements RecordingSource {
 }
 
 class _Picker implements AudioFilePicker {
+  /// Further files chosen together with [next].
+  final more = <PickedAudio>[];
+
   PickedAudio? next = PickedAudio(
     name: 'New song.wav',
     bytes: Uint8List.fromList([1, 2, 3]),
   );
 
   @override
-  Future<PickedAudio?> pick() async => next;
+  Future<List<PickedAudio>> pick() async => [?next, ...more];
 }
 
 class _Connection implements ConnectionSource {
@@ -120,7 +133,7 @@ void main() {
     await tester.pumpWidget(_app(source, _Picker(), _user));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Aufnahme hochladen'));
+    await tester.tap(find.text('Aufnahmen hochladen'));
     await tester.pumpAndSettle();
 
     expect(source.calls, ['upload New song.wav 3']);
@@ -136,11 +149,11 @@ void main() {
     await tester.pumpWidget(_app(source, _Picker(), _user));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Aufnahme hochladen'));
+    await tester.tap(find.text('Aufnahmen hochladen'));
     await tester.pump();
 
     expect(find.text('Wird hochgeladen: New song.wav'), findsOneWidget);
-    await tester.tap(find.text('Aufnahme hochladen'), warnIfMissed: false);
+    await tester.tap(find.text('Aufnahmen hochladen'), warnIfMissed: false);
     await tester.pump();
     expect(source.calls, hasLength(1));
   });
@@ -154,13 +167,53 @@ void main() {
     await tester.pumpWidget(_app(source, _Picker(), _user));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Aufnahme hochladen'));
+    await tester.tap(find.text('Aufnahmen hochladen'));
     await tester.pumpAndSettle();
 
     expect(find.text('New song.wav: this is not audio'), findsOneWidget);
     await tester.tap(find.byTooltip('Meldung schließen'));
     await tester.pump();
     expect(find.text('New song.wav: this is not audio'), findsNothing);
+  });
+
+  testWidgets('several files are sent one after the other and summed up', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1400, 900);
+    addTearDown(tester.view.reset);
+    final source = _Recordings();
+    final picker = _Picker()
+      ..more.add(PickedAudio(name: 'Second.wav', bytes: Uint8List(5)));
+    await tester.pumpWidget(_app(source, picker, _user));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Aufnahmen hochladen'));
+    await tester.pumpAndSettle();
+
+    expect(source.calls, ['upload New song.wav 3', 'upload Second.wav 5']);
+    expect(find.text('2 hochgeladen'), findsOneWidget);
+  });
+
+  testWidgets('a refused file does not stop the others', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1400, 900);
+    addTearDown(tester.view.reset);
+    final source = _Recordings()..failFirst = true;
+    final picker = _Picker()
+      ..more.add(PickedAudio(name: 'Second.wav', bytes: Uint8List(5)));
+    await tester.pumpWidget(_app(source, picker, _user));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Aufnahmen hochladen'));
+    await tester.pumpAndSettle();
+
+    expect(source.calls, hasLength(2));
+    expect(
+      find.textContaining('1 hochgeladen, 1 fehlgeschlagen'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('New song.wav: this is not audio'), findsOne);
   });
 
   testWidgets('cancelling the file dialog sends nothing', (tester) async {
@@ -171,7 +224,7 @@ void main() {
     await tester.pumpWidget(_app(source, _Picker()..next = null, _user));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Aufnahme hochladen'));
+    await tester.tap(find.text('Aufnahmen hochladen'));
     await tester.pumpAndSettle();
 
     expect(source.calls, isEmpty);
@@ -186,7 +239,7 @@ void main() {
     await tester.pumpWidget(_app(_Recordings(), _Picker(), _noUpload));
     await tester.pumpAndSettle();
 
-    expect(find.text('Aufnahme hochladen'), findsNothing);
+    expect(find.text('Aufnahmen hochladen'), findsNothing);
   });
 
   testWidgets('only those who manage recordings see rename and delete', (

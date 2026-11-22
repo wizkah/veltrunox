@@ -129,6 +129,7 @@ fn channel_event_from(text: &str) -> Option<ChannelEvent> {
         ServerEventDto::AnalysisChanged { recording_id } => Some(ChannelEvent::Server(
             ServerEvent::AnalysisChanged(RecordingId::new(recording_id)),
         )),
+        ServerEventDto::LibraryChanged => Some(ChannelEvent::Server(ServerEvent::LibraryChanged)),
         ServerEventDto::AudioOutput { available } => {
             Some(ChannelEvent::Server(ServerEvent::AudioOutput(available)))
         }
@@ -146,6 +147,14 @@ mod tests {
             Some(ChannelEvent::Server(ServerEvent::AnalysisChanged(
                 RecordingId::new(6)
             )))
+        );
+    }
+
+    #[test]
+    fn library_notices_become_server_events() {
+        assert_eq!(
+            channel_event_from(r#"{"type":"library_changed"}"#),
+            Some(ChannelEvent::Server(ServerEvent::LibraryChanged))
         );
     }
 

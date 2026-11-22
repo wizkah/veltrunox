@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'marker.dart';
 import 'marker_order.dart';
 import 'marker_source.dart';
+import 'marker_texts.dart';
 
 /// Supplies the [MarkerSource]; overridden at the application root.
 final markerSourceProvider = Provider<MarkerSource>(
@@ -57,6 +58,13 @@ class MarkerController {
   final MarkerSource _source;
   final int _recordingId;
   final void Function() reload;
+
+  bool _conflict = false;
+
+  /// What to tell the user after a write that was not accepted: another
+  /// person's change replaced it (D-19), or it failed for another reason.
+  String get failureMessage =>
+      _conflict ? MarkerTexts.replacedByOther : MarkerTexts.saveFailed;
 
   Future<bool> addRegion({
     required String title,
@@ -149,8 +157,14 @@ class MarkerController {
   Future<bool> _attempt(Future<void> Function() write) async {
     try {
       await write();
+      _conflict = false;
       return true;
+    } on MarkerConflictException {
+      _conflict = true;
+      reload();
+      return false;
     } on Object {
+      _conflict = false;
       reload();
       return false;
     }

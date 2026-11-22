@@ -9,10 +9,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 use veltrunox_core::{AnalysisInfo, AnalysisProgress, LibraryEntry, Recording, RecordingId};
 
+/// Smallest rise of the percentage that is told to the clients.
+const REPORT_STEP: u8 = 5;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Progress {
     Queued,
-    Running,
+    /// Percent of the scan done.
+    Running(u8),
     Failed(String),
 }
 
@@ -49,7 +53,7 @@ impl AnalysisService {
         let queued = {
             let mut progress = self.progress();
             match progress.get(&id) {
-                Some(Progress::Queued | Progress::Running) => false,
+                Some(Progress::Queued | Progress::Running(_)) => false,
                 _ => {
                     progress.insert(id, Progress::Queued);
                     true
@@ -65,7 +69,7 @@ impl AnalysisService {
     /// Analyses a recording and stores the result, replacing an earlier one.
     /// Blocks for the duration of the analysis.
     pub fn run(&self, id: RecordingId) {
-        self.set(id, Some(Progress::Running));
+        self.set(id, Some(Progress::Running(0)));
         let outcome = self.analyse_and_store(id);
         self.set(id, outcome.err().map(Progress::Failed));
     }
@@ -78,7 +82,7 @@ impl AnalysisService {
             .ok_or("the recording has no audio file")?;
         let scan = self
             .analyzer
-            .scan(&path)
+            .scan(&path, &|percent| self.report(id, percent))
             .map_err(|error| error.to_string())?;
         self.waveforms
             .save_waveform(id, scan.length, &scan.waveform)
@@ -93,7 +97,7 @@ impl AnalysisService {
         if let Some(progress) = self.progress().get(&id) {
             return Ok(match progress {
                 Progress::Queued => AnalysisProgress::Queued,
-                Progress::Running => AnalysisProgress::Running,
+                Progress::Running(percent) => AnalysisProgress::Running(*percent),
                 Progress::Failed(reason) => AnalysisProgress::Failed(reason.clone()),
             });
         }
@@ -107,6 +111,12 @@ impl AnalysisService {
     /// The recordings with their analysis status and result.
     pub fn entries(&self, recordings: Vec<Recording>) -> Result<Vec<LibraryEntry>, StorageError> {
         let results: HashMap<_, _> = self.results.analyses()?.into_iter().collect();
+        let mut lengths = HashMap::new();
+        for recording in &recordings {
+            if let Some(length) = self.waveforms.stored_length(recording.id)? {
+                lengths.insert(recording.id, length);
+            }
+        }
         let progress = self.progress();
         Ok(recordings
             .into_iter()
@@ -114,12 +124,13 @@ impl AnalysisService {
                 let result = results.get(&recording.id).copied();
                 let state = match progress.get(&recording.id) {
                     Some(Progress::Queued) => AnalysisProgress::Queued,
-                    Some(Progress::Running) => AnalysisProgress::Running,
+                    Some(Progress::Running(percent)) => AnalysisProgress::Running(*percent),
                     Some(Progress::Failed(reason)) => AnalysisProgress::Failed(reason.clone()),
                     None if result.is_some() => AnalysisProgress::Done,
                     None => AnalysisProgress::None,
                 };
                 LibraryEntry {
+                    length: lengths.get(&recording.id).copied(),
                     recording,
                     analysis: AnalysisInfo {
                         progress: state,
@@ -133,6 +144,25 @@ impl AnalysisService {
     /// Recordings that have audio but no stored result yet.
     pub fn unanalysed(&self) -> Result<Vec<RecordingId>, StorageError> {
         self.results.unanalysed()
+    }
+
+    /// Notes how far the running scan has come. Clients are told in steps of
+    /// `REPORT_STEP` percent, not for every packet.
+    fn report(&self, id: RecordingId, percent: u8) {
+        let percent = percent.min(100);
+        let changed = {
+            let mut map = self.progress();
+            match map.get_mut(&id) {
+                Some(Progress::Running(shown)) if percent >= shown.saturating_add(REPORT_STEP) => {
+                    *shown = percent;
+                    true
+                }
+                _ => false,
+            }
+        };
+        if changed {
+            self.broadcast.analysis_changed(id);
+        }
     }
 
     fn set(&self, id: RecordingId, progress: Option<Progress>) {
@@ -179,7 +209,12 @@ mod tests {
     struct Analyzer(Result<RecordingAnalysis, String>);
 
     impl RecordingAnalyzer for Analyzer {
-        fn scan(&self, _path: &Path) -> Result<RecordingScan, AnalysisFailure> {
+        fn scan(
+            &self,
+            _path: &Path,
+            report: &dyn Fn(u8),
+        ) -> Result<RecordingScan, AnalysisFailure> {
+            report(50);
             Ok(RecordingScan {
                 length: Millis::new(90_000),
                 waveform: Waveform::from_mono(&[0.5, -0.5], 44_100),
@@ -228,8 +263,24 @@ mod tests {
         service.run(ID);
         assert_eq!(results.analysis(ID).unwrap(), Some(found()));
         assert_eq!(service.status(ID).unwrap(), AnalysisProgress::Done);
-        // queued, running, finished
-        assert_eq!(broadcast.analysis_notices().len(), 3);
+        // queued, running, half way (reported by the analyzer), finished
+        assert_eq!(broadcast.analysis_notices().len(), 4);
+    }
+
+    #[test]
+    fn the_percentage_is_told_in_steps_and_only_while_running() {
+        let (service, _, broadcast, _) = service(FakeMedia::with_file(), Ok(found()));
+        service.report(ID, 40);
+        assert!(broadcast.analysis_notices().is_empty(), "nothing runs yet");
+
+        service.set(ID, Some(Progress::Running(0)));
+        service.report(ID, 2);
+        assert_eq!(service.status(ID).unwrap(), AnalysisProgress::Running(0));
+        service.report(ID, 40);
+        service.report(ID, 42);
+        assert_eq!(service.status(ID).unwrap(), AnalysisProgress::Running(40));
+        // the start and the 40 percent
+        assert_eq!(broadcast.analysis_notices().len(), 2);
     }
 
     #[test]

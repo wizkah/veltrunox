@@ -18,6 +18,8 @@ class PlayerControls extends ConsumerWidget {
   const PlayerControls({
     required this.state,
     required this.analysis,
+    this.lengthMs,
+    this.connected = true,
     this.above,
     this.showPositionSlider = true,
     super.key,
@@ -25,6 +27,14 @@ class PlayerControls extends ConsumerWidget {
 
   final PlayerState state;
   final PlayerAnalysis? analysis;
+
+  /// Length of the recording; `null` until the server knows it.
+  final int? lengthMs;
+
+  /// Without a connection to the server nothing is processed (D-22): the
+  /// controls keep the shared state, cannot be used, and what was changed
+  /// locally and not sent yet is dropped.
+  final bool connected;
 
   /// Shown above the transport, in the same column (the waveform, and on a
   /// narrow screen the way to the markers). On a wide screen the volume stands
@@ -48,14 +58,7 @@ class PlayerControls extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.watch(playerControllerProvider);
     final position = ref.watch(playerPositionProvider).value ?? 0;
-    final length = ref
-        .watch(
-          playerLengthProvider((
-            recordingId: state.recordingId!,
-            scanned: analysis != null,
-          )),
-        )
-        .value;
+    final length = lengthMs;
     final transport = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -106,58 +109,81 @@ class PlayerControls extends ConsumerWidget {
         recordingBpm: analysis?.tempoBpm ?? bpm,
       ),
     );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= _wideMin;
-        if (wide) {
-          final fill = constraints.hasBoundedHeight;
-          // The volume panel is laid over the right edge and stretched down to
-          // the panels; the waveform inside `main` rules out measuring that
-          // height beforehand.
-          final top = ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: _volumeMinHeight),
-            child: Stack(
-              fit: fill ? StackFit.expand : StackFit.loose,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(
-                    right: _volumeWidth + AppSpace.s4,
+    return _Offline(
+      connected: connected,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= _wideMin;
+          if (wide) {
+            final fill = constraints.hasBoundedHeight;
+            // The volume panel is laid over the right edge and stretched down to
+            // the panels; the waveform inside `main` rules out measuring that
+            // height beforehand.
+            final top = ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: _volumeMinHeight),
+              child: Stack(
+                fit: fill ? StackFit.expand : StackFit.loose,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      right: _volumeWidth + AppSpace.s4,
+                    ),
+                    child: main(fill: fill),
                   ),
-                  child: main(fill: fill),
-                ),
-                Positioned(
-                  top: 0,
-                  bottom: 0,
-                  right: 0,
-                  width: _volumeWidth,
-                  child: volume(vertical: true),
-                ),
+                  Positioned(
+                    top: 0,
+                    bottom: 0,
+                    right: 0,
+                    width: _volumeWidth,
+                    child: volume(vertical: true),
+                  ),
+                ],
+              ),
+            );
+            return Column(
+              mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
+              children: [
+                if (fill) Expanded(child: top) else top,
+                const SizedBox(height: AppSpace.s3),
+                settings(sideBySide: true),
               ],
-            ),
-          );
-          return Column(
-            mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
+            );
+          }
+          final stacked = Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              if (fill) Expanded(child: top) else top,
+              main(fill: false),
               const SizedBox(height: AppSpace.s3),
-              settings(sideBySide: true),
+              volume(vertical: false),
+              const SizedBox(height: AppSpace.s3),
+              settings(sideBySide: false),
             ],
           );
-        }
-        final stacked = Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            main(fill: false),
-            const SizedBox(height: AppSpace.s3),
-            volume(vertical: false),
-            const SizedBox(height: AppSpace.s3),
-            settings(sideBySide: false),
-          ],
-        );
-        return constraints.hasBoundedHeight
-            ? SingleChildScrollView(child: stacked)
-            : stacked;
-      },
+          return constraints.hasBoundedHeight
+              ? SingleChildScrollView(child: stacked)
+              : stacked;
+        },
+      ),
     );
   }
+}
+
+/// Shows its child as it is while [connected]. Otherwise the child is dimmed
+/// and cannot be used, and it is built anew, so local entries (a dragged
+/// handle, typed text) give way to the shared state.
+class _Offline extends StatelessWidget {
+  const _Offline({required this.connected, required this.child});
+
+  final bool connected;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => KeyedSubtree(
+    key: ValueKey(connected),
+    child: connected
+        ? child
+        : ExcludeFocus(
+            child: IgnorePointer(child: Opacity(opacity: 0.5, child: child)),
+          ),
+  );
 }

@@ -92,8 +92,9 @@ pub struct RecordingScan {
 
 /// Port: decodes an audio file and derives waveform, length, tuning, key and
 /// tempo from it. CPU-bound and blocking. `Err` if the file cannot be decoded.
+/// `report` is told how far the scan has come in percent (0 to 100), rising.
 pub trait RecordingAnalyzer: Send + Sync {
-    fn scan(&self, path: &Path) -> Result<RecordingScan, AnalysisFailure>;
+    fn scan(&self, path: &Path, report: &dyn Fn(u8)) -> Result<RecordingScan, AnalysisFailure>;
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -185,6 +186,8 @@ pub trait PlaybackBroadcast: Send + Sync {
     fn bookmarks_changed(&self, recording: RecordingId);
     /// The analysis result or status of this recording changed; clients reload the library.
     fn analysis_changed(&self, recording: RecordingId);
+    /// Recordings were added, renamed or removed; clients reload the library.
+    fn library_changed(&self);
 }
 
 /// Port: wall-clock time in seconds since 1970, for session lifetimes and

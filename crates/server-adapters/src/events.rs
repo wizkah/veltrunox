@@ -37,6 +37,7 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
     let mut audio_output = app.hub.subscribe_audio_output();
     let mut bookmark_notices = app.hub.subscribe_bookmarks();
     let mut analysis_notices = app.hub.subscribe_analysis();
+    let mut library_notices = app.hub.subscribe_library();
     let mut pings = tokio::time::interval(PING_INTERVAL);
     let mut last_heard = Instant::now();
 
@@ -115,6 +116,12 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
                     }).await
                 }
                 Err(RecvError::Lagged(_)) => Outcome::Continue,
+                Err(RecvError::Closed) => Outcome::Stop,
+            },
+            notice = library_notices.recv() => match notice {
+                Ok(()) | Err(RecvError::Lagged(_)) => {
+                    forward(&mut socket, ServerEventDto::LibraryChanged).await
+                }
                 Err(RecvError::Closed) => Outcome::Stop,
             },
             _ = pings.tick() => {

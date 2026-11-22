@@ -12,7 +12,7 @@ Future<LabelMarker?> showLabelGroupDialog(
 ) => showDialog<LabelMarker>(
   context: context,
   builder: (context) => SimpleDialog(
-    title: const Text(WaveformTexts.groupTitle),
+    title: Text(WaveformTexts.groupTitle),
     children: [
       for (final label in cluster.labels)
         SimpleDialogOption(

@@ -28,7 +28,7 @@ class LibraryToolbar extends StatelessWidget {
           Expanded(
             child: TextField(
               onChanged: onSearch,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: LibraryTexts.search,
                 prefixIcon: Icon(Icons.search),
               ),

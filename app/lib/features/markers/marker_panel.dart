@@ -136,8 +136,8 @@ class MarkerPanel extends ConsumerWidget {
     padding: const EdgeInsets.all(AppSpace.s4),
     child: Column(
       children: [
-        const Text(MarkerTexts.failure),
-        TextButton(onPressed: onRetry, child: const Text(MarkerTexts.retry)),
+        Text(MarkerTexts.failure),
+        TextButton(onPressed: onRetry, child: Text(MarkerTexts.retry)),
       ],
     ),
   );

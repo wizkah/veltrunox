@@ -5,6 +5,7 @@ import 'package:veltrunox_app/design/theme/app_theme.dart';
 import 'package:veltrunox_app/features/markers/marker.dart';
 import 'package:veltrunox_app/features/markers/marker_controller.dart';
 import 'package:veltrunox_app/features/markers/marker_panel.dart';
+import 'package:veltrunox_app/features/markers/marker_source.dart';
 
 import 'fake_marker_source.dart';
 
@@ -333,6 +334,23 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('nicht übernommen'), findsOneWidget);
+      expect(source.listings, greaterThan(listings));
+    });
+
+    testWidgets('says so when someone else changed the marker first', (
+      tester,
+    ) async {
+      final source = FakeMarkerSource([_label])
+        ..failure = const MarkerConflictException();
+      await _pump(tester, source);
+      final listings = source.listings;
+      await openDelete(tester, 'Einsatz');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Löschen'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('gleichzeitig geändert'), findsOneWidget);
+      expect(find.textContaining('nicht übernommen'), findsNothing);
       expect(source.listings, greaterThan(listings));
     });
   });

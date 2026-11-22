@@ -114,6 +114,8 @@ pub enum ServerEventDto {
     BookmarksChanged { recording_id: u64 },
     /// The analysis status or result of this recording changed; reload the library.
     AnalysisChanged { recording_id: u64 },
+    /// Recordings were added, renamed or removed; reload the library.
+    LibraryChanged,
     /// Whether the server can play sound; sent to a joining client and on change.
     /// Without an output device the shared state still runs, silently.
     AudioOutput { available: bool },
@@ -241,8 +243,14 @@ pub struct AnalysisResultDto {
 pub enum AnalysisProgressDto {
     None,
     Queued,
-    Running,
-    Failed { reason: String },
+    Running {
+        /// How far the analysis has come, 0 to 100.
+        #[serde(default)]
+        percent: u8,
+    },
+    Failed {
+        reason: String,
+    },
     Done,
 }
 
@@ -279,6 +287,9 @@ pub struct RenameRecordingDto {
 pub struct RecordingSummaryDto {
     pub id: u64,
     pub title: String,
+    /// Length of the audio; absent until the recording has been scanned.
+    #[serde(default)]
+    pub length_ms: Option<u64>,
     pub analysis_progress: AnalysisProgressDto,
     pub analysis: Option<AnalysisResultDto>,
 }
@@ -307,6 +318,7 @@ mod tests {
             recordings: vec![RecordingSummaryDto {
                 id: 1,
                 title: "Intro".into(),
+                length_ms: Some(61_000),
                 analysis_progress: AnalysisProgressDto::Failed {
                     reason: "too short".into(),
                 },
@@ -317,7 +329,7 @@ mod tests {
         assert_eq!(
             json,
             concat!(
-                r#"{"recordings":[{"id":1,"title":"Intro","#,
+                r#"{"recordings":[{"id":1,"title":"Intro","length_ms":61000,"#,
                 r#""analysis_progress":{"state":"failed","reason":"too short"},"analysis":null}]}"#
             )
         );
@@ -400,6 +412,27 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<ServerEventDto>(&json).unwrap(),
             event
+        );
+    }
+
+    #[test]
+    fn a_running_analysis_carries_its_percentage() {
+        let json = serde_json::to_string(&AnalysisProgressDto::Running { percent: 40 }).unwrap();
+        assert_eq!(json, r#"{"state":"running","percent":40}"#);
+        // An older server sends no percentage.
+        assert_eq!(
+            serde_json::from_str::<AnalysisProgressDto>(r#"{"state":"running"}"#).unwrap(),
+            AnalysisProgressDto::Running { percent: 0 }
+        );
+    }
+
+    #[test]
+    fn library_changed_event_has_a_stable_wire_format() {
+        let json = serde_json::to_string(&ServerEventDto::LibraryChanged).unwrap();
+        assert_eq!(json, r#"{"type":"library_changed"}"#);
+        assert_eq!(
+            serde_json::from_str::<ServerEventDto>(&json).unwrap(),
+            ServerEventDto::LibraryChanged
         );
     }
 
