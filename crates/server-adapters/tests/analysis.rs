@@ -9,6 +9,7 @@ use support::{TestClient, start_server};
 use veltrunox_client_adapters::HttpServerLink;
 use veltrunox_client_app::{ChannelEvent, ServerEvent, analyse_again, load_library};
 use veltrunox_core::{AnalysisProgress, KeyMode, LibraryEntry, RecordingId};
+use veltrunox_protocol::{WaveformInfoDto, peaks_from_bytes};
 use veltrunox_server_adapters::{SqliteStore, import_directory};
 use veltrunox_server_app::AnalysisRepository;
 
@@ -119,6 +120,46 @@ async fn an_imported_recording_is_analysed_in_the_background_and_clients_are_tol
         "{}",
         found.tuning.hertz()
     );
+    // Length and waveform come from the same scan.
+    let http = reqwest::Client::new();
+    let info: WaveformInfoDto = http
+        .get(format!("{url}/api/v1/recordings/1/waveform"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!((info.length_ms, info.sample_rate), (30_000, RATE));
+    let finest = info.levels.last().unwrap();
+    assert_eq!(finest.frames_per_block, 1024);
+    assert_eq!(finest.blocks, (30 * RATE).div_ceil(1024));
+    let bytes = http
+        .get(format!(
+            "{url}/api/v1/recordings/1/waveform/{}",
+            info.levels.len() - 1
+        ))
+        .send()
+        .await
+        .unwrap()
+        .bytes()
+        .await
+        .unwrap();
+    let peaks = peaks_from_bytes(&bytes).unwrap();
+    assert_eq!(peaks.len() as u32, finest.blocks);
+    // The first chord is struck at once, the silence after the last decay is not part of it.
+    assert!(peaks[0].max > 10 && peaks[0].min < -10);
+    assert!(peaks.iter().all(|peak| peak.min <= peak.max));
+    let missing_level = http
+        .get(format!(
+            "{url}/api/v1/recordings/1/waveform/{}",
+            info.levels.len()
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(missing_level.status(), 404);
+
     // The result is stored, not only held in memory (compared without the last bits of the
     // floating-point values, which the wire format does not keep).
     let stored = store.analysis(RecordingId::new(1)).unwrap().unwrap();
@@ -154,6 +195,15 @@ async fn analysing_an_unknown_recording_is_not_found() {
     let response = reqwest::Client::new()
         .post(format!("{url}/api/v1/recordings/99/analysis"))
         .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 404);
+}
+
+#[tokio::test]
+async fn a_recording_that_was_not_scanned_has_no_waveform() {
+    let url = start_server(support::store_with_recording()).await;
+    let response = reqwest::get(format!("{url}/api/v1/recordings/1/waveform"))
         .await
         .unwrap();
     assert_eq!(response.status(), 404);

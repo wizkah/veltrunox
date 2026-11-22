@@ -6,6 +6,7 @@ mod playback;
 mod recording;
 mod tempo_pitch;
 mod units;
+mod waveform;
 
 pub use analysis::{
     AnalysisInfo, AnalysisProgress, Confidence, KeyMode, LibraryEntry, MusicalKey, PitchClass,
@@ -21,3 +22,4 @@ pub use playback::{
 pub use recording::{InvalidRecording, Recording, RecordingId, RecordingTitle};
 pub use tempo_pitch::{Bpm, TargetSpeed, pitch_shift_semitones, speed_for_target_tempo};
 pub use units::{InvalidValue, KeyShift, Millis, Speed, TimeRange, TuningHz};
+pub use waveform::{FINEST_BLOCK_FRAMES, Peak, Waveform, WaveformLevel};

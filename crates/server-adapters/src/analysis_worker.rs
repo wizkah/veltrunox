@@ -7,16 +7,21 @@ use std::path::Path;
 use std::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
-use veltrunox_core::{RecordingAnalysis, RecordingId};
-use veltrunox_server_app::{AnalysisFailure, AnalysisService, RecordingAnalyzer};
+use veltrunox_core::{Millis, RecordingId, Waveform};
+use veltrunox_server_app::{AnalysisFailure, AnalysisService, RecordingAnalyzer, RecordingScan};
 
-/// Decodes a file and analyses it.
+/// Decodes a file once and derives length, waveform and analysis from it.
 pub struct FileAnalyzer;
 
 impl RecordingAnalyzer for FileAnalyzer {
-    fn analyse(&self, path: &Path) -> Result<RecordingAnalysis, AnalysisFailure> {
+    fn scan(&self, path: &Path) -> Result<RecordingScan, AnalysisFailure> {
         let pcm = decode_file(path).map_err(|error| AnalysisFailure(error.to_string()))?;
-        analyse(&pcm).map_err(|error| AnalysisFailure(error.to_string()))
+        let waveform = Waveform::from_mono(&pcm.mono(), pcm.sample_rate());
+        Ok(RecordingScan {
+            length: Millis::new(pcm.duration_ms()),
+            waveform,
+            analysis: analyse(&pcm).map_err(|error| AnalysisFailure(error.to_string())),
+        })
     }
 }
 

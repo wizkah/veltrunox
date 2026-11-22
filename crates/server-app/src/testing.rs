@@ -2,13 +2,13 @@
 
 use crate::ports::{
     AnalysisRepository, Clock, MediaCatalog, PlaybackBroadcast, RecordingLengths,
-    RecordingRepository, StorageError,
+    RecordingRepository, StorageError, WaveformRepository,
 };
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use veltrunox_core::{
     Millis, PlaybackSettings, PlaybackState, Recording, RecordingAnalysis, RecordingId,
-    RecordingTitle,
+    RecordingTitle, Waveform,
 };
 
 pub struct FakeRecordings {
@@ -182,5 +182,35 @@ impl AnalysisRepository for FakeAnalyses {
 
     fn unanalysed(&self) -> Result<Vec<RecordingId>, StorageError> {
         Ok(Vec::new())
+    }
+}
+
+#[derive(Default)]
+pub struct FakeWaveforms(Mutex<Vec<(RecordingId, Millis, Waveform)>>);
+
+impl WaveformRepository for FakeWaveforms {
+    fn save_waveform(
+        &self,
+        id: RecordingId,
+        length: Millis,
+        waveform: &Waveform,
+    ) -> Result<(), StorageError> {
+        let mut items = self.0.lock().unwrap();
+        items.retain(|(r, _, _)| *r != id);
+        items.push((id, length, waveform.clone()));
+        Ok(())
+    }
+
+    fn waveform(&self, id: RecordingId) -> Result<Option<Waveform>, StorageError> {
+        let items = self.0.lock().unwrap();
+        Ok(items
+            .iter()
+            .find(|(r, _, _)| *r == id)
+            .map(|(_, _, w)| w.clone()))
+    }
+
+    fn stored_length(&self, id: RecordingId) -> Result<Option<Millis>, StorageError> {
+        let items = self.0.lock().unwrap();
+        Ok(items.iter().find(|(r, _, _)| *r == id).map(|(_, l, _)| *l))
     }
 }

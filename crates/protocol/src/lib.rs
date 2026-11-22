@@ -5,8 +5,8 @@ mod convert;
 pub use convert::{
     InvalidEntry, analysis_from_dto, analysis_to_dto, bookmarks_from_dto, bookmarks_to_dto,
     intent_from_message, intent_to_message, label_to_dto, library_entry_from_dto,
-    library_entry_to_dto, range_from_dto, range_to_dto, region_to_dto, state_from_dto,
-    state_to_dto,
+    library_entry_to_dto, peaks_from_bytes, peaks_to_bytes, range_from_dto, range_to_dto,
+    region_to_dto, state_from_dto, state_to_dto, waveform_info_to_dto,
 };
 
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,13 @@ pub const RECORDINGS_PATH: &str = "/api/v1/recordings";
 
 /// Path to start the analysis of one recording again; `{id}` is the recording id.
 pub const ANALYSIS_PATH: &str = "/api/v1/recordings/{id}/analysis";
+
+/// Path of the waveform description of one recording (`WaveformInfoDto`); `{id}` is the recording id.
+pub const WAVEFORM_PATH: &str = "/api/v1/recordings/{id}/waveform";
+
+/// Path of the peaks of one waveform level as bytes (`peaks_from_bytes`); `{level}` counts from
+/// the coarsest level (0).
+pub const WAVEFORM_LEVEL_PATH: &str = "/api/v1/recordings/{id}/waveform/{level}";
 
 /// Path of the real-time channel (WebSocket).
 pub const EVENTS_PATH: &str = "/api/v1/events";
@@ -175,6 +182,22 @@ pub enum AnalysisProgressDto {
     Running,
     Failed { reason: String },
     Done,
+}
+
+/// One resolution of a waveform: block `n` covers source frames starting at
+/// `n * frames_per_block`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WaveformLevelInfoDto {
+    pub frames_per_block: u32,
+    pub blocks: u32,
+}
+
+/// What a client needs to fetch and place the peaks; levels run from coarse to fine.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WaveformInfoDto {
+    pub length_ms: u64,
+    pub sample_rate: u32,
+    pub levels: Vec<WaveformLevelInfoDto>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

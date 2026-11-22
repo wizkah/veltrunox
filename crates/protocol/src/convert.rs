@@ -2,14 +2,54 @@
 
 use crate::{
     AnalysisProgressDto, AnalysisResultDto, BookmarksDto, ClientMessageDto, LabelDto,
-    PlaybackStateDto, RangeDto, RecordingSummaryDto, RegionDto,
+    PlaybackStateDto, RangeDto, RecordingSummaryDto, RegionDto, WaveformInfoDto,
+    WaveformLevelInfoDto,
 };
 use veltrunox_core::{
     AnalysisInfo, AnalysisProgress, BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, Intent,
     InvalidRecording, InvalidValue, KeyMode, KeyShift, Label, LibraryEntry, Millis, MusicalKey,
-    PitchClass, PlaybackSettings, PlaybackState, PositionReference, Recording, RecordingAnalysis,
-    RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version,
+    Peak, PitchClass, PlaybackSettings, PlaybackState, PositionReference, Recording,
+    RecordingAnalysis, RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version,
+    Waveform,
 };
+
+/// Describes the levels of a waveform without their peaks.
+pub fn waveform_info_to_dto(length: Millis, waveform: &Waveform) -> WaveformInfoDto {
+    WaveformInfoDto {
+        length_ms: length.value(),
+        sample_rate: waveform.sample_rate,
+        levels: waveform
+            .levels
+            .iter()
+            .map(|level| WaveformLevelInfoDto {
+                frames_per_block: level.frames_per_block,
+                blocks: u32::try_from(level.peaks.len()).unwrap_or(u32::MAX),
+            })
+            .collect(),
+    }
+}
+
+/// Wire form of the peaks of one level: per block the minimum, then the maximum, as signed bytes.
+pub fn peaks_to_bytes(peaks: &[Peak]) -> Vec<u8> {
+    peaks
+        .iter()
+        .flat_map(|peak| [peak.min.to_le_bytes()[0], peak.max.to_le_bytes()[0]])
+        .collect()
+}
+
+/// `None` if the bytes do not hold whole blocks.
+pub fn peaks_from_bytes(bytes: &[u8]) -> Option<Vec<Peak>> {
+    let (pairs, rest) = bytes.as_chunks::<2>();
+    rest.is_empty().then(|| {
+        pairs
+            .iter()
+            .map(|[min, max]| Peak {
+                min: i8::from_le_bytes([*min]),
+                max: i8::from_le_bytes([*max]),
+            })
+            .collect()
+    })
+}
 
 pub fn analysis_to_dto(analysis: &RecordingAnalysis) -> AnalysisResultDto {
     AnalysisResultDto {
@@ -250,6 +290,29 @@ pub fn bookmarks_from_dto(dto: &BookmarksDto) -> Result<Bookmarks, InvalidValue>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn peaks_round_trip_through_bytes_and_odd_lengths_are_refused() {
+        let peaks = [Peak { min: -127, max: 5 }, Peak { min: 0, max: 127 }];
+        let bytes = peaks_to_bytes(&peaks);
+        assert_eq!(bytes, [129, 5, 0, 127]);
+        assert_eq!(peaks_from_bytes(&bytes), Some(peaks.to_vec()));
+        assert_eq!(peaks_from_bytes(&[1, 2, 3]), None);
+    }
+
+    #[test]
+    fn the_waveform_info_lists_the_levels_with_their_block_counts() {
+        let waveform = Waveform::from_mono(&vec![0.1; 1024 * 300], 44_100);
+        let info = waveform_info_to_dto(Millis::new(6_966), &waveform);
+        assert_eq!(info.length_ms, 6_966);
+        assert_eq!(info.sample_rate, 44_100);
+        let shape: Vec<_> = info
+            .levels
+            .iter()
+            .map(|level| (level.frames_per_block, level.blocks))
+            .collect();
+        assert_eq!(shape, [(2048, 150), (1024, 300)]);
+    }
 
     #[test]
     fn a_library_entry_round_trips_through_its_wire_form() {

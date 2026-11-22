@@ -1,10 +1,10 @@
-//! HTTP endpoints: library and bookmarks.
+//! HTTP endpoints: library, waveforms and bookmarks.
 
 use crate::{events::events, state::AppState};
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{StatusCode, header},
     response::{IntoResponse, Response},
     routing::{get, post, put},
 };
@@ -12,8 +12,9 @@ use veltrunox_core::{BookmarkId, BookmarkName, InvalidValue, Millis, RecordingId
 use veltrunox_protocol::{
     ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, EVENTS_PATH, ExpectedVersionQuery,
     LABEL_PATH, LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto, RECORDINGS_PATH, REGION_PATH,
-    REGIONS_PATH, RecordingListDto, RegionDto, UpdateLabelDto, UpdateRegionDto, bookmarks_to_dto,
-    label_to_dto, library_entry_to_dto, range_from_dto, region_to_dto,
+    REGIONS_PATH, RecordingListDto, RegionDto, UpdateLabelDto, UpdateRegionDto,
+    WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_to_dto, label_to_dto,
+    library_entry_to_dto, peaks_to_bytes, range_from_dto, region_to_dto, waveform_info_to_dto,
 };
 use veltrunox_server_app::{BookmarkError, list_recordings};
 
@@ -23,6 +24,8 @@ pub fn router(app: AppState) -> Router {
         .route(RECORDINGS_PATH, get(recordings))
         .route(EVENTS_PATH, get(events))
         .route(ANALYSIS_PATH, post(analyse_again))
+        .route(WAVEFORM_PATH, get(waveform_info))
+        .route(WAVEFORM_LEVEL_PATH, get(waveform_level))
         .route(BOOKMARKS_PATH, get(bookmarks))
         .route(LABELS_PATH, post(add_label))
         .route(REGIONS_PATH, post(add_region))
@@ -35,6 +38,7 @@ pub fn router(app: AppState) -> Router {
 enum ApiError {
     Invalid(InvalidValue),
     Bookmark(BookmarkError),
+    NotFound,
     Internal,
 }
 
@@ -42,7 +46,9 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         match self {
             Self::Invalid(error) => (StatusCode::BAD_REQUEST, error.to_string()).into_response(),
-            Self::Bookmark(BookmarkError::NotFound) => StatusCode::NOT_FOUND.into_response(),
+            Self::Bookmark(BookmarkError::NotFound) | Self::NotFound => {
+                StatusCode::NOT_FOUND.into_response()
+            }
             Self::Bookmark(BookmarkError::Conflict(current)) => (
                 StatusCode::CONFLICT,
                 Json(ConflictDto {
@@ -107,6 +113,45 @@ async fn analyse_again(
         }
         (false, _) => Ok(StatusCode::NOT_FOUND),
     }
+}
+
+/// Levels and length of the waveform; 404 until the recording has been scanned.
+async fn waveform_info(
+    State(app): State<AppState>,
+    Path(recording): Path<u64>,
+) -> Result<Json<WaveformInfoDto>, ApiError> {
+    let id = RecordingId::new(recording);
+    let (length, waveform) = blocking(move || stored_waveform(&app, id)).await?;
+    Ok(Json(waveform_info_to_dto(length, &waveform)))
+}
+
+/// The peaks of one level, coarsest level 0.
+async fn waveform_level(
+    State(app): State<AppState>,
+    Path((recording, level)): Path<(u64, usize)>,
+) -> Result<impl IntoResponse, ApiError> {
+    let id = RecordingId::new(recording);
+    let (_, waveform) = blocking(move || stored_waveform(&app, id)).await?;
+    let found = waveform.levels.get(level).ok_or(ApiError::NotFound)?;
+    Ok((
+        [(header::CONTENT_TYPE, "application/octet-stream")],
+        peaks_to_bytes(&found.peaks),
+    ))
+}
+
+fn stored_waveform(
+    app: &AppState,
+    id: RecordingId,
+) -> Result<(Millis, veltrunox_core::Waveform), ApiError> {
+    let waveform = app.waveforms.waveform(id).map_err(|_| ApiError::Internal)?;
+    let length = app
+        .waveforms
+        .stored_length(id)
+        .map_err(|_| ApiError::Internal)?;
+    waveform
+        .zip(length)
+        .map(|(w, l)| (l, w))
+        .ok_or(ApiError::NotFound)
 }
 
 async fn bookmarks(

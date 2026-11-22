@@ -1,7 +1,9 @@
-//! Use case: analyse recordings in the background and keep the results (ADR-007).
+//! Use case: scan recordings in the background (waveform, length, tuning, key,
+//! tempo) and keep the results (ADR-007).
 
 use crate::ports::{
     AnalysisRepository, MediaCatalog, PlaybackBroadcast, RecordingAnalyzer, StorageError,
+    WaveformRepository,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -17,6 +19,7 @@ enum Progress {
 pub struct AnalysisService {
     media: Arc<dyn MediaCatalog>,
     results: Arc<dyn AnalysisRepository>,
+    waveforms: Arc<dyn WaveformRepository>,
     analyzer: Arc<dyn RecordingAnalyzer>,
     broadcast: Arc<dyn PlaybackBroadcast>,
     progress: Mutex<HashMap<RecordingId, Progress>>,
@@ -26,12 +29,14 @@ impl AnalysisService {
     pub fn new(
         media: Arc<dyn MediaCatalog>,
         results: Arc<dyn AnalysisRepository>,
+        waveforms: Arc<dyn WaveformRepository>,
         analyzer: Arc<dyn RecordingAnalyzer>,
         broadcast: Arc<dyn PlaybackBroadcast>,
     ) -> Self {
         Self {
             media,
             results,
+            waveforms,
             analyzer,
             broadcast,
             progress: Mutex::default(),
@@ -71,10 +76,14 @@ impl AnalysisService {
             .media_path(id)
             .map_err(|error| error.to_string())?
             .ok_or("the recording has no audio file")?;
-        let found = self
+        let scan = self
             .analyzer
-            .analyse(&path)
+            .scan(&path)
             .map_err(|error| error.to_string())?;
+        self.waveforms
+            .save_waveform(id, scan.length, &scan.waveform)
+            .map_err(|error| error.to_string())?;
+        let found = scan.analysis.map_err(|error| error.to_string())?;
         self.results
             .save_analysis(id, found)
             .map_err(|error| error.to_string())
@@ -145,11 +154,12 @@ impl AnalysisService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ports::AnalysisFailure;
-    use crate::testing::{FakeAnalyses, FakeBroadcast, FakeMedia};
+    use crate::ports::{AnalysisFailure, RecordingScan};
+    use crate::testing::{FakeAnalyses, FakeBroadcast, FakeMedia, FakeWaveforms};
     use std::path::Path;
     use veltrunox_core::{
-        Bpm, Confidence, KeyMode, MusicalKey, PitchClass, RecordingAnalysis, TuningHz,
+        Bpm, Confidence, KeyMode, Millis, MusicalKey, PitchClass, RecordingAnalysis, TuningHz,
+        Waveform,
     };
 
     fn found() -> RecordingAnalysis {
@@ -169,8 +179,12 @@ mod tests {
     struct Analyzer(Result<RecordingAnalysis, String>);
 
     impl RecordingAnalyzer for Analyzer {
-        fn analyse(&self, _path: &Path) -> Result<RecordingAnalysis, AnalysisFailure> {
-            self.0.clone().map_err(AnalysisFailure)
+        fn scan(&self, _path: &Path) -> Result<RecordingScan, AnalysisFailure> {
+            Ok(RecordingScan {
+                length: Millis::new(90_000),
+                waveform: Waveform::from_mono(&[0.5, -0.5], 44_100),
+                analysis: self.0.clone().map_err(AnalysisFailure),
+            })
         }
     }
 
@@ -179,21 +193,28 @@ mod tests {
     fn service(
         media: FakeMedia,
         analyzer: Result<RecordingAnalysis, String>,
-    ) -> (AnalysisService, Arc<FakeAnalyses>, Arc<FakeBroadcast>) {
+    ) -> (
+        AnalysisService,
+        Arc<FakeAnalyses>,
+        Arc<FakeBroadcast>,
+        Arc<FakeWaveforms>,
+    ) {
         let results = Arc::new(FakeAnalyses::default());
+        let waveforms = Arc::new(FakeWaveforms::default());
         let broadcast = Arc::new(FakeBroadcast::default());
         let service = AnalysisService::new(
             Arc::new(media),
             results.clone(),
+            waveforms.clone(),
             Arc::new(Analyzer(analyzer)),
             broadcast.clone(),
         );
-        (service, results, broadcast)
+        (service, results, broadcast, waveforms)
     }
 
     #[test]
     fn a_queued_recording_is_queued_once() {
-        let (service, _, broadcast) = service(FakeMedia::with_file(), Ok(found()));
+        let (service, _, broadcast, _) = service(FakeMedia::with_file(), Ok(found()));
         assert!(service.queue(ID));
         assert!(!service.queue(ID));
         assert_eq!(service.status(ID).unwrap(), AnalysisProgress::Queued);
@@ -202,7 +223,7 @@ mod tests {
 
     #[test]
     fn running_stores_the_result_and_tells_the_clients() {
-        let (service, results, broadcast) = service(FakeMedia::with_file(), Ok(found()));
+        let (service, results, broadcast, _) = service(FakeMedia::with_file(), Ok(found()));
         service.queue(ID);
         service.run(ID);
         assert_eq!(results.analysis(ID).unwrap(), Some(found()));
@@ -212,8 +233,33 @@ mod tests {
     }
 
     #[test]
+    fn running_stores_waveform_and_length() {
+        let (service, _, _, waveforms) = service(FakeMedia::with_file(), Ok(found()));
+        service.run(ID);
+        assert_eq!(
+            waveforms.stored_length(ID).unwrap(),
+            Some(Millis::new(90_000))
+        );
+        assert!(waveforms.waveform(ID).unwrap().is_some());
+    }
+
+    #[test]
+    fn a_failed_analysis_still_keeps_waveform_and_length() {
+        let (service, _, _, waveforms) = service(FakeMedia::with_file(), Err("silence".into()));
+        service.run(ID);
+        assert_eq!(
+            service.status(ID).unwrap(),
+            AnalysisProgress::Failed("silence".into())
+        );
+        assert_eq!(
+            waveforms.stored_length(ID).unwrap(),
+            Some(Millis::new(90_000))
+        );
+    }
+
+    #[test]
     fn a_failure_is_kept_with_its_reason_and_can_be_retried() {
-        let (service, results, _) = service(FakeMedia::with_file(), Err("too short".into()));
+        let (service, results, _, _) = service(FakeMedia::with_file(), Err("too short".into()));
         service.queue(ID);
         service.run(ID);
         assert_eq!(
@@ -226,7 +272,7 @@ mod tests {
 
     #[test]
     fn a_recording_without_a_file_fails_and_stores_nothing() {
-        let (service, results, _) = service(FakeMedia::without_file(), Ok(found()));
+        let (service, results, _, _) = service(FakeMedia::without_file(), Ok(found()));
         service.run(ID);
         assert!(matches!(
             service.status(ID).unwrap(),
@@ -237,7 +283,7 @@ mod tests {
 
     #[test]
     fn entries_combine_recordings_progress_and_results() {
-        let (service, results, _) = service(FakeMedia::with_file(), Ok(found()));
+        let (service, results, _, _) = service(FakeMedia::with_file(), Ok(found()));
         let recording = |id: u64, title: &str| Recording {
             id: RecordingId::new(id),
             title: veltrunox_core::RecordingTitle::new(title).unwrap(),
@@ -269,7 +315,7 @@ mod tests {
 
     #[test]
     fn a_new_run_replaces_the_stored_result() {
-        let (service, results, _) = service(FakeMedia::with_file(), Ok(found()));
+        let (service, results, _, _) = service(FakeMedia::with_file(), Ok(found()));
         results.save_analysis(ID, found()).unwrap();
         service.run(ID);
         assert_eq!(service.status(ID).unwrap(), AnalysisProgress::Done);

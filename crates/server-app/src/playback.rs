@@ -80,7 +80,7 @@ impl PlaybackService {
         next
     }
 
-    /// A position behind the end is refused once the length is known. While the
+    /// A position behind the end, also the end of a loop, is refused once the length is known. While the
     /// audio is still being decoded it is not, and `stop_at_end` catches up.
     fn check_position(&self, state: &PlaybackState, position: Millis) -> Result<(), IntentError> {
         let length = state.recording.and_then(|id| self.lengths.length(id));
@@ -119,7 +119,12 @@ impl PlaybackService {
             Intent::SetSpeed(speed) => set_speed(state, speed, now)?,
             Intent::SetTuning(tuning) => set_tuning(state, tuning)?,
             Intent::SetKey(key) => set_key(state, key)?,
-            Intent::SetLoop(range) => set_loop(state, range, now)?,
+            Intent::SetLoop(range) => {
+                if let Some(range) = range {
+                    self.check_position(state, range.end())?;
+                }
+                set_loop(state, range, now)?
+            }
         })
     }
 }
@@ -136,7 +141,7 @@ fn changes_settings(intent: Intent) -> bool {
 mod tests {
     use super::*;
     use crate::testing::{FakeBroadcast, FakeClock, FakeLengths, FakeRecordings};
-    use veltrunox_core::{Millis, RecordingId, Speed};
+    use veltrunox_core::{Millis, RecordingId, Speed, TimeRange};
 
     fn service() -> (
         PlaybackService,
@@ -212,6 +217,28 @@ mod tests {
         clock.set(Millis::new(1_000));
         let state = service.apply(Intent::Play).unwrap();
         assert_eq!(state.reference.server_time, Millis::new(1_000));
+    }
+
+    #[test]
+    fn a_loop_reaching_beyond_the_known_length_is_refused() {
+        let (service, _, _, _, lengths) = service();
+        service
+            .apply(Intent::SelectRecording(RecordingId::new(1)))
+            .unwrap();
+        let range = |end| TimeRange::new(Millis::new(1_000), Millis::new(end)).unwrap();
+        // Length not known yet: accepted.
+        service.apply(Intent::SetLoop(Some(range(90_000)))).unwrap();
+        lengths.set(Millis::new(60_000));
+        assert!(matches!(
+            service.apply(Intent::SetLoop(Some(range(60_001)))),
+            Err(IntentError::BeyondEnd {
+                position: 60_001,
+                length: 60_000
+            })
+        ));
+        service.apply(Intent::SetLoop(Some(range(60_000)))).unwrap();
+        // Removing the loop needs no check.
+        service.apply(Intent::SetLoop(None)).unwrap();
     }
 
     #[test]

@@ -6,12 +6,13 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use veltrunox_core::{
     BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, KeyMode, KeyShift, Label, Millis,
-    MusicalKey, PitchClass, PlaybackSettings, Recording, RecordingAnalysis, RecordingId,
-    RecordingTitle, Region, Speed, TimeRange, TuningHz, Version, check_version,
+    MusicalKey, Peak, PitchClass, PlaybackSettings, Recording, RecordingAnalysis, RecordingId,
+    RecordingTitle, Region, Speed, TimeRange, TuningHz, Version, Waveform, WaveformLevel,
+    check_version,
 };
 use veltrunox_server_app::{
     AnalysisRepository, BookmarkError, BookmarkRepository, MediaCatalog, Owned,
-    RecordingRepository, StorageError,
+    RecordingRepository, StorageError, WaveformRepository,
 };
 
 /// Versioned schema changes; entry `n` upgrades from `user_version` `n` to `n + 1`.
@@ -55,6 +56,17 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE recordings ADD COLUMN analysis_key_confidence REAL;
     ALTER TABLE recordings ADD COLUMN analysis_tempo_bpm REAL;
     ALTER TABLE recordings ADD COLUMN analysis_tempo_confidence REAL;
+",
+    "
+    ALTER TABLE recordings ADD COLUMN length_ms INTEGER;
+    ALTER TABLE recordings ADD COLUMN waveform_sample_rate INTEGER;
+    CREATE TABLE waveform_levels (
+        recording_id INTEGER NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+        level INTEGER NOT NULL,
+        frames_per_block INTEGER NOT NULL,
+        peaks BLOB NOT NULL,
+        PRIMARY KEY (recording_id, level)
+    );
 ",
 ];
 
@@ -360,7 +372,8 @@ impl AnalysisRepository for SqliteStore {
         let mut statement = connection
             .prepare(
                 "SELECT id FROM recordings \
-                 WHERE media_path IS NOT NULL AND analysis_tuning_hz IS NULL ORDER BY id",
+                 WHERE media_path IS NOT NULL \
+                 AND (analysis_tuning_hz IS NULL OR length_ms IS NULL) ORDER BY id",
             )
             .map_err(storage)?;
         let ids = statement
@@ -369,6 +382,127 @@ impl AnalysisRepository for SqliteStore {
         ids.map(|id| Ok(RecordingId::new(unsigned(id.map_err(storage)?)?)))
             .collect()
     }
+}
+
+impl WaveformRepository for SqliteStore {
+    fn save_waveform(
+        &self,
+        id: RecordingId,
+        length: Millis,
+        waveform: &Waveform,
+    ) -> Result<(), StorageError> {
+        let mut connection = self.connection();
+        let transaction = connection.transaction().map_err(storage)?;
+        let changed = transaction
+            .execute(
+                "UPDATE recordings SET length_ms = ?2, waveform_sample_rate = ?3 WHERE id = ?1",
+                params![
+                    sql_int(id.value())?,
+                    sql_int(length.value())?,
+                    waveform.sample_rate
+                ],
+            )
+            .map_err(storage)?;
+        if changed == 0 {
+            return Err(StorageError("recording does not exist".into()));
+        }
+        transaction
+            .execute(
+                "DELETE FROM waveform_levels WHERE recording_id = ?1",
+                params![sql_int(id.value())?],
+            )
+            .map_err(storage)?;
+        for (index, level) in waveform.levels.iter().enumerate() {
+            transaction
+                .execute(
+                    "INSERT INTO waveform_levels (recording_id, level, frames_per_block, peaks) \
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![
+                        sql_int(id.value())?,
+                        index as i64,
+                        level.frames_per_block,
+                        encode_peaks(&level.peaks)
+                    ],
+                )
+                .map_err(storage)?;
+        }
+        transaction.commit().map_err(storage)
+    }
+
+    fn waveform(&self, id: RecordingId) -> Result<Option<Waveform>, StorageError> {
+        let connection = self.connection();
+        let rate = connection
+            .query_row(
+                "SELECT waveform_sample_rate FROM recordings WHERE id = ?1",
+                params![sql_int(id.value())?],
+                |row| row.get::<_, Option<u32>>(0),
+            )
+            .optional()
+            .map_err(storage)?
+            .flatten();
+        let Some(sample_rate) = rate else {
+            return Ok(None);
+        };
+        let mut statement = connection
+            .prepare(
+                "SELECT frames_per_block, peaks FROM waveform_levels \
+                 WHERE recording_id = ?1 ORDER BY level",
+            )
+            .map_err(storage)?;
+        let rows = statement
+            .query_map(params![sql_int(id.value())?], |row| {
+                Ok((row.get::<_, u32>(0)?, row.get::<_, Vec<u8>>(1)?))
+            })
+            .map_err(storage)?;
+        let mut levels = Vec::new();
+        for row in rows {
+            let (frames_per_block, bytes) = row.map_err(storage)?;
+            levels.push(WaveformLevel {
+                frames_per_block,
+                peaks: decode_peaks(&bytes)?,
+            });
+        }
+        Ok(Some(Waveform {
+            sample_rate,
+            levels,
+        }))
+    }
+
+    fn stored_length(&self, id: RecordingId) -> Result<Option<Millis>, StorageError> {
+        let length = self
+            .connection()
+            .query_row(
+                "SELECT length_ms FROM recordings WHERE id = ?1",
+                params![sql_int(id.value())?],
+                |row| row.get::<_, Option<i64>>(0),
+            )
+            .optional()
+            .map_err(storage)?
+            .flatten();
+        length.map(|ms| Ok(Millis::new(unsigned(ms)?))).transpose()
+    }
+}
+
+/// Minimum and maximum of each block as consecutive signed bytes.
+fn encode_peaks(peaks: &[Peak]) -> Vec<u8> {
+    peaks
+        .iter()
+        .flat_map(|peak| [peak.min.to_le_bytes()[0], peak.max.to_le_bytes()[0]])
+        .collect()
+}
+
+fn decode_peaks(bytes: &[u8]) -> Result<Vec<Peak>, StorageError> {
+    let (pairs, rest) = bytes.as_chunks::<2>();
+    if !rest.is_empty() {
+        return Err(corrupt("waveform", "odd number of bytes"));
+    }
+    Ok(pairs
+        .iter()
+        .map(|[min, max]| Peak {
+            min: i8::from_le_bytes([*min]),
+            max: i8::from_le_bytes([*max]),
+        })
+        .collect())
 }
 
 /// The two kinds of bookmark differ only in the table and in what they locate.
@@ -704,6 +838,39 @@ mod tests {
     }
 
     #[test]
+    fn waveform_and_length_are_stored_and_replaced() {
+        let (store, id) = store_with_recording();
+        assert_eq!(store.waveform(id).unwrap(), None);
+        assert_eq!(store.stored_length(id).unwrap(), None);
+        let samples: Vec<f32> = (0..300 * 1024).map(|n| (n as f32 * 0.01).sin()).collect();
+        let waveform = Waveform::from_mono(&samples, 44_100);
+        assert!(waveform.levels.len() > 1);
+        store
+            .save_waveform(id, Millis::new(6_966), &waveform)
+            .unwrap();
+        assert_eq!(store.waveform(id).unwrap(), Some(waveform));
+        assert_eq!(store.stored_length(id).unwrap(), Some(Millis::new(6_966)));
+
+        let shorter = Waveform::from_mono(&[0.5; 10], 8_000);
+        store.save_waveform(id, Millis::new(1), &shorter).unwrap();
+        assert_eq!(store.waveform(id).unwrap(), Some(shorter));
+    }
+
+    #[test]
+    fn a_waveform_of_a_missing_recording_is_refused() {
+        let store = SqliteStore::in_memory().unwrap();
+        let missing = RecordingId::new(9);
+        let waveform = Waveform::from_mono(&[0.5; 10], 8_000);
+        assert!(
+            store
+                .save_waveform(missing, Millis::new(1), &waveform)
+                .is_err()
+        );
+        assert_eq!(store.waveform(missing).unwrap(), None);
+        assert_eq!(store.stored_length(missing).unwrap(), None);
+    }
+
+    #[test]
     fn new_recordings_start_with_default_settings() {
         let (store, id) = store_with_recording();
         assert_eq!(
@@ -863,7 +1030,7 @@ mod tests {
     }
 
     #[test]
-    fn only_recordings_with_audio_and_no_result_are_unanalysed() {
+    fn only_recordings_with_audio_and_an_incomplete_scan_are_unanalysed() {
         let store = SqliteStore::in_memory().unwrap();
         let title = |text: &str| RecordingTitle::new(text).unwrap();
         store.add(title("no audio")).unwrap();
@@ -877,6 +1044,17 @@ mod tests {
             .unwrap();
         store
             .save_analysis(first.id, sample_analysis(90.0))
+            .unwrap();
+        // A result without length and waveform (stored before they existed) is scanned again.
+        assert_eq!(store.unanalysed().unwrap(), [first.id, second.id]);
+        let waveform = Waveform::from_mono(&[0.5; 10], 8_000);
+        store
+            .save_waveform(first.id, Millis::new(1), &waveform)
+            .unwrap();
+        assert_eq!(store.unanalysed().unwrap(), [second.id]);
+        // A scan whose analysis found nothing keeps the waveform; the analysis is still open.
+        store
+            .save_waveform(second.id, Millis::new(1), &waveform)
             .unwrap();
         assert_eq!(store.unanalysed().unwrap(), [second.id]);
     }

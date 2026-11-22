@@ -13,7 +13,7 @@ pub use playback::{IntentError, PlaybackService};
 pub use ports::{
     AnalysisFailure, AnalysisRepository, BookmarkError, BookmarkRepository, Clock, MediaCatalog,
     Owned, PlaybackBroadcast, RecordingAnalyzer, RecordingLengths, RecordingRepository,
-    StorageError,
+    RecordingScan, StorageError, WaveformRepository,
 };
 
 use veltrunox_core::Recording;

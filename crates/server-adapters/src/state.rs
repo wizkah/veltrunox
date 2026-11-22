@@ -4,13 +4,14 @@ use crate::hub::Hub;
 use std::sync::Arc;
 use veltrunox_server_app::{
     AnalysisRepository, AnalysisService, BookmarkRepository, BookmarkService, Clock, MediaCatalog,
-    PlaybackBroadcast, PlaybackService, RecordingRepository,
+    PlaybackBroadcast, PlaybackService, RecordingRepository, WaveformRepository,
 };
 
 /// Everything the endpoints share.
 #[derive(Clone)]
 pub struct AppState {
     pub recordings: Arc<dyn RecordingRepository>,
+    pub waveforms: Arc<dyn WaveformRepository>,
     pub bookmarks: Arc<BookmarkService>,
     pub playback: Arc<PlaybackService>,
     pub hub: Arc<Hub>,
@@ -23,7 +24,12 @@ impl AppState {
     /// Wires the use cases to one store and one clock.
     pub fn new<S>(store: Arc<S>, clock: Arc<dyn Clock>) -> Self
     where
-        S: RecordingRepository + BookmarkRepository + AnalysisRepository + MediaCatalog + 'static,
+        S: RecordingRepository
+            + BookmarkRepository
+            + AnalysisRepository
+            + WaveformRepository
+            + MediaCatalog
+            + 'static,
     {
         Self::build(
             store,
@@ -40,7 +46,12 @@ impl AppState {
         start_audio: impl FnOnce(AudioHooks) -> Arc<dyn PlaybackBroadcast>,
     ) -> Self
     where
-        S: RecordingRepository + BookmarkRepository + AnalysisRepository + MediaCatalog + 'static,
+        S: RecordingRepository
+            + BookmarkRepository
+            + AnalysisRepository
+            + WaveformRepository
+            + MediaCatalog
+            + 'static,
     {
         Self::build(store, clock, Some(start_audio))
     }
@@ -51,9 +62,14 @@ impl AppState {
         start_audio: Option<impl FnOnce(AudioHooks) -> Arc<dyn PlaybackBroadcast>>,
     ) -> Self
     where
-        S: RecordingRepository + BookmarkRepository + AnalysisRepository + MediaCatalog + 'static,
+        S: RecordingRepository
+            + BookmarkRepository
+            + AnalysisRepository
+            + WaveformRepository
+            + MediaCatalog
+            + 'static,
     {
-        let lengths = Arc::new(LengthCache::default());
+        let lengths = Arc::new(LengthCache::new(store.clone()));
         let hub = Arc::new(Hub::new(veltrunox_core::PlaybackState::initial(
             clock.now(),
         )));
@@ -78,12 +94,14 @@ impl AppState {
         let analysis = Arc::new(AnalysisService::new(
             store.clone(),
             store.clone(),
+            store.clone(),
             Arc::new(FileAnalyzer),
             broadcast_for_analysis,
         ));
         let analysis_queue = Arc::new(AnalysisQueue::start(analysis.clone()));
         Self {
-            recordings: store,
+            recordings: store.clone(),
+            waveforms: store,
             bookmarks,
             playback,
             hub,

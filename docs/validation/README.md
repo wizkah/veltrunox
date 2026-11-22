@@ -129,3 +129,20 @@ Limits:
 - Timing on the Raspberry Pi is not measured. The analysis decodes the file a second time next to playback; memory with both at once is not measured.
 - The browser tests do not look at analysis values: the browser server has no audio files. The analysis display is covered by widget tests only.
 - That the tuning shift is audible and right (a recording analysed at 443 Hz played at 440 Hz) was not listened to.
+
+## Phase 4 – Waveform and recording length (2026-11-22)
+
+Environment: macOS (Apple silicon), debug build, native only. Not run on the Raspberry Pi, not run in a browser.
+
+| Check | Result |
+|---|---|
+| Unit tests of the level builder: scaling and clamping (out-of-range and NaN samples), level count and block counts, coarse blocks hold the extremes of the finer blocks they cover, odd block counts | Pass |
+| Storage in a real SQLite store: levels and length round-trip, a second save replaces the first, a missing recording is refused; recordings with a result but without length or waveform are scanned again | Pass |
+| Real server, a 30 s synthesised WAV: length 30 000 ms, finest level of 1 024 frames per block with the expected block count, peaks over HTTP match the block count and are ordered, an unknown level gives 404, an unscanned recording gives 404 | Pass (integration test) |
+| A scan whose analysis finds nothing (silence) still stores waveform and length | Pass (unit test with a fake analyser) |
+| A seek or loop end beyond the stored length is refused; the length is known after a restart without decoding | Pass (unit tests) |
+
+Limits:
+
+- The waveform was not compared with a real rehearsal recording or drawn; the first consumer is the timeline control. Size and scan time on real files and on the Pi are not measured.
+- The length comes from the decoded sample count, not from the container; for lossy formats it can differ from the player's value by the codec delay.

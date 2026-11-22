@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use veltrunox_core::{
     BookmarkId, BookmarkName, Bookmarks, Label, Millis, PlaybackSettings, PlaybackState, Recording,
-    RecordingAnalysis, RecordingId, RecordingTitle, Region, TimeRange, Version,
+    RecordingAnalysis, RecordingId, RecordingTitle, Region, TimeRange, Version, Waveform,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -47,17 +47,43 @@ pub trait AnalysisRepository: Send + Sync {
         id: RecordingId,
         analysis: RecordingAnalysis,
     ) -> Result<(), StorageError>;
-    /// Recordings with an audio file and no stored result.
+    /// Recordings with an audio file that were not scanned completely yet:
+    /// no stored analysis result, length or waveform.
     fn unanalysed(&self) -> Result<Vec<RecordingId>, StorageError>;
+}
+
+/// Port: stored waveform and length, found by decoding the audio once.
+pub trait WaveformRepository: Send + Sync {
+    /// Replaces the stored waveform and length of the recording.
+    fn save_waveform(
+        &self,
+        id: RecordingId,
+        length: Millis,
+        waveform: &Waveform,
+    ) -> Result<(), StorageError>;
+    /// `None` if the recording has none (yet) or does not exist.
+    fn waveform(&self, id: RecordingId) -> Result<Option<Waveform>, StorageError>;
+    /// `None` if the length is not known (yet) or the recording does not exist.
+    fn stored_length(&self, id: RecordingId) -> Result<Option<Millis>, StorageError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{0}")]
 pub struct AnalysisFailure(pub String);
 
-/// Port: determines tuning, key and tempo of an audio file. CPU-bound and blocking.
+/// What decoding one audio file yields. The waveform and length exist even if
+/// the analysis found nothing (for example in silence).
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordingScan {
+    pub length: Millis,
+    pub waveform: Waveform,
+    pub analysis: Result<RecordingAnalysis, AnalysisFailure>,
+}
+
+/// Port: decodes an audio file and derives waveform, length, tuning, key and
+/// tempo from it. CPU-bound and blocking. `Err` if the file cannot be decoded.
 pub trait RecordingAnalyzer: Send + Sync {
-    fn analyse(&self, path: &Path) -> Result<RecordingAnalysis, AnalysisFailure>;
+    fn scan(&self, path: &Path) -> Result<RecordingScan, AnalysisFailure>;
 }
 
 #[derive(Debug, thiserror::Error)]
