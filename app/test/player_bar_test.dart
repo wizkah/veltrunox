@@ -5,6 +5,9 @@ import 'package:veltrunox_app/features/player/player_analysis.dart';
 import 'package:veltrunox_app/features/player/player_bar.dart';
 import 'package:veltrunox_app/features/player/player_controller.dart';
 import 'package:veltrunox_app/features/player/player_state.dart';
+import 'package:veltrunox_app/features/player/position_slider.dart';
+import 'package:veltrunox_app/features/player/tempo_controls.dart';
+import 'package:veltrunox_app/features/player/volume_control.dart';
 import 'package:veltrunox_app/features/player/number_input.dart';
 import 'package:veltrunox_app/features/player/position_display.dart';
 
@@ -19,11 +22,19 @@ const _loaded = PlayerState(
   volumePercent: 100,
 );
 
+/// The player scrolls on a small screen; the tests need all controls in view.
+void _useTallScreen(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 1600);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+}
+
 Future<FakePlayerSource> _pumpBar(
   WidgetTester tester, {
   PlayerState? state,
   PlayerAnalysis? analysis,
 }) async {
+  _useTallScreen(tester);
   final player = FakePlayerSource();
   await tester.pumpWidget(
     ProviderScope(
@@ -39,9 +50,14 @@ Future<FakePlayerSource> _pumpBar(
   return player;
 }
 
-/// The slider of the row with the given label.
-Finder _sliderOf(String label) => find.descendant(
-  of: find.ancestor(of: find.text(label), matching: find.byType(Row)).first,
+/// The slider known by the given name ('Position', 'Geschwindigkeit' or
+/// 'Lautstärke'); the sliders show no label of their own.
+Finder _sliderOf(String name) => find.descendant(
+  of: find.byKey(switch (name) {
+    'Position' => positionSliderKey,
+    'Geschwindigkeit' => speedSliderKey,
+    _ => volumeSliderKey,
+  }),
   matching: find.byType(Slider),
 );
 
@@ -94,13 +110,33 @@ void main() {
     expect(player.calls, ['seek 0']);
   });
 
-  testWidgets('the key buttons shift by one semitone', (tester) async {
+  testWidgets('the key is chosen from -12 to +12 semitones', (tester) async {
     final player = await _pumpBar(tester, state: _loaded);
 
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.tap(find.byIcon(Icons.remove));
+    await tester.tap(find.byType(DropdownButton<int>));
+    await tester.pumpAndSettle();
+    expect(find.text('+12'), findsOneWidget);
+    expect(find.text('-12'), findsOneWidget);
+    await tester.tap(find.text('+1').last);
+    await tester.pumpAndSettle();
 
-    expect(player.calls, ['key 1', 'key -1']);
+    expect(player.calls, ['key 1']);
+  });
+
+  testWidgets('the key steps are named after the analysed key', (tester) async {
+    await _pumpBar(
+      tester,
+      state: _loaded,
+      analysis: const PlayerAnalysis(tuningHz: 440, tempoBpm: 120, keyTonic: 4),
+    );
+
+    expect(find.text('E-Dur (Original)'), findsOneWidget);
+    expect(find.text('Original: 440,0 Hz · E-Dur'), findsOneWidget);
+    await tester.tap(find.byType(DropdownButton<int>));
+    await tester.pumpAndSettle();
+    expect(find.text('F-Dur (+1)'), findsOneWidget);
+    expect(find.text('E-Moll (+0)'), findsNothing);
+    expect(find.text('E-Dur (-12)'), findsOneWidget);
   });
 
   testWidgets('shows the settings of the shared state', (tester) async {
@@ -117,7 +153,7 @@ void main() {
     );
 
     expect(find.text('0.75×'), findsOneWidget);
-    expect(find.text('432 Hz'), findsOneWidget);
+    expect(find.text('432,0'), findsOneWidget);
     expect(find.text('-2'), findsOneWidget);
   });
 
@@ -145,15 +181,30 @@ void main() {
     testWidgets('shows the tempo the recording plays at', (tester) async {
       await _pumpBar(tester, state: changed, analysis: analysis);
 
-      expect(find.text('90,0 bpm'), findsOneWidget);
+      expect(find.text('90,0'), findsOneWidget);
     });
 
-    testWidgets('has nothing to reset without an analysis', (tester) async {
-      await _pumpBar(tester, state: changed);
+    testWidgets(
+      'without an analysis only the analysed values cannot be reset',
+      (tester) async {
+        final player = await _pumpBar(tester, state: changed);
 
-      expect(find.byIcon(Icons.restart_alt), findsNothing);
-      expect(find.text('Soll-bpm'), findsNothing);
-    });
+        final resets = find.widgetWithIcon(IconButton, Icons.restart_alt);
+        expect(resets, findsNWidgets(3));
+        final enabled = tester
+            .widgetList<IconButton>(resets)
+            .map((button) => button.onPressed != null)
+            .toList();
+        // Speed and key go back to 1× and 0; the tuning has no analysed value.
+        expect(enabled, [true, false, true]);
+        // The wanted tempo is shown but cannot be typed without a tempo.
+        expect(find.text('Ziel-bpm'), findsOneWidget);
+        expect(find.text('–'), findsWidgets);
+        await tester.tap(find.byIcon(Icons.restart_alt).first);
+        await tester.tap(find.byIcon(Icons.restart_alt).last);
+        expect(player.calls, ['speed 1.0', 'key 0']);
+      },
+    );
 
     testWidgets('the reset buttons restore the analysed values', (
       tester,
@@ -275,6 +326,7 @@ void main() {
     testWidgets('follows the playback position and spans the length', (
       tester,
     ) async {
+      _useTallScreen(tester);
       final player = FakePlayerSource()..currentPosition = 30000;
       await tester.pumpWidget(
         ProviderScope(
@@ -294,10 +346,13 @@ void main() {
       expect(find.text('0:30.0'), findsWidgets);
     });
 
-    testWidgets('is not shown for a recording without a scan', (tester) async {
+    testWidgets('is shown disabled for a recording without a scan', (
+      tester,
+    ) async {
       final player = await _pumpBar(tester, state: _loaded);
 
-      expect(find.text('Position'), findsNothing);
+      expect(find.byKey(positionSliderKey), findsOneWidget);
+      expect(tester.widget<Slider>(_sliderOf('Position')).onChanged, isNull);
       expect(player.lengthRequests, isEmpty);
     });
 
@@ -426,7 +481,7 @@ void main() {
       tester,
     ) async {
       final player = await _pumpBar(tester, state: _loaded, analysis: analysis);
-      expect(find.text('120,0 bpm'), findsOneWidget);
+      expect(find.text('120,0'), findsOneWidget);
 
       final gesture = await tester.startGesture(
         tester.getCenter(_sliderOf('Geschwindigkeit')),
@@ -439,8 +494,12 @@ void main() {
         isNotEmpty,
       );
       // The state still says 1×, yet the tempo already follows the handle.
-      expect(find.text('120,0 bpm'), findsNothing);
-      expect(find.textContaining(' bpm'), findsOneWidget);
+      expect(find.text('120,0'), findsNothing);
+      final shown = tester
+          .widget<TextField>(find.byType(TextField).first)
+          .controller!
+          .text;
+      expect(shown, isNot('120,0'));
 
       await gesture.up();
       await tester.pump(const Duration(milliseconds: 100));
@@ -455,8 +514,39 @@ void main() {
     testWidgets('has no slider and shows the shared tuning', (tester) async {
       await _pumpBar(tester, state: _loaded);
 
-      expect(_sliderOf('Stimmung'), findsNothing);
-      expect(find.text('440 Hz'), findsOneWidget);
+      // Position, volume and speed are sliders; the tuning is typed in.
+      expect(find.byType(Slider), findsNWidgets(3));
+      expect(find.text('440,0'), findsOneWidget);
+    });
+
+    testWidgets('the one field follows the shared tuning', (tester) async {
+      final player = await _pumpBar(tester, state: _loaded);
+      expect(find.text('440,0'), findsOneWidget);
+
+      player.states.add(
+        const PlayerState(
+          recordingId: 1,
+          running: false,
+          speed: 1,
+          tuningHz: 432.5,
+          keyShiftSemitones: 0,
+          volumePercent: 100,
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('432,5'), findsOneWidget);
+    });
+
+    testWidgets('typed text that is not handed on is put back', (tester) async {
+      await _pumpBar(tester, state: _loaded);
+
+      await tester.enterText(find.byType(TextField).last, '4');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+
+      expect(find.text('440,0'), findsOneWidget);
     });
 
     testWidgets('a confirmed value is sent', (tester) async {
@@ -483,6 +573,49 @@ void main() {
 
       expect(player.calls, isEmpty);
       expect(find.text('Keine Zahl'), findsOneWidget);
+    });
+  });
+
+  group('layout by width', () {
+    const analysis = PlayerAnalysis(tuningHz: 443, tempoBpm: 120, keyTonic: 4);
+
+    Future<void> pumpAt(WidgetTester tester, double width) async {
+      await _pumpBar(tester, state: _loaded, analysis: analysis);
+      tester.view.physicalSize = Size(width, 1600);
+      await tester.pump();
+    }
+
+    for (final width in [360.0, 800.0, 1000.0, 1400.0]) {
+      testWidgets('shows all controls and the resets at $width px', (
+        tester,
+      ) async {
+        await pumpAt(tester, width);
+
+        expect(find.byIcon(Icons.restart_alt), findsNWidgets(3));
+        for (var i = 0; i < 3; i++) {
+          final right = tester
+              .getTopRight(find.byIcon(Icons.restart_alt).at(i))
+              .dx;
+          expect(right, lessThanOrEqualTo(width));
+        }
+        expect(find.text('Lautstärke'), findsOneWidget);
+      });
+    }
+
+    testWidgets('the volume stands upright beside the transport when wide', (
+      tester,
+    ) async {
+      await pumpAt(tester, 1400);
+      expect(find.byType(RotatedBox), findsWidgets);
+
+      await pumpAt(tester, 800);
+      expect(
+        find.descendant(
+          of: find.byType(PlayerBar),
+          matching: find.byType(RotatedBox),
+        ),
+        findsNothing,
+      );
     });
   });
 }

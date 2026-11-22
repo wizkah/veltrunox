@@ -47,6 +47,12 @@ Widget _app(RecordingSource source, [FakePlayerSource? player]) =>
       child: const VeltrunoxApp(),
     );
 
+/// Pending analyses show a spinner that never settles, so settle by frames.
+Future<void> _pumpFrames(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 void main() {
   testWidgets('shows the connection status', (tester) async {
     await tester.pumpWidget(_app(_FakeSource(() async => [])));
@@ -120,7 +126,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('C♯-Moll · 148,0 bpm · 441,2 Hz'), findsOneWidget);
+    expect(find.text('C#-Moll · 148,0 bpm · 441,2 Hz'), findsOneWidget);
   });
 
   testWidgets('shows the state of a pending or failed analysis', (
@@ -147,7 +153,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpFrames(tester);
 
     expect(find.text('Analyse läuft …'), findsOneWidget);
     expect(find.text('Analyse fehlgeschlagen: zu kurz'), findsOneWidget);
@@ -177,7 +183,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(_app(source));
-    await tester.pumpAndSettle();
+    await _pumpFrames(tester);
     expect(find.text('Analyse läuft …'), findsOneWidget);
 
     analysed = true;
@@ -212,7 +218,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(_app(source));
-    await tester.pumpAndSettle();
+    await _pumpFrames(tester);
 
     await tester.tap(find.byIcon(Icons.refresh));
 

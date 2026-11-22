@@ -23,8 +23,8 @@ class TuningField extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ValueEntryField(
     label: PlayerTexts.tuning,
-    currentText: PlayerTexts.tuningValue(currentHz),
-    fieldLabel: PlayerTexts.tuningTarget,
+    valueText: PlayerTexts.decimal(currentHz),
+    unit: 'Hz',
     notANumber: PlayerTexts.tuningInvalid,
     outOfRange: PlayerTexts.tuningOutOfRange,
     onSubmit: onSubmit,

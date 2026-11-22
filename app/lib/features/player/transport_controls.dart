@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../shared_ui/app_icon_button.dart';
 import 'player_texts.dart';
 
 class TransportControls extends StatelessWidget {
@@ -17,16 +18,22 @@ class TransportControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.center,
     children: [
-      IconButton(
+      AppIconButton(
         tooltip: PlayerTexts.restart,
         onPressed: onRestart,
-        icon: const Icon(Icons.skip_previous),
+        icon: Icons.skip_previous,
+        extent: 64,
+        iconSize: 40,
       ),
-      IconButton.filled(
+      AppIconButton(
         tooltip: running ? PlayerTexts.pause : PlayerTexts.play,
         onPressed: onTogglePlay,
-        icon: Icon(running ? Icons.pause : Icons.play_arrow),
+        icon: running ? Icons.pause : Icons.play_arrow,
+        prominent: true,
+        extent: 88,
+        iconSize: 56,
       ),
     ],
   );

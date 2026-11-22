@@ -6,6 +6,9 @@ import 'labeled_slider.dart';
 import 'player_texts.dart';
 import 'position_display.dart';
 
+/// Identifies the position slider.
+const positionSliderKey = ValueKey('position-slider');
+
 /// Moves through the recording. Moving the handle reports the position along
 /// the way (scrubbing, a short piece is heard). Holding it still lets the
 /// recording play on from there; letting go reports the final position, or
@@ -24,7 +27,10 @@ class PositionSlider extends StatefulWidget {
   });
 
   final int positionMs;
-  final int lengthMs;
+
+  /// `null` while the length is not known (the recording is not scanned yet):
+  /// the slider is shown but cannot be moved.
+  final int? lengthMs;
   final ValueChanged<int> onScrub;
   final ValueChanged<int> onScrubEnd;
 
@@ -75,13 +81,19 @@ class _PositionSliderState extends State<PositionSlider> {
   }
 
   @override
-  Widget build(BuildContext context) => LabeledSlider(
-    label: PlayerTexts.position,
-    value: widget.positionMs.toDouble(),
-    min: 0,
-    max: widget.lengthMs.toDouble(),
-    format: (value) => formatPosition(value.round()),
-    onChanging: (value) => _onMove(value.round()),
-    onChanged: (value) => _onRelease(value.round()),
-  );
+  Widget build(BuildContext context) {
+    final length = widget.lengthMs;
+    final known = length != null && length > 0;
+    return LabeledSlider(
+      key: positionSliderKey,
+      label: PlayerTexts.position,
+      enabled: known,
+      value: known ? widget.positionMs.toDouble() : 0,
+      min: 0,
+      max: known ? length.toDouble() : 1,
+      format: (value) => formatPosition(value.round()),
+      onChanging: (value) => _onMove(value.round()),
+      onChanged: (value) => _onRelease(value.round()),
+    );
+  }
 }

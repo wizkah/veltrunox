@@ -3,20 +3,20 @@ import 'library_texts.dart';
 
 const _tonics = [
   'C',
-  'C♯',
+  'C#',
   'D',
-  'D♯',
+  'D#',
   'E',
   'F',
-  'F♯',
+  'F#',
   'G',
-  'G♯',
+  'G#',
   'A',
-  'A♯',
+  'A#',
   'B',
 ];
 
-/// "A-Moll", "C♯-Dur".
+/// "A-Moll", "C#-Dur".
 String keyName(int tonic, {required bool minor}) =>
     '${_tonics[tonic % 12]}-${minor ? LibraryTexts.minor : LibraryTexts.major}';
 

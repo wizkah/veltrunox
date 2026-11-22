@@ -6,6 +6,9 @@ import 'reset_button.dart';
 import 'target_tempo_field.dart';
 import 'throttled_value.dart';
 
+/// Identifies the speed slider.
+const speedSliderKey = ValueKey('speed-slider');
+
 /// The speed of the playback. It takes effect while the slider is dragged, and
 /// with the recording's tempo known the wanted tempo follows the handle at once
 /// and can be typed in.
@@ -59,8 +62,10 @@ class _TempoControlsState extends State<TempoControls> {
     final bpm = widget.recordingBpm;
     final speed = _dragged ?? widget.speed;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LabeledSlider(
+          key: speedSliderKey,
           label: PlayerTexts.speed,
           value: widget.speed,
           min: 0.5,
@@ -68,17 +73,14 @@ class _TempoControlsState extends State<TempoControls> {
           format: PlayerTexts.speedValue,
           onChanging: _onChanging,
           onChanged: _onChanged,
-          trailing: bpm == null
-              ? null
-              : ResetButton(
-                  onPressed: widget.speed == 1 ? null : () => widget.onSpeed(1),
-                ),
         ),
-        if (bpm != null)
-          TargetTempoField(
-            currentBpm: bpm * speed,
-            onSubmit: widget.onTargetTempo,
+        TargetTempoField(
+          currentBpm: bpm == null ? null : bpm * speed,
+          onSubmit: widget.onTargetTempo,
+          trailing: ResetButton(
+            onPressed: widget.speed == 1 ? null : () => widget.onSpeed(1),
           ),
+        ),
       ],
     );
   }

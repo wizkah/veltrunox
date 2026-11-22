@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../design/tokens/app_geometry.dart';
 import 'library_controller.dart';
 import 'library_failure.dart';
 import 'library_texts.dart';
@@ -10,37 +11,40 @@ class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({
     required this.selectedId,
     required this.onSelect,
-    this.appBarActions = const [],
-    this.bottomBar,
     super.key,
   });
 
   final int? selectedId;
   final ValueChanged<int> onSelect;
-  final List<Widget> appBarActions;
-  final Widget? bottomBar;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(libraryProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(LibraryTexts.title),
-        actions: appBarActions,
-      ),
-      bottomNavigationBar: bottomBar,
-      body: library.when(
-        data: (recordings) => RecordingList(
-          recordings: recordings,
-          selectedId: selectedId,
-          onSelect: onSelect,
-          onReanalyse: ref.read(libraryProvider.notifier).reanalyse,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(AppSpace.s4),
+          child: Text(
+            LibraryTexts.title,
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => LibraryFailure(
-          onRetry: () => ref.read(libraryProvider.notifier).reload(),
+        Expanded(
+          child: library.when(
+            data: (recordings) => RecordingList(
+              recordings: recordings,
+              selectedId: selectedId,
+              onSelect: onSelect,
+              onReanalyse: ref.read(libraryProvider.notifier).reanalyse,
+            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, _) => LibraryFailure(
+              onRetry: () => ref.read(libraryProvider.notifier).reload(),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

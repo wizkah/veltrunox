@@ -6,7 +6,7 @@ void main() {
   test('key names use sharps and German mode names', () {
     expect(keyName(0, minor: false), 'C-Dur');
     expect(keyName(9, minor: true), 'A-Moll');
-    expect(keyName(6, minor: false), 'F♯-Dur');
+    expect(keyName(6, minor: false), 'F#-Dur');
     expect(keyName(11, minor: true), 'B-Moll');
   });
 

@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../shared_ui/app_icon_button.dart';
 import 'analysis_info.dart';
 import 'library_texts.dart';
 
@@ -18,9 +19,9 @@ class ReanalyseButton extends StatelessWidget {
       status == AnalysisStatus.queued || status == AnalysisStatus.running;
 
   @override
-  Widget build(BuildContext context) => IconButton(
+  Widget build(BuildContext context) => AppIconButton(
     tooltip: LibraryTexts.reanalyse,
     onPressed: _pending ? null : onPressed,
-    icon: const Icon(Icons.refresh),
+    icon: Icons.refresh,
   );
 }
