@@ -289,32 +289,37 @@ pub fn bookmarks_to_dto(bookmarks: &Bookmarks) -> BookmarksDto {
     }
 }
 
+pub fn label_from_dto(dto: &LabelDto) -> Result<Label, InvalidValue> {
+    Ok(Label {
+        id: BookmarkId::new(dto.id),
+        name: BookmarkName::new(&dto.name)?,
+        position: Millis::position(dto.position_ms)?,
+        version: Version::new(dto.version),
+    })
+}
+
+pub fn region_from_dto(dto: &RegionDto) -> Result<Region, InvalidValue> {
+    Ok(Region {
+        id: BookmarkId::new(dto.id),
+        name: BookmarkName::new(&dto.name)?,
+        range: range_from_dto(dto.range)?,
+        version: Version::new(dto.version),
+    })
+}
+
 pub fn bookmarks_from_dto(dto: &BookmarksDto) -> Result<Bookmarks, InvalidValue> {
-    let labels = dto
-        .labels
-        .iter()
-        .map(|label| {
-            Ok(Label {
-                id: BookmarkId::new(label.id),
-                name: BookmarkName::new(&label.name)?,
-                position: Millis::position(label.position_ms)?,
-                version: Version::new(label.version),
-            })
-        })
-        .collect::<Result<_, InvalidValue>>()?;
-    let regions = dto
-        .regions
-        .iter()
-        .map(|region| {
-            Ok(Region {
-                id: BookmarkId::new(region.id),
-                name: BookmarkName::new(&region.name)?,
-                range: range_from_dto(region.range)?,
-                version: Version::new(region.version),
-            })
-        })
-        .collect::<Result<_, InvalidValue>>()?;
-    Ok(Bookmarks { labels, regions })
+    Ok(Bookmarks {
+        labels: dto
+            .labels
+            .iter()
+            .map(label_from_dto)
+            .collect::<Result<_, _>>()?,
+        regions: dto
+            .regions
+            .iter()
+            .map(region_from_dto)
+            .collect::<Result<_, _>>()?,
+    })
 }
 
 #[cfg(test)]

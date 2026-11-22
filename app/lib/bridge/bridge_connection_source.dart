@@ -10,4 +10,7 @@ class BridgeConnectionSource implements ConnectionSource {
 
   @override
   Stream<ConnectionStatus> watch() => _session.connection();
+
+  @override
+  Future<void> reconnect() => _session.reconnect();
 }

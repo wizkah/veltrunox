@@ -5,8 +5,13 @@ mod support;
 use std::sync::Arc;
 use support::{TestClient, start_server, store_with_recording};
 use veltrunox_client_adapters::HttpServerLink;
-use veltrunox_client_app::{ChannelEvent, ServerEvent, load_bookmarks, load_library};
-use veltrunox_core::{Intent, KeyShift, Millis, RecordingId, Speed};
+use veltrunox_client_app::{
+    ChannelEvent, LinkError, ServerEvent, add_label, add_region, delete_label, delete_region,
+    edit_label, edit_region, load_bookmarks, load_library,
+};
+use veltrunox_core::{
+    BookmarkName, Intent, KeyShift, Millis, RecordingId, Speed, TimeRange, Version,
+};
 use veltrunox_protocol::{
     BookmarksDto, ConflictDto, LabelDto, NewLabelDto, NewRegionDto, RangeDto, UpdateLabelDto,
 };
@@ -45,6 +50,62 @@ async fn a_new_label_is_announced_and_can_be_loaded_by_another_client() {
         .unwrap();
     assert_eq!(loaded.labels.len(), 1);
     assert_eq!(loaded.labels[0].name.as_str(), "Verse");
+}
+
+#[tokio::test]
+async fn the_client_writes_labels_and_regions_and_meets_a_conflict() {
+    let url = start_server(store_with_recording()).await;
+    let link = HttpServerLink::new(&url);
+    let name = |text: &str| BookmarkName::new(text).unwrap();
+
+    let label = add_label(&link, RECORDING, &name("Intro"), Millis::new(5_000))
+        .await
+        .unwrap();
+    let renamed = edit_label(
+        &link,
+        label.id,
+        label.version,
+        &name("Entry"),
+        Millis::new(6_000),
+    )
+    .await
+    .unwrap();
+    assert_eq!(renamed.version, Version::new(2));
+    let stale = edit_label(
+        &link,
+        label.id,
+        label.version,
+        &name("Late"),
+        Millis::new(7_000),
+    )
+    .await;
+    assert!(matches!(
+        stale,
+        Err(LinkError::Conflict { current }) if current == Version::new(2)
+    ));
+
+    let range = TimeRange::new(Millis::new(1_000), Millis::new(4_000)).unwrap();
+    let region = add_region(&link, RECORDING, &name("Verse"), range)
+        .await
+        .unwrap();
+    let longer = TimeRange::new(Millis::new(1_000), Millis::new(9_000)).unwrap();
+    let resized = edit_region(&link, region.id, region.version, &name("Verse"), longer)
+        .await
+        .unwrap();
+    assert_eq!(resized.range, longer);
+
+    let found = load_bookmarks(&link, RECORDING).await.unwrap();
+    assert_eq!(found.labels.len(), 1);
+    assert_eq!(found.regions.len(), 1);
+
+    delete_label(&link, label.id, renamed.version)
+        .await
+        .unwrap();
+    delete_region(&link, region.id, resized.version)
+        .await
+        .unwrap();
+    let found = load_bookmarks(&link, RECORDING).await.unwrap();
+    assert!(found.labels.is_empty() && found.regions.is_empty());
 }
 
 #[tokio::test]

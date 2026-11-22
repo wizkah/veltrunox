@@ -26,7 +26,6 @@ Future<ValueNotifier<ShellDestination>> _pump(
           onSelect: (next) => selected.value = next,
           status: const Text('Status'),
           body: Text('Seite ${destination.label}'),
-          persistentBar: const Text('Leiste'),
         ),
       ),
     ),
@@ -50,7 +49,6 @@ void main() {
     final selected = await _pump(tester, 400);
 
     expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.text('Leiste'), findsOneWidget);
     expect(find.text('Status'), findsOneWidget);
     await tester.tap(find.text('Player'));
     await tester.pump();
@@ -63,7 +61,6 @@ void main() {
 
     expect(find.byType(NavigationRail), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
-    expect(find.text('Leiste'), findsOneWidget);
   });
 
   testWidgets('desktop navigates along the top and keeps the status', (

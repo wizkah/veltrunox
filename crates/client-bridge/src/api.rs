@@ -9,11 +9,13 @@ use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
 use veltrunox_client_adapters::{EventChannel, HttpServerLink, SystemTimer, open_channel};
 use veltrunox_client_app::{
     ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkEvent, ScrubThrottle, ServerEvent,
-    SessionView, ViewChange, analyse_again, load_length, load_library,
+    SessionView, ViewChange, add_label, add_region, analyse_again, delete_label, delete_region,
+    edit_label, edit_region, load_bookmarks, load_length, load_library,
 };
 use veltrunox_core::{
-    AnalysisProgress, Bpm, Intent, KeyMode, KeyShift, LibraryEntry, Millis, PlayMode, RecordingId,
-    Speed, TargetSpeed, TimeRange, TuningHz, Volume, speed_for_target_tempo,
+    AnalysisProgress, BookmarkId, BookmarkName, Bpm, Intent, InvalidValue, KeyMode, KeyShift,
+    LibraryEntry, Millis, PlayMode, RecordingId, Speed, TargetSpeed, TimeRange, TuningHz, Version,
+    Volume, speed_for_target_tempo,
 };
 
 /// A recording as the user interface needs it.
@@ -95,6 +97,183 @@ pub async fn recording_length_ms(server_url: String, recording_id: u64) -> Optio
         .await
         .ok()
         .map(Millis::value)
+}
+
+/// A point marker of a recording.
+pub struct LabelItem {
+    pub id: u64,
+    /// The version this client saw; a change or deletion must name it.
+    pub version: u64,
+    pub name: String,
+    pub position_ms: u64,
+}
+
+/// A named span of a recording.
+pub struct RegionItem {
+    pub id: u64,
+    pub version: u64,
+    pub name: String,
+    pub start_ms: u64,
+    pub end_ms: u64,
+}
+
+/// All labels and regions of one recording.
+pub struct BookmarkSet {
+    pub labels: Vec<LabelItem>,
+    pub regions: Vec<RegionItem>,
+}
+
+/// Loads the labels and regions of a recording.
+pub async fn list_bookmarks(server_url: String, recording_id: u64) -> Result<BookmarkSet, String> {
+    let link = HttpServerLink::new(&server_url);
+    let found = load_bookmarks(&link, RecordingId::new(recording_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(BookmarkSet {
+        labels: found
+            .labels
+            .iter()
+            .map(|label| LabelItem {
+                id: label.id.value(),
+                version: label.version.value(),
+                name: label.name.as_str().to_owned(),
+                position_ms: label.position.value(),
+            })
+            .collect(),
+        regions: found
+            .regions
+            .iter()
+            .map(|region| RegionItem {
+                id: region.id.value(),
+                version: region.version.value(),
+                name: region.name.as_str().to_owned(),
+                start_ms: region.range.start().value(),
+                end_ms: region.range.end().value(),
+            })
+            .collect(),
+    })
+}
+
+fn bookmark_name(name: &str) -> Result<BookmarkName, String> {
+    BookmarkName::new(name).map_err(|error| error.to_string())
+}
+
+fn invalid(error: InvalidValue) -> String {
+    error.to_string()
+}
+
+fn range_of(start_ms: u64, end_ms: u64) -> Result<TimeRange, String> {
+    TimeRange::new(
+        Millis::position(start_ms).map_err(invalid)?,
+        Millis::position(end_ms).map_err(invalid)?,
+    )
+    .map_err(invalid)
+}
+
+/// Adds a label; the server tells every client to reload the bookmarks.
+pub async fn create_label(
+    server_url: String,
+    recording_id: u64,
+    name: String,
+    position_ms: u64,
+) -> Result<(), String> {
+    let link = HttpServerLink::new(&server_url);
+    add_label(
+        &link,
+        RecordingId::new(recording_id),
+        &bookmark_name(&name)?,
+        Millis::position(position_ms).map_err(invalid)?,
+    )
+    .await
+    .map(drop)
+    .map_err(|error| error.to_string())
+}
+
+/// Renames or moves a label seen at `expected_version`.
+pub async fn change_label(
+    server_url: String,
+    id: u64,
+    expected_version: u64,
+    name: String,
+    position_ms: u64,
+) -> Result<(), String> {
+    let link = HttpServerLink::new(&server_url);
+    edit_label(
+        &link,
+        BookmarkId::new(id),
+        Version::new(expected_version),
+        &bookmark_name(&name)?,
+        Millis::position(position_ms).map_err(invalid)?,
+    )
+    .await
+    .map(drop)
+    .map_err(|error| error.to_string())
+}
+
+/// Deletes a label seen at `expected_version`.
+pub async fn remove_label(
+    server_url: String,
+    id: u64,
+    expected_version: u64,
+) -> Result<(), String> {
+    let link = HttpServerLink::new(&server_url);
+    delete_label(&link, BookmarkId::new(id), Version::new(expected_version))
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Adds a region from `start_ms` up to `end_ms`.
+pub async fn create_region(
+    server_url: String,
+    recording_id: u64,
+    name: String,
+    start_ms: u64,
+    end_ms: u64,
+) -> Result<(), String> {
+    let link = HttpServerLink::new(&server_url);
+    add_region(
+        &link,
+        RecordingId::new(recording_id),
+        &bookmark_name(&name)?,
+        range_of(start_ms, end_ms)?,
+    )
+    .await
+    .map(drop)
+    .map_err(|error| error.to_string())
+}
+
+/// Renames or resizes a region seen at `expected_version`.
+pub async fn change_region(
+    server_url: String,
+    id: u64,
+    expected_version: u64,
+    name: String,
+    start_ms: u64,
+    end_ms: u64,
+) -> Result<(), String> {
+    let link = HttpServerLink::new(&server_url);
+    edit_region(
+        &link,
+        BookmarkId::new(id),
+        Version::new(expected_version),
+        &bookmark_name(&name)?,
+        range_of(start_ms, end_ms)?,
+    )
+    .await
+    .map(drop)
+    .map_err(|error| error.to_string())
+}
+
+/// Deletes a region seen at `expected_version`.
+pub async fn remove_region(
+    server_url: String,
+    id: u64,
+    expected_version: u64,
+) -> Result<(), String> {
+    let link = HttpServerLink::new(&server_url);
+    delete_region(&link, BookmarkId::new(id), Version::new(expected_version))
+        .await
+        .map_err(|error| error.to_string())
 }
 
 /// The speed that plays a recording of `recording_bpm` at `target_bpm`.
@@ -470,6 +649,19 @@ mod tests {
         let too_fast = target_tempo(300.0, 100.0).unwrap();
         assert!(!too_fast.supported);
         assert!(target_tempo(0.0, 100.0).is_err());
+    }
+
+    #[test]
+    fn a_region_needs_an_end_after_its_start() {
+        assert!(range_of(1_000, 2_000).is_ok());
+        assert!(range_of(2_000, 2_000).is_err());
+        assert!(range_of(3_000, 2_000).is_err());
+    }
+
+    #[test]
+    fn a_bookmark_name_must_not_be_blank() {
+        assert!(bookmark_name(" Chorus ").is_ok());
+        assert!(bookmark_name("  ").is_err());
     }
 
     #[test]

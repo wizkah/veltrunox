@@ -7,10 +7,17 @@ async function press(button: Locator) {
 }
 
 // A selection resets the shared state; the controls look the same before and after,
-// so give it a moment to arrive before the next command.
+// so give it a moment to arrive before the next command. The library shows the details
+// of a recording first; opening it there leads to the player.
 async function select(page: Page, title: string) {
-  await press(page.getByRole('button', { name: title, exact: true }));
+  // The tile of the loaded recording also says so in its name.
+  await press(page.getByRole('button', { name: new RegExp(`^${title}( Im Player geladen)?$`) }));
+  await press(page.getByRole('button', { name: 'Im Player öffnen', exact: true }));
   await page.waitForTimeout(500);
+}
+
+async function showPlayer(page: Page) {
+  await press(page.getByRole('button', { name: 'Player', exact: true }));
 }
 
 async function open(page: Page) {
@@ -30,16 +37,17 @@ test('two browser clients share the playback state', async ({ browser }) => {
   }
   await open(first);
   await open(second);
+  await showPlayer(second);
   await expect(second.getByText('Keine Aufnahme gewählt')).toBeVisible();
 
   await select(first, 'Soundcheck');
-  await expect(second.getByRole('button', { name: 'Abspielen' })).toBeVisible();
+  await expect(second.getByRole('button', { name: 'Abspielen', exact: true })).toBeVisible();
 
-  await press(first.getByRole('button', { name: 'Abspielen' }));
-  await expect(second.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await press(first.getByRole('button', { name: 'Abspielen', exact: true }));
+  await expect(second.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 
-  await press(second.getByRole('button', { name: 'Pause' }));
-  await expect(first.getByRole('button', { name: 'Abspielen' })).toBeVisible();
+  await press(second.getByRole('button', { name: 'Pause', exact: true }));
+  await expect(first.getByRole('button', { name: 'Abspielen', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -47,11 +55,28 @@ test('a client joining during playback shows the running state at once', async (
   const first = await (await browser.newContext()).newPage();
   await open(first);
   await select(first, 'Soundcheck');
-  await press(first.getByRole('button', { name: 'Abspielen' }));
-  await expect(first.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await press(first.getByRole('button', { name: 'Abspielen', exact: true }));
+  await expect(first.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 
   const late = await (await browser.newContext()).newPage();
   await open(late);
-  await expect(late.getByRole('button', { name: 'Pause' })).toBeVisible();
-  await press(first.getByRole('button', { name: 'Pause' }));
+  await showPlayer(late);
+  await expect(late.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await press(first.getByRole('button', { name: 'Pause', exact: true }));
+});
+
+test('the play mode is shared between the clients', async ({ browser }) => {
+  const first = await (await browser.newContext()).newPage();
+  const second = await (await browser.newContext()).newPage();
+  await open(first);
+  await open(second);
+  await select(first, 'Soundcheck');
+  await showPlayer(second);
+
+  await expect(first.getByRole('button', { name: /Abspielmodus: Bis Ende/ })).toBeVisible();
+  await press(first.getByRole('button', { name: /Abspielmodus: Bis Ende/ }));
+  await expect(second.getByRole('button', { name: /Abspielmodus: Regionsende/ })).toBeVisible();
+  await press(second.getByRole('button', { name: /Abspielmodus: Regionsende/ }));
+  await press(second.getByRole('button', { name: /Abspielmodus: Schleife/ }));
+  await expect(first.getByRole('button', { name: /Abspielmodus: Bis Ende/ })).toBeVisible();
 });

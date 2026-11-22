@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:veltrunox_app/features/player/player_analysis.dart';
-import 'package:veltrunox_app/features/player/player_bar.dart';
+import 'package:veltrunox_app/features/player/player_notices.dart';
+import 'package:veltrunox_app/features/player/player_screen.dart';
 import 'package:veltrunox_app/features/player/player_controller.dart';
 import 'package:veltrunox_app/features/player/player_state.dart';
 import 'package:veltrunox_app/features/player/position_slider.dart';
@@ -40,7 +41,11 @@ Future<FakePlayerSource> _pumpBar(
     ProviderScope(
       overrides: [playerSourceProvider.overrideWithValue(player)],
       child: MaterialApp(
-        home: Scaffold(body: PlayerBar(analysis: analysis)),
+        home: Scaffold(
+          body: PlayerNotices(
+            child: PlayerScreen(onChooseRecording: () {}, analysis: analysis),
+          ),
+        ),
       ),
     ),
   );
@@ -74,7 +79,17 @@ void main() {
   testWidgets('invites to choose a recording while none is loaded', (
     tester,
   ) async {
-    await _pumpBar(tester);
+    await _pumpBar(
+      tester,
+      state: const PlayerState(
+        recordingId: null,
+        running: false,
+        speed: 1,
+        tuningHz: 440,
+        keyShiftSemitones: 0,
+        volumePercent: 100,
+      ),
+    );
 
     expect(find.text('Keine Aufnahme gewählt'), findsOneWidget);
     expect(find.byIcon(Icons.play_arrow), findsNothing);
@@ -331,8 +346,15 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [playerSourceProvider.overrideWithValue(player)],
-          child: const MaterialApp(
-            home: Scaffold(body: PlayerBar(analysis: _analysis)),
+          child: MaterialApp(
+            home: Scaffold(
+              body: PlayerNotices(
+                child: PlayerScreen(
+                  onChooseRecording: () {},
+                  analysis: _analysis,
+                ),
+              ),
+            ),
           ),
         ),
       );
@@ -608,10 +630,10 @@ void main() {
       await pumpAt(tester, 1400);
       expect(find.byType(RotatedBox), findsWidgets);
 
-      await pumpAt(tester, 800);
+      await pumpAt(tester, 600);
       expect(
         find.descendant(
-          of: find.byType(PlayerBar),
+          of: find.byType(PlayerScreen),
           matching: find.byType(RotatedBox),
         ),
         findsNothing,

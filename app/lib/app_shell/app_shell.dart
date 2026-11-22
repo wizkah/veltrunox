@@ -7,15 +7,14 @@ import 'brand_mark.dart';
 import 'side_navigation.dart';
 import 'top_navigation.dart';
 
-/// The frame around the screens: navigation, the global status area and a
-/// persistent bar. It knows no feature; what it frames is passed in.
+/// The frame around the screens: navigation and the global status area. It
+/// knows no feature; what it frames is passed in.
 class AppShell extends StatelessWidget {
   const AppShell({
     required this.destination,
     required this.onSelect,
     required this.status,
     required this.body,
-    this.persistentBar,
     super.key,
   });
 
@@ -25,9 +24,6 @@ class AppShell extends StatelessWidget {
   /// Global status (connection), always visible.
   final Widget status;
   final Widget body;
-
-  /// Shown below the body in every layout, above the mobile navigation.
-  final Widget? persistentBar;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -42,12 +38,9 @@ class AppShell extends StatelessWidget {
   Widget _mobile() => Scaffold(
     appBar: AppBar(title: const BrandMark(), actions: [status]),
     body: body,
-    bottomNavigationBar: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ?persistentBar,
-        BottomNavigation(selected: destination, onSelect: onSelect),
-      ],
+    bottomNavigationBar: BottomNavigation(
+      selected: destination,
+      onSelect: onSelect,
     ),
   );
 
@@ -59,7 +52,6 @@ class AppShell extends StatelessWidget {
         Expanded(child: body),
       ],
     ),
-    bottomNavigationBar: persistentBar,
   );
 
   Widget _desktop() => Scaffold(
@@ -69,6 +61,5 @@ class AppShell extends StatelessWidget {
       status: status,
     ),
     body: body,
-    bottomNavigationBar: persistentBar,
   );
 }

@@ -4,47 +4,152 @@ import 'package:material_ui/material_ui.dart';
 import '../../design/tokens/app_geometry.dart';
 import 'library_controller.dart';
 import 'library_failure.dart';
+import 'library_query.dart';
+import 'library_query_controller.dart';
 import 'library_texts.dart';
+import 'library_toolbar.dart';
+import 'recording_details.dart';
 import 'recording_list.dart';
+import 'recording_summary.dart';
 
+/// The library: a large song list with search, order and filter. On a wide
+/// screen the details of a recording stand beside the list; on a narrow one
+/// they replace it. Opening or playing a recording is left to the caller.
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({
-    required this.selectedId,
-    required this.onSelect,
+    required this.loadedId,
+    required this.onOpenInPlayer,
+    required this.onPlay,
     super.key,
   });
 
-  final int? selectedId;
-  final ValueChanged<int> onSelect;
+  /// The recording the player has loaded.
+  final int? loadedId;
+  final ValueChanged<int> onOpenInPlayer;
+  final ValueChanged<int> onPlay;
+
+  /// From this width the details stand beside the list.
+  static const _detailsBesideMin = AppBreakpoint.desktopMin;
+  static const _detailsWidth = 400.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(libraryProvider);
+    return library.when(
+      data: (recordings) => _loaded(context, ref, recordings),
+      loading: () => const _Loading(),
+      error: (_, _) => LibraryFailure(
+        onRetry: () => ref.read(libraryProvider.notifier).reload(),
+      ),
+    );
+  }
+
+  Widget _loaded(
+    BuildContext context,
+    WidgetRef ref,
+    List<RecordingSummary> recordings,
+  ) {
+    final query = ref.watch(libraryQueryProvider);
+    final detailId = ref.watch(libraryDetailProvider);
+    final detailed = recordings.where((recording) => recording.id == detailId);
+    final details = detailed.isEmpty ? null : detailed.first;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final beside = constraints.maxWidth >= _detailsBesideMin;
+        if (!beside && details != null) {
+          return _details(ref, details, withBack: true);
+        }
+        final list = _list(context, ref, recordings, query, detailId);
+        if (!beside) return list;
+        return Row(
+          children: [
+            Expanded(child: list),
+            const VerticalDivider(width: AppSize.borderWidth),
+            SizedBox(
+              width: _detailsWidth,
+              child: details == null
+                  ? const SizedBox.shrink()
+                  : _details(ref, details, withBack: false),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _list(
+    BuildContext context,
+    WidgetRef ref,
+    List<RecordingSummary> recordings,
+    LibraryQuery query,
+    int? detailId,
+  ) {
+    final queryController = ref.read(libraryQueryProvider.notifier);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.all(AppSpace.s4),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.s4,
+            AppSpace.s4,
+            AppSpace.s4,
+            AppSpace.s2,
+          ),
           child: Text(
             LibraryTexts.title,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.s4),
+          child: LibraryToolbar(
+            query: query,
+            onSearch: queryController.search,
+            onSort: queryController.sortBy,
+            onFilter: queryController.filterBy,
+          ),
+        ),
+        const SizedBox(height: AppSpace.s2),
         Expanded(
-          child: library.when(
-            data: (recordings) => RecordingList(
-              recordings: recordings,
-              selectedId: selectedId,
-              onSelect: onSelect,
-              onReanalyse: ref.read(libraryProvider.notifier).reanalyse,
-            ),
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, _) => LibraryFailure(
-              onRetry: () => ref.read(libraryProvider.notifier).reload(),
-            ),
+          child: RecordingList(
+            recordings: applyQuery(recordings, query),
+            detailId: detailId,
+            loadedId: loadedId,
+            narrowed: query.narrows,
+            onShowDetails: ref.read(libraryDetailProvider.notifier).show,
+            onPlay: onPlay,
           ),
         ),
       ],
     );
   }
+
+  Widget _details(
+    WidgetRef ref,
+    RecordingSummary recording, {
+    required bool withBack,
+  }) => RecordingDetails(
+    recording: recording,
+    onOpenInPlayer: () => onOpenInPlayer(recording.id),
+    onPlay: () => onPlay(recording.id),
+    onReanalyse: () =>
+        ref.read(libraryProvider.notifier).reanalyse(recording.id),
+    onBack: withBack ? ref.read(libraryDetailProvider.notifier).close : null,
+  );
+}
+
+class _Loading extends StatelessWidget {
+  const _Loading();
+
+  @override
+  Widget build(BuildContext context) => const Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircularProgressIndicator(),
+        SizedBox(height: AppSpace.s3),
+        Text(LibraryTexts.loading),
+      ],
+    ),
+  );
 }

@@ -66,6 +66,25 @@ class BridgePlayerSource implements PlayerSource {
       _send(rust.PlayerCommand.setVolume(volumePercent: percent));
 
   @override
+  Future<void> setPlayMode(PlayMode mode) => _send(
+    rust.PlayerCommand.setPlayMode(
+      playMode: switch (mode) {
+        PlayMode.toEnd => rust.PlayModeChoice.toEnd,
+        PlayMode.toRegionEnd => rust.PlayModeChoice.toRegionEnd,
+        PlayMode.loop => rust.PlayModeChoice.loop,
+      },
+    ),
+  );
+
+  @override
+  Future<void> playRegion({required int startMs, required int endMs}) => _send(
+    rust.PlayerCommand.playRegion(
+      startMs: BigInt.from(startMs),
+      endMs: BigInt.from(endMs),
+    ),
+  );
+
+  @override
   Future<bool> tuningSupported(double hertz) =>
       rust.tuningSupported(tuningHz: hertz);
 

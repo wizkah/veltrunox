@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'player_source.dart';
+import 'remote_change_detector.dart';
 import 'player_state.dart';
 import 'position_display.dart';
 import 'target_tempo.dart';
@@ -76,21 +77,67 @@ final playerLengthProvider =
 
 /// Turns user actions into commands for the shared player.
 final playerControllerProvider = Provider<PlayerController>(
-  (ref) => PlayerController(ref.watch(playerSourceProvider)),
+  (ref) => PlayerController(
+    ref.watch(playerSourceProvider),
+    ref.watch(remoteChangeDetectorProvider),
+  ),
 );
 
 class PlayerController {
-  PlayerController(this._source);
+  PlayerController(this._source, this._changes);
 
   final PlayerSource _source;
 
-  Future<void> select(int recordingId) => _source.select(recordingId);
+  /// Told about every change of position or recording made here, so it is not
+  /// reported as a change by another client.
+  final RemoteChangeDetector _changes;
+
+  Future<void> select(int recordingId) {
+    _changes.ownAction();
+    return _source.select(recordingId);
+  }
+
+  /// Loads the recording and plays it from the start.
+  Future<void> selectAndPlay(int recordingId) async {
+    await select(recordingId);
+    await _source.play();
+  }
+
+  Future<void> play() => _source.play();
+
   Future<void> togglePlay({required bool running}) =>
       running ? _source.pause() : _source.play();
-  Future<void> restart() => _source.seek(0);
+
+  Future<void> restart() {
+    _changes.ownAction();
+    return _source.seek(0);
+  }
+
+  /// Jumps to `positionMs` and plays on to the end of the recording.
+  Future<void> playFrom(int positionMs) async {
+    _changes.ownAction();
+    await _source.seek(positionMs);
+    await _source.play();
+  }
+
+  /// Plays the region from its start; the play mode decides what follows its end.
+  Future<void> playRegion({required int startMs, required int endMs}) {
+    _changes.ownAction();
+    return _source.playRegion(startMs: startMs, endMs: endMs);
+  }
+
+  Future<void> setPlayMode(PlayMode mode) => _source.setPlayMode(mode);
   Future<void> setSpeed(double speed) => _source.setSpeed(speed);
-  Future<void> scrub(int positionMs) => _source.scrub(positionMs);
-  Future<void> endScrub(int positionMs) => _source.endScrub(positionMs);
+
+  Future<void> scrub(int positionMs) {
+    _changes.ownAction();
+    return _source.scrub(positionMs);
+  }
+
+  Future<void> endScrub(int positionMs) {
+    _changes.ownAction();
+    return _source.endScrub(positionMs);
+  }
 
   /// Whether the recording was stopped and plays only while the handle rests.
   bool _playsOnlyWhileHeld = false;
@@ -99,6 +146,7 @@ class PlayerController {
   /// if it was stopped; letting go ([endHold]) stops it again.
   Future<void> hold(int positionMs, {required bool running}) async {
     _playsOnlyWhileHeld = !running;
+    _changes.ownAction();
     await _source.endScrub(positionMs);
     if (_playsOnlyWhileHeld) await _source.play();
   }

@@ -29,6 +29,11 @@ abstract interface class PlayerSource {
   Future<void> setTuning(double hertz);
   Future<void> setKey(int semitones);
   Future<void> setVolume(int percent);
+  Future<void> setPlayMode(PlayMode mode);
+
+  /// Plays the region from its start; what happens at its end depends on the
+  /// play mode.
+  Future<void> playRegion({required int startMs, required int endMs});
 
   /// Whether `hertz` lies in the range the server accepts for the tuning.
   Future<bool> tuningSupported(double hertz);

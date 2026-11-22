@@ -4,19 +4,21 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // The server reads its settings from a configuration file (TOML strings accept JSON quoting).
+// A development server may already use the default port; E2E_PORT picks another one.
+const port = process.env.E2E_PORT ?? '8080';
 const testDirectory = mkdtempSync(join(tmpdir(), 'veltrunox-e2e-'));
 const configFile = join(testDirectory, 'veltrunox.toml');
 writeFileSync(
   configFile,
   [
-    'address = "127.0.0.1:8080"',
+    `address = "127.0.0.1:${port}"`,
     `data_dir = ${JSON.stringify(join(testDirectory, 'data'))}`,
     `web_dir = ${JSON.stringify(join(__dirname, '../app/build/web'))}`,
   ].join('\n'),
 );
 
 // The server serves the web app, so page and API share one origin.
-const serverUrl = 'http://127.0.0.1:8080';
+const serverUrl = `http://127.0.0.1:${port}`;
 
 // Needs the web app built first: scripts/build-web.sh
 export default defineConfig({

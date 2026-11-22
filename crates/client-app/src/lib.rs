@@ -16,7 +16,10 @@ pub enum ChannelEvent {
 }
 
 use std::future::Future;
-use veltrunox_core::{Bookmarks, LibraryEntry, Millis, RecordingId};
+use veltrunox_core::{
+    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, RecordingId, Region,
+    TimeRange, Version,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinkError {
@@ -26,6 +29,12 @@ pub enum LinkError {
     InvalidResponse(String),
     #[error("not connected")]
     NotConnected,
+    /// The bookmark was changed by someone else; `current` is its stored version.
+    #[error("the bookmark changed meanwhile (now at version {})", .current.value())]
+    Conflict { current: Version },
+    /// The server refused the values of a bookmark.
+    #[error("the server refused the bookmark: {0}")]
+    Refused(String),
 }
 
 /// Port: requests to the server. The future is not required to be `Send`
@@ -46,6 +55,42 @@ pub trait ServerLink {
         &self,
         recording: RecordingId,
     ) -> impl Future<Output = Result<Millis, LinkError>>;
+    fn create_label(
+        &self,
+        recording: RecordingId,
+        name: &BookmarkName,
+        position: Millis,
+    ) -> impl Future<Output = Result<Label, LinkError>>;
+    fn change_label(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: &BookmarkName,
+        position: Millis,
+    ) -> impl Future<Output = Result<Label, LinkError>>;
+    fn remove_label(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+    ) -> impl Future<Output = Result<(), LinkError>>;
+    fn create_region(
+        &self,
+        recording: RecordingId,
+        name: &BookmarkName,
+        range: TimeRange,
+    ) -> impl Future<Output = Result<Region, LinkError>>;
+    fn change_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        name: &BookmarkName,
+        range: TimeRange,
+    ) -> impl Future<Output = Result<Region, LinkError>>;
+    fn remove_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+    ) -> impl Future<Output = Result<(), LinkError>>;
 }
 
 /// Use case: load the recording list from the server.
@@ -75,4 +120,64 @@ pub async fn load_length(
     recording: RecordingId,
 ) -> Result<Millis, LinkError> {
     link.fetch_length(recording).await
+}
+
+/// Use case: add a label at a position.
+pub async fn add_label(
+    link: &impl ServerLink,
+    recording: RecordingId,
+    name: &BookmarkName,
+    position: Millis,
+) -> Result<Label, LinkError> {
+    link.create_label(recording, name, position).await
+}
+
+/// Use case: rename or move a label; `expected` is the version the user saw.
+pub async fn edit_label(
+    link: &impl ServerLink,
+    id: BookmarkId,
+    expected: Version,
+    name: &BookmarkName,
+    position: Millis,
+) -> Result<Label, LinkError> {
+    link.change_label(id, expected, name, position).await
+}
+
+/// Use case: delete a label.
+pub async fn delete_label(
+    link: &impl ServerLink,
+    id: BookmarkId,
+    expected: Version,
+) -> Result<(), LinkError> {
+    link.remove_label(id, expected).await
+}
+
+/// Use case: add a region.
+pub async fn add_region(
+    link: &impl ServerLink,
+    recording: RecordingId,
+    name: &BookmarkName,
+    range: TimeRange,
+) -> Result<Region, LinkError> {
+    link.create_region(recording, name, range).await
+}
+
+/// Use case: rename or resize a region; `expected` is the version the user saw.
+pub async fn edit_region(
+    link: &impl ServerLink,
+    id: BookmarkId,
+    expected: Version,
+    name: &BookmarkName,
+    range: TimeRange,
+) -> Result<Region, LinkError> {
+    link.change_region(id, expected, name, range).await
+}
+
+/// Use case: delete a region.
+pub async fn delete_region(
+    link: &impl ServerLink,
+    id: BookmarkId,
+    expected: Version,
+) -> Result<(), LinkError> {
+    link.remove_region(id, expected).await
 }

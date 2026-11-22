@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `forward`, `from_state`, `into_intent`, `send_intent`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`
+// These functions are ignored because they are not marked as `pub`: `bookmark_name`, `forward`, `from_state`, `into_intent`, `invalid`, `range_of`, `send_intent`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `from`, `from`, `from`, `from`
 
 /// Loads the recording list from the server at `server_url`.
@@ -33,6 +33,97 @@ Future<BigInt?> recordingLengthMs({
 }) => RustLib.instance.api.crateApiRecordingLengthMs(
   serverUrl: serverUrl,
   recordingId: recordingId,
+);
+
+/// Loads the labels and regions of a recording.
+Future<BookmarkSet> listBookmarks({
+  required String serverUrl,
+  required BigInt recordingId,
+}) => RustLib.instance.api.crateApiListBookmarks(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+);
+
+/// Adds a label; the server tells every client to reload the bookmarks.
+Future<void> createLabel({
+  required String serverUrl,
+  required BigInt recordingId,
+  required String name,
+  required BigInt positionMs,
+}) => RustLib.instance.api.crateApiCreateLabel(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+  name: name,
+  positionMs: positionMs,
+);
+
+/// Renames or moves a label seen at `expected_version`.
+Future<void> changeLabel({
+  required String serverUrl,
+  required BigInt id,
+  required BigInt expectedVersion,
+  required String name,
+  required BigInt positionMs,
+}) => RustLib.instance.api.crateApiChangeLabel(
+  serverUrl: serverUrl,
+  id: id,
+  expectedVersion: expectedVersion,
+  name: name,
+  positionMs: positionMs,
+);
+
+/// Deletes a label seen at `expected_version`.
+Future<void> removeLabel({
+  required String serverUrl,
+  required BigInt id,
+  required BigInt expectedVersion,
+}) => RustLib.instance.api.crateApiRemoveLabel(
+  serverUrl: serverUrl,
+  id: id,
+  expectedVersion: expectedVersion,
+);
+
+/// Adds a region from `start_ms` up to `end_ms`.
+Future<void> createRegion({
+  required String serverUrl,
+  required BigInt recordingId,
+  required String name,
+  required BigInt startMs,
+  required BigInt endMs,
+}) => RustLib.instance.api.crateApiCreateRegion(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+  name: name,
+  startMs: startMs,
+  endMs: endMs,
+);
+
+/// Renames or resizes a region seen at `expected_version`.
+Future<void> changeRegion({
+  required String serverUrl,
+  required BigInt id,
+  required BigInt expectedVersion,
+  required String name,
+  required BigInt startMs,
+  required BigInt endMs,
+}) => RustLib.instance.api.crateApiChangeRegion(
+  serverUrl: serverUrl,
+  id: id,
+  expectedVersion: expectedVersion,
+  name: name,
+  startMs: startMs,
+  endMs: endMs,
+);
+
+/// Deletes a region seen at `expected_version`.
+Future<void> removeRegion({
+  required String serverUrl,
+  required BigInt id,
+  required BigInt expectedVersion,
+}) => RustLib.instance.api.crateApiRemoveRegion(
+  serverUrl: serverUrl,
+  id: id,
+  expectedVersion: expectedVersion,
 );
 
 Future<TargetTempo> speedForTargetBpm({
@@ -107,8 +198,58 @@ class AnalysisValues {
           tempoBpm == other.tempoBpm;
 }
 
+/// All labels and regions of one recording.
+class BookmarkSet {
+  final List<LabelItem> labels;
+  final List<RegionItem> regions;
+
+  const BookmarkSet({required this.labels, required this.regions});
+
+  @override
+  int get hashCode => labels.hashCode ^ regions.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BookmarkSet &&
+          runtimeType == other.runtimeType &&
+          labels == other.labels &&
+          regions == other.regions;
+}
+
 /// State of the real-time channel as the user interface needs it.
 enum ConnectionState { connected, disconnected }
+
+/// A point marker of a recording.
+class LabelItem {
+  final BigInt id;
+
+  /// The version this client saw; a change or deletion must name it.
+  final BigInt version;
+  final String name;
+  final BigInt positionMs;
+
+  const LabelItem({
+    required this.id,
+    required this.version,
+    required this.name,
+    required this.positionMs,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ version.hashCode ^ name.hashCode ^ positionMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LabelItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          version == other.version &&
+          name == other.name &&
+          positionMs == other.positionMs;
+}
 
 /// What happens at the end of the region being played.
 enum PlayModeChoice {
@@ -252,6 +393,42 @@ class RecordingItem {
           analysisState == other.analysisState &&
           analysisFailure == other.analysisFailure &&
           analysis == other.analysis;
+}
+
+/// A named span of a recording.
+class RegionItem {
+  final BigInt id;
+  final BigInt version;
+  final String name;
+  final BigInt startMs;
+  final BigInt endMs;
+
+  const RegionItem({
+    required this.id,
+    required this.version,
+    required this.name,
+    required this.startMs,
+    required this.endMs,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      version.hashCode ^
+      name.hashCode ^
+      startMs.hashCode ^
+      endMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RegionItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          version == other.version &&
+          name == other.name &&
+          startMs == other.startMs &&
+          endMs == other.endMs;
 }
 
 @freezed

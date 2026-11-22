@@ -61,6 +61,14 @@ class FakePlayerSource implements PlayerSource {
   Future<void> setTuning(double hertz) async => calls.add('tuning $hertz');
 
   @override
+  Future<void> setPlayMode(PlayMode mode) async =>
+      calls.add('playMode ${mode.name}');
+
+  @override
+  Future<void> playRegion({required int startMs, required int endMs}) async =>
+      calls.add('playRegion $startMs $endMs');
+
+  @override
   Future<bool> tuningSupported(double hertz) async =>
       hertz >= 300 && hertz <= 500;
 

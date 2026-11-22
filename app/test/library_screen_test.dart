@@ -33,19 +33,30 @@ class _FakeSource implements RecordingSource {
 }
 
 class _FakeConnection implements ConnectionSource {
+  _FakeConnection([this.status = ConnectionStatus.connected]);
+
+  final ConnectionStatus status;
+  int reconnects = 0;
+
   @override
-  Stream<ConnectionStatus> watch() => Stream.value(ConnectionStatus.connected);
+  Stream<ConnectionStatus> watch() => Stream.value(status);
+
+  @override
+  Future<void> reconnect() async => reconnects++;
 }
 
-Widget _app(RecordingSource source, [FakePlayerSource? player]) =>
-    ProviderScope(
-      overrides: [
-        playerSourceProvider.overrideWithValue(player ?? FakePlayerSource()),
-        recordingSourceProvider.overrideWithValue(source),
-        connectionSourceProvider.overrideWithValue(_FakeConnection()),
-      ],
-      child: const VeltrunoxApp(),
-    );
+Widget _app(
+  RecordingSource source, [
+  FakePlayerSource? player,
+  _FakeConnection? connection,
+]) => ProviderScope(
+  overrides: [
+    playerSourceProvider.overrideWithValue(player ?? FakePlayerSource()),
+    recordingSourceProvider.overrideWithValue(source),
+    connectionSourceProvider.overrideWithValue(connection ?? _FakeConnection()),
+  ],
+  child: const VeltrunoxApp(),
+);
 
 /// Pending analyses show a spinner that never settles, so settle by frames.
 Future<void> _pumpFrames(WidgetTester tester) async {
@@ -83,7 +94,29 @@ void main() {
     expect(find.text('Erneut versuchen'), findsOneWidget);
   });
 
-  testWidgets('selecting a recording sends the select command', (tester) async {
+  testWidgets('the play button loads the recording, plays it and leads to the '
+      'player', (tester) async {
+    final player = FakePlayerSource();
+    await tester.pumpWidget(
+      _app(
+        _FakeSource(
+          () async => [const RecordingSummary(id: 4, title: 'Soundcheck')],
+        ),
+        player,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Abspielen: Soundcheck'));
+    await tester.pump();
+
+    expect(player.calls, ['select 4', 'play']);
+    expect(find.text('Wiedergabe wird geladen …'), findsOneWidget);
+  });
+
+  testWidgets('tapping a row shows its details, which open it in the player', (
+    tester,
+  ) async {
     final player = FakePlayerSource();
     await tester.pumpWidget(
       _app(
@@ -96,8 +129,90 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Soundcheck'));
+    await tester.pumpAndSettle();
+    expect(player.calls, isEmpty);
+    expect(find.text('Zurück zur Liste'), findsOneWidget);
 
+    await tester.tap(find.text('Im Player öffnen'));
+    await tester.pump();
     expect(player.calls, ['select 4']);
+  });
+
+  testWidgets('the details stand beside the list on a wide screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _app(
+        _FakeSource(
+          () async => [
+            const RecordingSummary(id: 4, title: 'Soundcheck'),
+            const RecordingSummary(id: 5, title: 'Zugabe'),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Zugabe'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Soundcheck'), findsOneWidget);
+    expect(find.text('Im Player öffnen'), findsOneWidget);
+    expect(find.text('Zurück zur Liste'), findsNothing);
+  });
+
+  testWidgets('search, filter and order narrow down the list', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        _FakeSource(
+          () async => [
+            const RecordingSummary(id: 1, title: 'Blues'),
+            const RecordingSummary(
+              id: 2,
+              title: 'Ballade',
+              analysis: AnalysisInfo(status: AnalysisStatus.running),
+            ),
+            const RecordingSummary(id: 3, title: 'Zugabe'),
+          ],
+        ),
+      ),
+    );
+    await _pumpFrames(tester);
+
+    await tester.enterText(find.byType(TextField), 'bl');
+    await _pumpFrames(tester);
+    expect(find.text('Blues'), findsOneWidget);
+    expect(find.text('Zugabe'), findsNothing);
+
+    await tester.enterText(find.byType(TextField), 'xyz');
+    await _pumpFrames(tester);
+    expect(find.text('Keine Aufnahme passt zur Suche.'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '');
+    await tester.tap(find.text('Wird analysiert'));
+    await _pumpFrames(tester);
+    expect(find.text('Ballade'), findsOneWidget);
+    expect(find.text('Blues'), findsNothing);
+  });
+
+  testWidgets('a lost connection is announced and can be reopened', (
+    tester,
+  ) async {
+    final connection = _FakeConnection(ConnectionStatus.disconnected);
+    await tester.pumpWidget(
+      _app(_FakeSource(() async => []), null, connection),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Die Verbindung zum Server ist verloren.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Neu verbinden'));
+    expect(connection.reconnects, 1);
   });
 
   testWidgets('shows key, tempo and tuning of an analysed recording', (
@@ -193,14 +308,16 @@ void main() {
     expect(find.text('A-Moll · 90,0 bpm · 440,0 Hz'), findsOneWidget);
   });
 
-  testWidgets('the refresh button asks for a new analysis', (tester) async {
+  testWidgets('the details ask for a new analysis', (tester) async {
     final source = _FakeSource(
       () async => [const RecordingSummary(id: 5, title: 'Soundcheck')],
     );
     await tester.pumpWidget(_app(source));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.refresh));
+    await tester.tap(find.text('Soundcheck'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Erneut analysieren'));
 
     expect(source.reanalysed, [5]);
   });
@@ -220,7 +337,9 @@ void main() {
     await tester.pumpWidget(_app(source));
     await _pumpFrames(tester);
 
-    await tester.tap(find.byIcon(Icons.refresh));
+    await tester.tap(find.text('Soundcheck'));
+    await _pumpFrames(tester);
+    await tester.tap(find.text('Erneut analysieren'));
 
     expect(source.reanalysed, isEmpty);
   });

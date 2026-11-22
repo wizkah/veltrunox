@@ -14,3 +14,16 @@ final connectionStatusProvider = StreamProvider<ConnectionStatus>((ref) async* {
   yield ConnectionStatus.connecting;
   yield* ref.watch(connectionSourceProvider).watch();
 });
+
+/// Turns the user's wish to connect again into a request to the source.
+final connectionControllerProvider = Provider<ConnectionController>(
+  (ref) => ConnectionController(ref.watch(connectionSourceProvider)),
+);
+
+class ConnectionController {
+  ConnectionController(this._source);
+
+  final ConnectionSource _source;
+
+  Future<void> reconnect() => _source.reconnect();
+}

@@ -2902,6 +2902,7 @@ dependencies = [
  "ewebsock",
  "gloo-timers",
  "reqwest",
+ "serde",
  "serde_json",
  "veltrunox-client-app",
  "veltrunox-core",

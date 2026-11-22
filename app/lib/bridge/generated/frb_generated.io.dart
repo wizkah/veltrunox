@@ -39,6 +39,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisValues dco_decode_analysis_values(dynamic raw);
 
   @protected
+  BookmarkSet dco_decode_bookmark_set(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -69,10 +72,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_i_8(dynamic raw);
 
   @protected
+  LabelItem dco_decode_label_item(dynamic raw);
+
+  @protected
+  List<LabelItem> dco_decode_list_label_item(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
   List<RecordingItem> dco_decode_list_recording_item(dynamic raw);
+
+  @protected
+  List<RegionItem> dco_decode_list_region_item(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -97,6 +109,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RecordingItem dco_decode_recording_item(dynamic raw);
+
+  @protected
+  RegionItem dco_decode_region_item(dynamic raw);
 
   @protected
   SessionUpdate dco_decode_session_update(dynamic raw);
@@ -132,6 +147,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisValues sse_decode_analysis_values(SseDeserializer deserializer);
+
+  @protected
+  BookmarkSet sse_decode_bookmark_set(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
@@ -170,12 +188,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_i_8(SseDeserializer deserializer);
 
   @protected
+  LabelItem sse_decode_label_item(SseDeserializer deserializer);
+
+  @protected
+  List<LabelItem> sse_decode_list_label_item(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   List<RecordingItem> sse_decode_list_recording_item(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<RegionItem> sse_decode_list_region_item(SseDeserializer deserializer);
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
@@ -202,6 +229,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RecordingItem sse_decode_recording_item(SseDeserializer deserializer);
+
+  @protected
+  RegionItem sse_decode_region_item(SseDeserializer deserializer);
 
   @protected
   SessionUpdate sse_decode_session_update(SseDeserializer deserializer);
@@ -244,6 +274,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     AnalysisValues self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_bookmark_set(BookmarkSet self, SseSerializer serializer);
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
@@ -291,6 +324,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_i_8(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_label_item(LabelItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_label_item(
+    List<LabelItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -299,6 +341,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_recording_item(
     List<RecordingItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_region_item(
+    List<RegionItem> self,
     SseSerializer serializer,
   );
 
@@ -334,6 +382,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_recording_item(RecordingItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_region_item(RegionItem self, SseSerializer serializer);
 
   @protected
   void sse_encode_session_update(SessionUpdate self, SseSerializer serializer);

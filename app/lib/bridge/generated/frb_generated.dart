@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 778335758;
+  int get rustContentHash => 2084111322;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -79,7 +79,44 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<void> crateApiChangeLabel({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+    required String name,
+    required BigInt positionMs,
+  });
+
+  Future<void> crateApiChangeRegion({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+    required String name,
+    required BigInt startMs,
+    required BigInt endMs,
+  });
+
+  Future<void> crateApiCreateLabel({
+    required String serverUrl,
+    required BigInt recordingId,
+    required String name,
+    required BigInt positionMs,
+  });
+
+  Future<void> crateApiCreateRegion({
+    required String serverUrl,
+    required BigInt recordingId,
+    required String name,
+    required BigInt startMs,
+    required BigInt endMs,
+  });
+
   Future<void> crateApiEndScrub({required BigInt positionMs});
+
+  Future<BookmarkSet> crateApiListBookmarks({
+    required String serverUrl,
+    required BigInt recordingId,
+  });
 
   Future<List<RecordingItem>> crateApiListRecordings({
     required String serverUrl,
@@ -95,6 +132,18 @@ abstract class RustLibApi extends BaseApi {
   Future<BigInt?> crateApiRecordingLengthMs({
     required String serverUrl,
     required BigInt recordingId,
+  });
+
+  Future<void> crateApiRemoveLabel({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+  });
+
+  Future<void> crateApiRemoveRegion({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
   });
 
   Future<void> crateApiScrubTo({required BigInt positionMs});
@@ -120,6 +169,173 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  Future<void> crateApiChangeLabel({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+    required String name,
+    required BigInt positionMs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(serverUrl, serializer);
+          sse_encode_u_64(id, serializer);
+          sse_encode_u_64(expectedVersion, serializer);
+          sse_encode_String(name, serializer);
+          sse_encode_u_64(positionMs, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiChangeLabelConstMeta,
+        argValues: [serverUrl, id, expectedVersion, name, positionMs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChangeLabelConstMeta => const TaskConstMeta(
+    debugName: "change_label",
+    argNames: ["serverUrl", "id", "expectedVersion", "name", "positionMs"],
+  );
+
+  @override
+  Future<void> crateApiChangeRegion({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+    required String name,
+    required BigInt startMs,
+    required BigInt endMs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(serverUrl, serializer);
+          sse_encode_u_64(id, serializer);
+          sse_encode_u_64(expectedVersion, serializer);
+          sse_encode_String(name, serializer);
+          sse_encode_u_64(startMs, serializer);
+          sse_encode_u_64(endMs, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiChangeRegionConstMeta,
+        argValues: [serverUrl, id, expectedVersion, name, startMs, endMs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChangeRegionConstMeta => const TaskConstMeta(
+    debugName: "change_region",
+    argNames: [
+      "serverUrl",
+      "id",
+      "expectedVersion",
+      "name",
+      "startMs",
+      "endMs",
+    ],
+  );
+
+  @override
+  Future<void> crateApiCreateLabel({
+    required String serverUrl,
+    required BigInt recordingId,
+    required String name,
+    required BigInt positionMs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(serverUrl, serializer);
+          sse_encode_u_64(recordingId, serializer);
+          sse_encode_String(name, serializer);
+          sse_encode_u_64(positionMs, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiCreateLabelConstMeta,
+        argValues: [serverUrl, recordingId, name, positionMs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCreateLabelConstMeta => const TaskConstMeta(
+    debugName: "create_label",
+    argNames: ["serverUrl", "recordingId", "name", "positionMs"],
+  );
+
+  @override
+  Future<void> crateApiCreateRegion({
+    required String serverUrl,
+    required BigInt recordingId,
+    required String name,
+    required BigInt startMs,
+    required BigInt endMs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(serverUrl, serializer);
+          sse_encode_u_64(recordingId, serializer);
+          sse_encode_String(name, serializer);
+          sse_encode_u_64(startMs, serializer);
+          sse_encode_u_64(endMs, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiCreateRegionConstMeta,
+        argValues: [serverUrl, recordingId, name, startMs, endMs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCreateRegionConstMeta => const TaskConstMeta(
+    debugName: "create_region",
+    argNames: ["serverUrl", "recordingId", "name", "startMs", "endMs"],
+  );
+
+  @override
   Future<void> crateApiEndScrub({required BigInt positionMs}) {
     return handler.executeNormal(
       NormalTask(
@@ -129,7 +345,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 1,
+            funcId: 5,
             port: port_,
           );
         },
@@ -148,6 +364,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "end_scrub", argNames: ["positionMs"]);
 
   @override
+  Future<BookmarkSet> crateApiListBookmarks({
+    required String serverUrl,
+    required BigInt recordingId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(serverUrl, serializer);
+          sse_encode_u_64(recordingId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bookmark_set,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiListBookmarksConstMeta,
+        argValues: [serverUrl, recordingId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListBookmarksConstMeta => const TaskConstMeta(
+    debugName: "list_bookmarks",
+    argNames: ["serverUrl", "recordingId"],
+  );
+
+  @override
   Future<List<RecordingItem>> crateApiListRecordings({
     required String serverUrl,
   }) {
@@ -159,7 +409,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 7,
             port: port_,
           );
         },
@@ -188,7 +438,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 8,
             port: port_,
           );
         },
@@ -220,7 +470,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 9,
             port: port_,
           );
         },
@@ -254,7 +504,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 10,
             port: port_,
           );
         },
@@ -275,6 +525,78 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiRemoveLabel({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(serverUrl, serializer);
+          sse_encode_u_64(id, serializer);
+          sse_encode_u_64(expectedVersion, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiRemoveLabelConstMeta,
+        argValues: [serverUrl, id, expectedVersion],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRemoveLabelConstMeta => const TaskConstMeta(
+    debugName: "remove_label",
+    argNames: ["serverUrl", "id", "expectedVersion"],
+  );
+
+  @override
+  Future<void> crateApiRemoveRegion({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(serverUrl, serializer);
+          sse_encode_u_64(id, serializer);
+          sse_encode_u_64(expectedVersion, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiRemoveRegionConstMeta,
+        argValues: [serverUrl, id, expectedVersion],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRemoveRegionConstMeta => const TaskConstMeta(
+    debugName: "remove_region",
+    argNames: ["serverUrl", "id", "expectedVersion"],
+  );
+
+  @override
   Future<void> crateApiScrubTo({required BigInt positionMs}) {
     return handler.executeNormal(
       NormalTask(
@@ -284,7 +606,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 13,
             port: port_,
           );
         },
@@ -312,7 +634,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 14,
             port: port_,
           );
         },
@@ -344,7 +666,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 15,
             port: port_,
           );
         },
@@ -374,7 +696,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 16,
             port: port_,
           );
         },
@@ -407,7 +729,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 10,
+              funcId: 17,
               port: port_,
             );
           },
@@ -466,6 +788,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       keyTonic: dco_decode_u_8(arr[1]),
       keyMinor: dco_decode_bool(arr[2]),
       tempoBpm: dco_decode_f_64(arr[3]),
+    );
+  }
+
+  @protected
+  BookmarkSet dco_decode_bookmark_set(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return BookmarkSet(
+      labels: dco_decode_list_label_item(arr[0]),
+      regions: dco_decode_list_region_item(arr[1]),
     );
   }
 
@@ -530,6 +864,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LabelItem dco_decode_label_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return LabelItem(
+      id: dco_decode_u_64(arr[0]),
+      version: dco_decode_u_64(arr[1]),
+      name: dco_decode_String(arr[2]),
+      positionMs: dco_decode_u_64(arr[3]),
+    );
+  }
+
+  @protected
+  List<LabelItem> dco_decode_list_label_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_label_item).toList();
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
@@ -539,6 +893,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<RecordingItem> dco_decode_list_recording_item(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_recording_item).toList();
+  }
+
+  @protected
+  List<RegionItem> dco_decode_list_region_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_region_item).toList();
   }
 
   @protected
@@ -640,6 +1000,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       analysisState: dco_decode_analysis_state(arr[2]),
       analysisFailure: dco_decode_opt_String(arr[3]),
       analysis: dco_decode_opt_box_autoadd_analysis_values(arr[4]),
+    );
+  }
+
+  @protected
+  RegionItem dco_decode_region_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return RegionItem(
+      id: dco_decode_u_64(arr[0]),
+      version: dco_decode_u_64(arr[1]),
+      name: dco_decode_String(arr[2]),
+      startMs: dco_decode_u_64(arr[3]),
+      endMs: dco_decode_u_64(arr[4]),
     );
   }
 
@@ -755,6 +1130,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BookmarkSet sse_decode_bookmark_set(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_labels = sse_decode_list_label_item(deserializer);
+    var var_regions = sse_decode_list_region_item(deserializer);
+    return BookmarkSet(labels: var_labels, regions: var_regions);
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
@@ -822,6 +1205,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LabelItem sse_decode_label_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_u_64(deserializer);
+    var var_version = sse_decode_u_64(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_positionMs = sse_decode_u_64(deserializer);
+    return LabelItem(
+      id: var_id,
+      version: var_version,
+      name: var_name,
+      positionMs: var_positionMs,
+    );
+  }
+
+  @protected
+  List<LabelItem> sse_decode_list_label_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LabelItem>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_label_item(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -838,6 +1248,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <RecordingItem>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_recording_item(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<RegionItem> sse_decode_list_region_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RegionItem>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_region_item(deserializer));
     }
     return ans_;
   }
@@ -982,6 +1404,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RegionItem sse_decode_region_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_u_64(deserializer);
+    var var_version = sse_decode_u_64(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_startMs = sse_decode_u_64(deserializer);
+    var var_endMs = sse_decode_u_64(deserializer);
+    return RegionItem(
+      id: var_id,
+      version: var_version,
+      name: var_name,
+      startMs: var_startMs,
+      endMs: var_endMs,
+    );
+  }
+
+  @protected
   SessionUpdate sse_decode_session_update(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1091,6 +1530,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_bookmark_set(BookmarkSet self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_label_item(self.labels, serializer);
+    sse_encode_list_region_item(self.regions, serializer);
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
@@ -1166,6 +1612,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_label_item(LabelItem self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.id, serializer);
+    sse_encode_u_64(self.version, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_u_64(self.positionMs, serializer);
+  }
+
+  @protected
+  void sse_encode_list_label_item(
+    List<LabelItem> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_label_item(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -1184,6 +1651,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_recording_item(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_region_item(
+    List<RegionItem> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_region_item(item, serializer);
     }
   }
 
@@ -1302,6 +1781,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_analysis_state(self.analysisState, serializer);
     sse_encode_opt_String(self.analysisFailure, serializer);
     sse_encode_opt_box_autoadd_analysis_values(self.analysis, serializer);
+  }
+
+  @protected
+  void sse_encode_region_item(RegionItem self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.id, serializer);
+    sse_encode_u_64(self.version, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_u_64(self.startMs, serializer);
+    sse_encode_u_64(self.endMs, serializer);
   }
 
   @protected

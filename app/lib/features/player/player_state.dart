@@ -1,3 +1,18 @@
+/// What happens at the end of the region being played.
+enum PlayMode {
+  /// Playback runs on to the end of the recording.
+  toEnd,
+
+  /// Playback stops at the end of the region.
+  toRegionEnd,
+
+  /// Playback wraps from the end of the region back to its start.
+  loop;
+
+  /// The mode a tap on the toggle switches to: the three modes in a circle.
+  PlayMode get next => PlayMode.values[(index + 1) % PlayMode.values.length];
+}
+
 /// The shared playback state as the interface shows it.
 class PlayerState {
   const PlayerState({
@@ -7,6 +22,9 @@ class PlayerState {
     required this.tuningHz,
     required this.keyShiftSemitones,
     required this.volumePercent,
+    this.positionMs = 0,
+    this.playMode = PlayMode.toEnd,
+    this.playRange,
   });
 
   final int? recordingId;
@@ -17,4 +35,12 @@ class PlayerState {
 
   /// Output volume of the server, 0 to 100.
   final int volumePercent;
+
+  /// Position at the moment the server made this state; the player reads the
+  /// position now from the source.
+  final int positionMs;
+  final PlayMode playMode;
+
+  /// The region being played, if any.
+  final ({int startMs, int endMs})? playRange;
 }

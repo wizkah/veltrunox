@@ -4,9 +4,9 @@ mod convert;
 
 pub use convert::{
     InvalidEntry, analysis_from_dto, analysis_to_dto, bookmarks_from_dto, bookmarks_to_dto,
-    intent_from_message, intent_to_message, label_to_dto, library_entry_from_dto,
+    intent_from_message, intent_to_message, label_from_dto, label_to_dto, library_entry_from_dto,
     library_entry_to_dto, peaks_from_bytes, peaks_to_bytes, play_mode_from_dto, play_mode_to_dto,
-    range_from_dto, range_to_dto, region_to_dto, state_from_dto, state_to_dto,
+    range_from_dto, range_to_dto, region_from_dto, region_to_dto, state_from_dto, state_to_dto,
     waveform_info_to_dto,
 };
 
