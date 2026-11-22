@@ -185,5 +185,5 @@ Limits:
 - The fallback gain on a device without a mixer was tested only as the gain ramp and the mapping; it was not listened to, and no second client watched the Pi's mixer value beyond the two browser windows above.
 - Whether the slider steps feel even to the ear (the 60 dB span, the squared fallback curve) is not judged. Nothing was listened to.
 - The pause alignment is checked at the level of the commands sent to the engine; whether repeated pausing no longer shifts the sound was not measured on the Pi.
-- The evenness of the displayed tenths is derived from the new timing, not measured in a browser. The position is still read through the bridge call, so a slow call would still show.
+- The evenness of the displayed tenths was judged by eye in a browser by the user, during playback and after pausing ("feels right"); it was not measured. The position is still read through the bridge call, so a slow call would still show.
 - A volume changed outside the server (for example with `alsamixer`) is not noticed until the next change through the server.
