@@ -26,8 +26,8 @@ class SetupForm extends StatefulWidget {
 }
 
 class _SetupFormState extends State<SetupForm> {
-  /// Same minimum as the server; the server decides in the end.
-  static const _minPasswordLength = 10;
+  /// A server that is set up now has the standard rules; the server decides.
+  static const _policy = PasswordPolicy.standard;
 
   final _userName = TextEditingController();
   final _password = TextEditingController();
@@ -45,11 +45,13 @@ class _SetupFormState extends State<SetupForm> {
   String? get _nameError =>
       _submitted && _userName.text.trim().isEmpty ? AccessTexts.required : null;
 
-  String? get _passwordError => !_submitted
-      ? null
-      : _password.text.length < _minPasswordLength
-      ? AccessTexts.tooShort
-      : null;
+  String? get _passwordError {
+    if (!_submitted) return null;
+    final problem = _policy.check(_password.text);
+    return problem == null
+        ? null
+        : AccessTexts.passwordProblem(_policy, problem);
+  }
 
   String? get _againError =>
       _submitted && _again.text != _password.text ? AccessTexts.mismatch : null;

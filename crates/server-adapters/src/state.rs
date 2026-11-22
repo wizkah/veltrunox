@@ -1,6 +1,7 @@
 use crate::analysis_worker::{AnalysisQueue, FileAnalyzer};
 use crate::hooks::{AudioHooks, LengthCache};
 use crate::hub::Hub;
+use crate::upload::UploadStore;
 use std::sync::Arc;
 use veltrunox_core::{PlaybackState, Volume};
 use veltrunox_server_app::{
@@ -13,6 +14,7 @@ use veltrunox_server_app::{
 #[derive(Clone)]
 pub struct AppState {
     pub recordings: Arc<dyn RecordingRepository>,
+    pub media: Arc<dyn MediaCatalog>,
     pub waveforms: Arc<dyn WaveformRepository>,
     pub bookmarks: Arc<BookmarkService>,
     pub playback: Arc<PlaybackService>,
@@ -22,6 +24,8 @@ pub struct AppState {
     pub analysis_queue: Arc<AnalysisQueue>,
     /// `None` leaves the server open: everybody may do everything.
     pub accounts: Option<Arc<AccountService>>,
+    /// `None` refuses uploads.
+    pub uploads: Option<Arc<UploadStore>>,
 }
 
 impl AppState {
@@ -112,6 +116,7 @@ impl AppState {
         let analysis_queue = Arc::new(AnalysisQueue::start(analysis.clone()));
         Self {
             recordings: store.clone(),
+            media: store.clone(),
             waveforms: store,
             bookmarks,
             playback,
@@ -120,7 +125,14 @@ impl AppState {
             analysis,
             analysis_queue,
             accounts: None,
+            uploads: None,
         }
+    }
+
+    /// Accepts uploads into the store.
+    pub fn with_uploads(mut self, uploads: UploadStore) -> Self {
+        self.uploads = Some(Arc::new(uploads));
+        self
     }
 
     /// Requires sign-in (or guest access) and checks the rights of every action.

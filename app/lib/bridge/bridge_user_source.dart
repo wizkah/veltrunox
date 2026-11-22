@@ -25,6 +25,7 @@ class BridgeUserSource implements UserSource {
           ),
       ],
       guestEnabled: status.guestEnabled,
+      passwordPolicy: BridgeAccessSource.policyFrom(status.passwordPolicy),
     );
   });
 
@@ -66,5 +67,13 @@ class BridgeUserSource implements UserSource {
   @override
   Future<void> setGuestAccess({required bool enabled}) => guardAccess(
     () => rust.switchGuestAccess(serverUrl: serverUrl, enabled: enabled),
+  );
+
+  @override
+  Future<void> setPasswordPolicy(PasswordPolicy policy) => guardAccess(
+    () => rust.switchPasswordPolicy(
+      serverUrl: serverUrl,
+      policy: BridgeAccessSource.policyTo(policy),
+    ),
   );
 }

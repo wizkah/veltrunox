@@ -69,6 +69,22 @@ impl RecordingRepository for FakeRecordings {
         }
         Ok(())
     }
+
+    fn rename(&self, id: RecordingId, title: RecordingTitle) -> Result<bool, StorageError> {
+        let mut items = self.items.lock().unwrap();
+        Ok(items
+            .iter_mut()
+            .find(|(r, _)| r.id == id)
+            .map(|entry| entry.0.title = title)
+            .is_some())
+    }
+
+    fn delete(&self, id: RecordingId) -> Result<bool, StorageError> {
+        let mut items = self.items.lock().unwrap();
+        let before = items.len();
+        items.retain(|(r, _)| r.id != id);
+        Ok(items.len() != before)
+    }
 }
 
 #[derive(Default)]
@@ -154,6 +170,14 @@ impl MediaCatalog for FakeMedia {
     ) -> Result<Option<Recording>, StorageError> {
         Ok(None)
     }
+
+    fn recording_by_hash(&self, _content_hash: &str) -> Result<Option<Recording>, StorageError> {
+        Ok(None)
+    }
+
+    fn media_paths(&self) -> Result<Vec<PathBuf>, StorageError> {
+        Ok(self.0.iter().cloned().collect())
+    }
 }
 
 #[derive(Default)]
@@ -230,6 +254,7 @@ mod account_fakes {
     pub struct FakeUsers {
         users: Mutex<Vec<UserRecord>>,
         guest: Mutex<bool>,
+        policy: Mutex<veltrunox_core::PasswordPolicy>,
         sessions: Mutex<Vec<(String, UserId, u64)>>,
     }
 
@@ -316,6 +341,18 @@ mod account_fakes {
 
         fn set_guest_enabled(&self, enabled: bool) -> Result<(), StorageError> {
             *self.guest.lock().unwrap() = enabled;
+            Ok(())
+        }
+
+        fn password_policy(&self) -> Result<veltrunox_core::PasswordPolicy, StorageError> {
+            Ok(*self.policy.lock().unwrap())
+        }
+
+        fn set_password_policy(
+            &self,
+            policy: veltrunox_core::PasswordPolicy,
+        ) -> Result<(), StorageError> {
+            *self.policy.lock().unwrap() = policy;
             Ok(())
         }
     }

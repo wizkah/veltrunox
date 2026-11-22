@@ -10,9 +10,9 @@ use veltrunox_client_adapters::{HttpServerLink, SystemTimer, open_channel};
 use veltrunox_client_app::{
     ChannelAccess, ChannelEvent, Credentials, LinkError, ManagedUser, NewUser, Rights, ServerEvent,
     UserChange, add_user, delete_user, edit_user, load_access_status, load_library, load_rights,
-    load_users, set_guest_access, set_up_first_admin, sign_in, sign_out,
+    load_users, set_guest_access, set_password_policy, set_up_first_admin, sign_in, sign_out,
 };
-use veltrunox_core::{Capability, Millis, Role};
+use veltrunox_core::{Capability, Millis, PasswordPolicy, Role};
 
 const PASSWORD: &str = "correct horse battery";
 
@@ -188,6 +188,40 @@ async fn guest_access_follows_the_admin_switch() {
     assert_eq!(rights.role, Role::Guest);
     assert!(rights.allows(Capability::PlayControl));
     assert!(!rights.allows(Capability::ManageUsers));
+}
+
+#[tokio::test]
+async fn the_password_rules_follow_the_admin_choice() {
+    let url = secured_server().await;
+    let anonymous = link(&url, None);
+    let admin = set_up_first_admin(&anonymous, &credentials("root", PASSWORD))
+        .await
+        .unwrap();
+    let admin_link = link(&url, Some(&admin.token));
+    assert_eq!(
+        load_access_status(&anonymous)
+            .await
+            .unwrap()
+            .password_policy,
+        PasswordPolicy::Standard
+    );
+
+    set_password_policy(&admin_link, PasswordPolicy::Strict)
+        .await
+        .unwrap();
+    assert_eq!(
+        load_access_status(&anonymous)
+            .await
+            .unwrap()
+            .password_policy,
+        PasswordPolicy::Strict
+    );
+    // Without the right, the change is refused.
+    assert!(
+        set_password_policy(&anonymous, PasswordPolicy::Standard)
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]

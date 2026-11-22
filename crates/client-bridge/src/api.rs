@@ -9,19 +9,20 @@ use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
 use veltrunox_client_adapters::{EventChannel, HttpServerLink, SystemTimer, open_channel};
 use veltrunox_client_app::{
     ChannelAccess, ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkError, LinkEvent,
-    ScrubThrottle, ServerEvent, SessionView, ViewChange, WaveformCache, add_label, add_region,
-    analyse_again, convert_label_to_region, convert_region_to_label, delete_label, delete_region,
-    edit_label, edit_region, load_bookmarks, load_length, load_library, load_waveform,
+    ScrubThrottle, ServerEvent, SessionView, ViewChange, WaveformCache, add_label, add_recording,
+    add_region, analyse_again, convert_label_to_region, convert_region_to_label, delete_label,
+    delete_recording, delete_region, edit_label, edit_region, load_bookmarks, load_length,
+    load_library, load_waveform, rename_recording,
 };
 use veltrunox_client_app::{
     Credentials, ManagedUser, NewUser, Rights, SignedIn, UserChange, add_user, delete_user,
-    edit_user, load_access_status, load_rights, load_users, set_guest_access, set_up_first_admin,
-    sign_in, sign_out,
+    edit_user, load_access_status, load_rights, load_users, set_guest_access, set_password_policy,
+    set_up_first_admin, sign_in, sign_out,
 };
 use veltrunox_core::{
     AnalysisProgress, BookmarkId, BookmarkName, Bpm, Capability, Intent, InvalidValue, KeyMode,
-    KeyShift, LibraryEntry, Millis, PlayMode, RecordingId, Role, Speed, TargetSpeed, TimeRange,
-    TuningHz, UserId, Version, Volume, speed_for_target_tempo,
+    KeyShift, LibraryEntry, Millis, PasswordPolicy, PlayMode, RecordingId, RecordingTitle, Role,
+    Speed, TargetSpeed, TimeRange, TuningHz, UserId, Version, Volume, speed_for_target_tempo,
 };
 
 /// A recording as the user interface needs it.
@@ -93,6 +94,62 @@ pub async fn reanalyse_recording(server_url: String, recording_id: u64) -> Resul
     analyse_again(&link, RecordingId::new(recording_id))
         .await
         .map_err(|error| error.to_string())
+}
+
+/// What became of an uploaded file.
+pub struct UploadedRecordingItem {
+    pub id: u64,
+    pub title: String,
+    /// The same audio was in the library already; nothing was added.
+    pub existing: bool,
+}
+
+/// Sends an audio file to the server. The refusal reason (not audio, too large, not allowed)
+/// comes back as text for the user; the analysis result arrives as a session update.
+pub async fn upload_recording(
+    server_url: String,
+    file_name: String,
+    content: Vec<u8>,
+) -> Result<UploadedRecordingItem, String> {
+    let link = link(&server_url);
+    let uploaded = add_recording(&link, &file_name, content)
+        .await
+        .map_err(|error| user_reason(&error))?;
+    Ok(UploadedRecordingItem {
+        id: uploaded.id.value(),
+        title: uploaded.title.as_str().to_owned(),
+        existing: uploaded.existing,
+    })
+}
+
+/// Gives a recording another title (admin only).
+pub async fn rename_recording_to(
+    server_url: String,
+    recording_id: u64,
+    title: String,
+) -> Result<(), String> {
+    let title = RecordingTitle::new(&title).map_err(|error| error.to_string())?;
+    rename_recording(&link(&server_url), RecordingId::new(recording_id), &title)
+        .await
+        .map_err(|error| user_reason(&error))
+}
+
+/// Deletes a recording with its bookmarks and analysis (admin only).
+pub async fn delete_recording_for_good(
+    server_url: String,
+    recording_id: u64,
+) -> Result<(), String> {
+    delete_recording(&link(&server_url), RecordingId::new(recording_id))
+        .await
+        .map_err(|error| user_reason(&error))
+}
+
+/// The server's own reason when it refused, else the error's description.
+fn user_reason(error: &LinkError) -> String {
+    match error {
+        LinkError::Refused(reason) => reason.clone(),
+        other => other.to_string(),
+    }
 }
 
 /// The length of a recording in milliseconds from its stored scan; `None` while there is none
@@ -869,6 +926,35 @@ pub struct AccessStatusInfo {
     pub setup_needed: bool,
     /// Offer guest access.
     pub guest_enabled: bool,
+    /// The rules for new passwords.
+    pub password_policy: PasswordPolicyChoice,
+}
+
+/// How demanding the rules for new passwords are.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PasswordPolicyChoice {
+    /// At least 6 characters.
+    Standard,
+    /// At least 10 characters with lowercase, uppercase, digit and special character.
+    Strict,
+}
+
+impl From<PasswordPolicy> for PasswordPolicyChoice {
+    fn from(policy: PasswordPolicy) -> Self {
+        match policy {
+            PasswordPolicy::Standard => Self::Standard,
+            PasswordPolicy::Strict => Self::Strict,
+        }
+    }
+}
+
+impl From<PasswordPolicyChoice> for PasswordPolicy {
+    fn from(policy: PasswordPolicyChoice) -> Self {
+        match policy {
+            PasswordPolicyChoice::Standard => Self::Standard,
+            PasswordPolicyChoice::Strict => Self::Strict,
+        }
+    }
 }
 
 /// The role of a person.
@@ -971,6 +1057,7 @@ pub async fn access_status(server_url: String) -> Result<AccessStatusInfo, Acces
     Ok(AccessStatusInfo {
         setup_needed: status.setup_needed,
         guest_enabled: status.guest_enabled,
+        password_policy: status.password_policy.into(),
     })
 }
 
@@ -1092,6 +1179,16 @@ pub async fn change_user(
 /// Deletes a user; admin only.
 pub async fn remove_user(server_url: String, user_id: u64) -> Result<(), AccessError> {
     delete_user(&link(&server_url), UserId::new(user_id))
+        .await
+        .map_err(AccessError::from)
+}
+
+/// Chooses the rules for new passwords; admin only.
+pub async fn switch_password_policy(
+    server_url: String,
+    policy: PasswordPolicyChoice,
+) -> Result<(), AccessError> {
+    set_password_policy(&link(&server_url), policy.into())
         .await
         .map_err(AccessError::from)
 }

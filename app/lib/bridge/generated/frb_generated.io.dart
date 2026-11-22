@@ -93,6 +93,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<LabelItem> dco_decode_list_label_item(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -124,6 +127,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  PasswordPolicyChoice dco_decode_password_policy_choice(dynamic raw);
 
   @protected
   PlayModeChoice dco_decode_play_mode_choice(dynamic raw);
@@ -169,6 +175,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  UploadedRecordingItem dco_decode_uploaded_recording_item(dynamic raw);
 
   @protected
   UserItem dco_decode_user_item(dynamic raw);
@@ -257,6 +266,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<LabelItem> sse_decode_list_label_item(SseDeserializer deserializer);
 
   @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -296,6 +308,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  PasswordPolicyChoice sse_decode_password_policy_choice(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlayModeChoice sse_decode_play_mode_choice(SseDeserializer deserializer);
@@ -341,6 +358,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  UploadedRecordingItem sse_decode_uploaded_recording_item(
+    SseDeserializer deserializer,
+  );
 
   @protected
   UserItem sse_decode_user_item(SseDeserializer deserializer);
@@ -459,6 +481,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -513,6 +538,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_password_policy_choice(
+    PasswordPolicyChoice self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_play_mode_choice(
     PlayModeChoice self,
     SseSerializer serializer,
@@ -559,6 +590,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_uploaded_recording_item(
+    UploadedRecordingItem self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_user_item(UserItem self, SseSerializer serializer);

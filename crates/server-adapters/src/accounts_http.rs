@@ -16,8 +16,10 @@ use std::sync::Arc;
 use veltrunox_core::UserId;
 use veltrunox_protocol::{
     CredentialsDto, GUEST_ACCESS_PATH, GuestAccessDto, IdentityDto, LOGIN_PATH, LOGOUT_PATH,
-    ME_PATH, NewUserDto, PROTOCOL_VERSION, SETUP_PATH, STATUS_PATH, SessionDto, StatusDto,
-    USER_PATH, USERS_PATH, UpdateUserDto, UserDto, capability_to_dto, role_from_dto, role_to_dto,
+    ME_PATH, NewUserDto, PASSWORD_POLICY_PATH, PROTOCOL_VERSION, SETUP_PATH, STATUS_PATH,
+    SessionDto, SetPasswordPolicyDto, StatusDto, USER_PATH, USERS_PATH, UpdateUserDto, UserDto,
+    capability_to_dto, password_policy_from_dto, password_policy_to_dto, role_from_dto,
+    role_to_dto,
 };
 use veltrunox_server_app::{AccountError, AccountService, Identity, Session, UserRecord};
 
@@ -31,6 +33,7 @@ pub fn routes() -> Router<AppState> {
         .route(USERS_PATH, get(list_users).post(create_user))
         .route(USER_PATH, put(update_user).delete(delete_user))
         .route(GUEST_ACCESS_PATH, put(set_guest_access))
+        .route(PASSWORD_POLICY_PATH, put(set_password_policy))
 }
 
 pub fn identity_to_dto(identity: &Identity) -> IdentityDto {
@@ -106,6 +109,7 @@ async fn status(State(app): State<AppState>) -> Result<Json<StatusDto>, ApiError
             protocol_version: PROTOCOL_VERSION,
             setup_needed: false,
             guest_enabled: true,
+            password_policy: Default::default(),
         }));
     };
     let status = blocking(move || Ok(accounts.status()?)).await?;
@@ -113,6 +117,7 @@ async fn status(State(app): State<AppState>) -> Result<Json<StatusDto>, ApiError
         protocol_version: PROTOCOL_VERSION,
         setup_needed: status.setup_needed,
         guest_enabled: status.guest_enabled,
+        password_policy: password_policy_to_dto(status.password_policy),
     }))
 }
 
@@ -217,5 +222,16 @@ async fn set_guest_access(
 ) -> Result<StatusCode, ApiError> {
     let (actor, accounts) = actor(caller, &app)?;
     blocking(move || Ok(accounts.set_guest_enabled(&actor, body.enabled)?)).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn set_password_policy(
+    State(app): State<AppState>,
+    caller: Caller,
+    Json(body): Json<SetPasswordPolicyDto>,
+) -> Result<StatusCode, ApiError> {
+    let (actor, accounts) = actor(caller, &app)?;
+    let policy = password_policy_from_dto(body.policy);
+    blocking(move || Ok(accounts.set_password_policy(&actor, policy)?)).await?;
     Ok(StatusCode::NO_CONTENT)
 }

@@ -10,7 +10,9 @@ import 'users_texts.dart';
 /// Creates a user: name, first password and role. A refusal by the server
 /// shows above the fields, where the person just acted.
 class NewUserForm extends StatefulWidget {
-  const NewUserForm({required this.onCreate, super.key});
+  const NewUserForm({required this.policy, required this.onCreate, super.key});
+
+  final PasswordPolicy policy;
 
   /// Resolves to the failure, or `null` once the user exists.
   final Future<AccessFailure?> Function(
@@ -25,8 +27,6 @@ class NewUserForm extends StatefulWidget {
 }
 
 class _NewUserFormState extends State<NewUserForm> {
-  static const _minPasswordLength = 10;
-
   final _userName = TextEditingController();
   final _password = TextEditingController();
   UserRole _role = UserRole.user;
@@ -44,10 +44,13 @@ class _NewUserFormState extends State<NewUserForm> {
   String? get _nameError =>
       _submitted && _userName.text.trim().isEmpty ? UsersTexts.required : null;
 
-  String? get _passwordError =>
-      _submitted && _password.text.length < _minPasswordLength
-      ? UsersTexts.tooShort
-      : null;
+  String? get _passwordError {
+    if (!_submitted) return null;
+    final problem = widget.policy.check(_password.text);
+    return problem == null
+        ? null
+        : AccessTexts.passwordProblem(widget.policy, problem);
+  }
 
   Future<void> _submit() async {
     setState(() => _submitted = true);
@@ -95,7 +98,10 @@ class _NewUserFormState extends State<NewUserForm> {
         enableSuggestions: false,
         decoration: InputDecoration(
           labelText: AccessTexts.password,
+          helperText: AccessTexts.passwordRule(widget.policy),
+          helperMaxLines: 2,
           errorText: _passwordError,
+          errorMaxLines: 2,
         ),
       ),
       const SizedBox(height: AppSpace.s2),

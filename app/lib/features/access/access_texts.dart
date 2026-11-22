@@ -19,12 +19,31 @@ abstract final class AccessTexts {
       'später Benutzer und Aufnahmen verwaltet.';
   static const setup = 'Einrichten';
   static const required = 'Bitte ausfüllen.';
-  static const tooShort = 'Mindestens 10 Zeichen.';
   static const mismatch = 'Die Passwörter stimmen nicht überein.';
   static const accountMenu = 'Konto';
   static const signOut = 'Abmelden';
   static const users = 'Benutzer verwalten';
   static const guestName = 'Gast';
+
+  /// What a password must be like, as a hint under the field.
+  static String passwordRule(PasswordPolicy policy) => switch (policy) {
+    PasswordPolicy.standard => 'Mindestens ${policy.minLength} Zeichen.',
+    PasswordPolicy.strict =>
+      'Mindestens ${policy.minLength} Zeichen mit Klein- und Großbuchstabe, '
+          'Ziffer und Sonderzeichen.',
+  };
+
+  /// What is missing from a password the person typed.
+  static String passwordProblem(
+    PasswordPolicy policy,
+    PasswordProblem problem,
+  ) => switch (problem) {
+    PasswordProblem.tooShort => 'Mindestens ${policy.minLength} Zeichen.',
+    PasswordProblem.noLowercase => 'Es fehlt ein Kleinbuchstabe.',
+    PasswordProblem.noUppercase => 'Es fehlt ein Großbuchstabe.',
+    PasswordProblem.noDigit => 'Es fehlt eine Ziffer.',
+    PasswordProblem.noSpecial => 'Es fehlt ein Sonderzeichen.',
+  };
 
   static String signedInAs(String name) => 'Angemeldet als $name';
 

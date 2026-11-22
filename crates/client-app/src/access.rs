@@ -1,6 +1,6 @@
 //! Signing in and the rights of the signed-in person, as the client core sees them.
 
-use veltrunox_core::{Capability, Role, UserId};
+use veltrunox_core::{Capability, PasswordPolicy, Role, UserId};
 
 /// What a person types to sign in or to set up the first admin.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,6 +15,8 @@ pub struct AccessStatus {
     /// No user exists yet: the first admin must be set up.
     pub setup_needed: bool,
     pub guest_enabled: bool,
+    /// The rules for new passwords.
+    pub password_policy: PasswordPolicy,
 }
 
 /// Who the server takes the client for and what it may do. The interface

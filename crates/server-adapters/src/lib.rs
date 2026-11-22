@@ -15,6 +15,7 @@ mod import;
 mod security;
 mod sqlite;
 mod state;
+mod upload;
 mod users;
 
 pub use analysis::{AnalysisError, analyse};
@@ -30,3 +31,4 @@ pub use import::{ImportError, import_directory};
 pub use security::{Argon2Hasher, RandomTokens, SystemWallClock};
 pub use sqlite::SqliteStore;
 pub use state::AppState;
+pub use upload::UploadStore;

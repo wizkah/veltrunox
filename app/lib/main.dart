@@ -13,11 +13,13 @@ import 'bridge/bridge_waveform_source.dart';
 import 'bridge/generated/frb_generated.dart';
 import 'features/access/access_controller.dart';
 import 'features/connection/connection_controller.dart';
+import 'features/library/audio_file_picker.dart';
 import 'features/library/library_controller.dart';
 import 'features/markers/marker_controller.dart';
 import 'features/player/player_controller.dart';
 import 'features/users/users_controller.dart';
 import 'features/waveform/waveform_source.dart';
+import 'platform/file_picker_adapter.dart';
 import 'storage/shared_preferences_token_store.dart';
 
 const _configuredServerUrl = String.fromEnvironment('VELTRUNOX_SERVER_URL');
@@ -56,6 +58,7 @@ Future<void> main() async {
         waveformSourceProvider.overrideWithValue(
           BridgeWaveformSource(serverUrl: serverUrl),
         ),
+        audioFilePickerProvider.overrideWithValue(SystemAudioFilePicker()),
         recordingSourceProvider.overrideWithValue(
           BridgeRecordingSource(serverUrl: serverUrl, session: session),
         ),

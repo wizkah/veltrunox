@@ -13,9 +13,7 @@ pub use analysis::{
     AnalysisInfo, AnalysisProgress, Confidence, KeyMode, LibraryEntry, MusicalKey, PitchClass,
     RecordingAnalysis,
 };
-pub use auth::{
-    Capability, InvalidUser, MIN_PASSWORD_CHARS, Role, UserId, UserName, check_password,
-};
+pub use auth::{Capability, InvalidUser, PasswordPolicy, Role, UserId, UserName};
 pub use bookmark::{
     BookmarkId, BookmarkName, Bookmarks, Label, Region, Version, VersionConflict, check_version,
 };

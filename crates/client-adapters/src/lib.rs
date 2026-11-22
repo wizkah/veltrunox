@@ -15,20 +15,22 @@ use reqwest::{Client, RequestBuilder, Response, StatusCode, header::RETRY_AFTER}
 use serde::de::DeserializeOwned;
 use veltrunox_client_app::{
     AccessStatus, Credentials, LinkError, ManagedUser, NewUser, RecordingWaveform, Rights,
-    ServerLink, SignedIn, UserChange,
+    ServerLink, SignedIn, UploadedRecording, UserChange,
 };
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, RecordingId, Region,
-    TimeRange, UserId, Version, Waveform, WaveformLevel,
+    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, PasswordPolicy, RecordingId,
+    RecordingTitle, Region, TimeRange, UserId, Version, Waveform, WaveformLevel,
 };
 use veltrunox_protocol::{
-    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, CredentialsDto, GUEST_ACCESS_PATH,
-    GuestAccessDto, IdentityDto, LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH, LOGIN_PATH,
-    LOGOUT_PATH, LabelDto, ME_PATH, NewLabelDto, NewRegionDto, NewUserDto, RECORDINGS_PATH,
-    REGION_PATH, REGION_TO_LABEL_PATH, REGIONS_PATH, RecordingListDto, RegionDto, SETUP_PATH,
-    STATUS_PATH, SessionDto, StatusDto, USER_PATH, USERS_PATH, UpdateLabelDto, UpdateRegionDto,
-    UpdateUserDto, UserDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto,
-    bookmarks_from_dto, label_from_dto, library_entry_from_dto, peaks_from_bytes, range_to_dto,
+    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, CredentialsDto, FILE_NAME_HEADER,
+    GUEST_ACCESS_PATH, GuestAccessDto, IdentityDto, LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH,
+    LOGIN_PATH, LOGOUT_PATH, LabelDto, ME_PATH, NewLabelDto, NewRegionDto, NewUserDto,
+    PASSWORD_POLICY_PATH, RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH,
+    REGIONS_PATH, RecordingListDto, RegionDto, RenameRecordingDto, SETUP_PATH, STATUS_PATH,
+    SessionDto, SetPasswordPolicyDto, StatusDto, USER_PATH, USERS_PATH, UpdateLabelDto,
+    UpdateRegionDto, UpdateUserDto, UploadedRecordingDto, UserDto, WAVEFORM_LEVEL_PATH,
+    WAVEFORM_PATH, WaveformInfoDto, bookmarks_from_dto, label_from_dto, library_entry_from_dto,
+    password_policy_from_dto, password_policy_to_dto, peaks_from_bytes, range_to_dto,
     region_from_dto, role_to_dto,
 };
 
@@ -75,6 +77,18 @@ impl HttpServerLink {
     fn delete(&self, url: String) -> RequestBuilder {
         self.signed(self.client.delete(url))
     }
+}
+
+/// Text safe in a header value: everything but unreserved ASCII as `%XX` of its UTF-8 bytes.
+fn percent_encode(text: &str) -> String {
+    text.bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                char::from(byte).to_string()
+            }
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
 }
 
 /// Passes a successful answer on; maps a refusal of sign-in or rights.
@@ -150,7 +164,10 @@ impl HttpServerLink {
             }
             StatusCode::UNAUTHORIZED => Err(LinkError::Unauthorized),
             StatusCode::FORBIDDEN => Err(LinkError::Forbidden),
-            StatusCode::BAD_REQUEST | StatusCode::UNPROCESSABLE_ENTITY => Err(LinkError::Refused(
+            StatusCode::BAD_REQUEST
+            | StatusCode::UNPROCESSABLE_ENTITY
+            | StatusCode::PAYLOAD_TOO_LARGE
+            | StatusCode::UNSUPPORTED_MEDIA_TYPE => Err(LinkError::Refused(
                 response.text().await.unwrap_or_default(),
             )),
             status => Err(LinkError::Unreachable(format!("server answered {status}"))),
@@ -249,6 +266,47 @@ impl ServerLink for HttpServerLink {
             .map_err(|error| LinkError::Unreachable(error.to_string()))
             .and_then(checked)?;
         Ok(())
+    }
+
+    async fn upload_recording(
+        &self,
+        file_name: &str,
+        content: Vec<u8>,
+    ) -> Result<UploadedRecording, LinkError> {
+        let request = self
+            .post(format!("{}{}", self.base_url, RECORDINGS_PATH))
+            .header(FILE_NAME_HEADER, percent_encode(file_name))
+            .body(content);
+        let dto: UploadedRecordingDto = Self::send_write(request)
+            .await?
+            .json()
+            .await
+            .map_err(|error| LinkError::InvalidResponse(error.to_string()))?;
+        let title = RecordingTitle::new(&dto.title)
+            .map_err(|error| LinkError::InvalidResponse(error.to_string()))?;
+        Ok(UploadedRecording {
+            id: RecordingId::new(dto.id),
+            title,
+            existing: dto.existing,
+        })
+    }
+
+    async fn rename_recording(
+        &self,
+        recording: RecordingId,
+        title: &RecordingTitle,
+    ) -> Result<(), LinkError> {
+        let request =
+            self.put(self.url(RECORDING_PATH, recording.value()))
+                .json(&RenameRecordingDto {
+                    title: title.as_str().to_owned(),
+                });
+        Self::send_write(request).await.map(|_| ())
+    }
+
+    async fn remove_recording(&self, recording: RecordingId) -> Result<(), LinkError> {
+        let request = self.delete(self.url(RECORDING_PATH, recording.value()));
+        Self::send_write(request).await.map(|_| ())
     }
 
     async fn fetch_length(&self, recording: RecordingId) -> Result<Millis, LinkError> {
@@ -418,6 +476,7 @@ impl ServerLink for HttpServerLink {
         Ok(AccessStatus {
             setup_needed: dto.setup_needed,
             guest_enabled: dto.guest_enabled,
+            password_policy: password_policy_from_dto(dto.password_policy),
         })
     }
 
@@ -496,11 +555,33 @@ impl ServerLink for HttpServerLink {
         .await
         .map(drop)
     }
+
+    async fn switch_password_policy(&self, policy: PasswordPolicy) -> Result<(), LinkError> {
+        Self::account_call(
+            self.put(format!("{}{}", self.base_url, PASSWORD_POLICY_PATH))
+                .json(&SetPasswordPolicyDto {
+                    policy: password_policy_to_dto(policy),
+                }),
+        )
+        .await
+        .map(drop)
+    }
 }
 
 fn credentials_to_dto(credentials: &Credentials) -> CredentialsDto {
     CredentialsDto {
         user_name: credentials.user_name.clone(),
         password: credentials.password.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::percent_encode;
+
+    #[test]
+    fn file_names_are_encoded_for_a_header() {
+        assert_eq!(percent_encode("Blue Monday.mp3"), "Blue%20Monday.mp3");
+        assert_eq!(percent_encode("Grüße/x.wav"), "Gr%C3%BC%C3%9Fe%2Fx.wav");
     }
 }

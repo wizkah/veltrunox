@@ -56,8 +56,11 @@ class BridgeSession {
 
   /// Stops listening, for example when signing out.
   Future<void> close() async {
-    await _subscription?.cancel();
+    // Cancelling a Rust stream can wait for the stream to end, which only the
+    // channel's closing brings about; signing out must not wait for that.
+    final subscription = _subscription;
     _subscription = null;
+    if (subscription != null) unawaited(subscription.cancel());
     _connection = null;
     _player = null;
   }

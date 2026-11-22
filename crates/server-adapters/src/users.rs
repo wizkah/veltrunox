@@ -2,12 +2,13 @@
 
 use crate::sqlite::{SqliteStore, corrupt, sql_int, storage, unsigned};
 use rusqlite::{ErrorCode, OptionalExtension, params};
-use veltrunox_core::{Role, UserId, UserName};
+use veltrunox_core::{PasswordPolicy, Role, UserId, UserName};
 use veltrunox_server_app::{
     SessionRepository, StorageError, UserRecord, UserRepository, UserStoreError,
 };
 
 const GUEST_KEY: &str = "guest_enabled";
+const PASSWORD_POLICY_KEY: &str = "password_policy";
 const USER_COLUMNS: &str = "id, name, role, password_hash, active";
 
 fn role_text(role: Role) -> &'static str {
@@ -199,6 +200,37 @@ impl UserRepository for SqliteStore {
             .map_err(storage)?;
         Ok(())
     }
+
+    fn password_policy(&self) -> Result<PasswordPolicy, StorageError> {
+        let value = self
+            .connection()
+            .query_row(
+                "SELECT value FROM settings WHERE key = ?1",
+                params![PASSWORD_POLICY_KEY],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(storage)?;
+        Ok(match value.as_deref() {
+            Some("strict") => PasswordPolicy::Strict,
+            _ => PasswordPolicy::Standard,
+        })
+    }
+
+    fn set_password_policy(&self, policy: PasswordPolicy) -> Result<(), StorageError> {
+        let value = match policy {
+            PasswordPolicy::Standard => "standard",
+            PasswordPolicy::Strict => "strict",
+        };
+        self.connection()
+            .execute(
+                "INSERT INTO settings (key, value) VALUES (?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![PASSWORD_POLICY_KEY, value],
+            )
+            .map_err(storage)?;
+        Ok(())
+    }
 }
 
 impl SqliteStore {
@@ -370,6 +402,9 @@ mod tests {
     fn the_guest_switch_is_off_by_default_and_stored() {
         let store = SqliteStore::in_memory().unwrap();
         assert!(!store.guest_enabled().unwrap());
+        assert_eq!(store.password_policy().unwrap(), PasswordPolicy::Standard);
+        store.set_password_policy(PasswordPolicy::Strict).unwrap();
+        assert_eq!(store.password_policy().unwrap(), PasswordPolicy::Strict);
         store.set_guest_enabled(true).unwrap();
         assert!(store.guest_enabled().unwrap());
         store.set_guest_enabled(false).unwrap();

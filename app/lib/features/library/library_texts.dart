@@ -30,6 +30,28 @@ abstract final class LibraryTexts {
   static const tuningLabel = 'Stimmung';
   static const notAnalysed = 'Noch nicht analysiert';
 
+  static const upload = 'Aufnahme hochladen';
+  static const uploadDismiss = 'Meldung schließen';
+  static const rename = 'Umbenennen';
+  static const renameTitle = 'Aufnahme umbenennen';
+  static const renameField = 'Titel';
+  static const renameEmpty = 'Der Titel darf nicht leer sein.';
+  static const save = 'Speichern';
+  static const cancel = 'Abbrechen';
+  static const delete = 'Löschen';
+  static const deleteTitle = 'Aufnahme löschen?';
+  static const actionFailed = 'Das ist nicht gelungen';
+
+  static String uploading(String fileName) => 'Wird hochgeladen: $fileName';
+  static String uploaded(String title) => 'Hochgeladen: $title';
+  static String uploadedAlready(String title) =>
+      'Schon vorhanden: $title (nicht noch einmal angelegt)';
+  static String uploadFailed(String fileName, String reason) =>
+      fileName.isEmpty ? reason : '$fileName: $reason';
+  static String deleteMessage(String title) =>
+      '„$title“ wird mit Markierungen und Analyse für alle gelöscht. '
+      'Das lässt sich nicht rückgängig machen.';
+
   static String playRecording(String title) => 'Abspielen: $title';
   static String analysisFailed(String? reason) => reason == null
       ? 'Analyse fehlgeschlagen'

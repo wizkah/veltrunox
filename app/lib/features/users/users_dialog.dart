@@ -10,6 +10,7 @@ import '../access/access_texts.dart';
 import 'guest_access_switch.dart';
 import 'new_user_form.dart';
 import 'password_dialog.dart';
+import 'password_policy_switch.dart';
 import 'user_models.dart';
 import 'user_row.dart';
 import 'users_controller.dart';
@@ -109,6 +110,15 @@ class _Content extends ConsumerWidget {
           onChanged: (enabled) =>
               _report(context, controller.setGuestAccess(enabled: enabled)),
         ),
+        PasswordPolicySwitch(
+          strict: administration.passwordPolicy == PasswordPolicy.strict,
+          onChanged: (strict) => _report(
+            context,
+            controller.setPasswordPolicy(
+              strict ? PasswordPolicy.strict : PasswordPolicy.standard,
+            ),
+          ),
+        ),
         const Divider(),
         for (final user in administration.users)
           UserRow(
@@ -122,6 +132,7 @@ class _Content extends ConsumerWidget {
           ),
         const Divider(),
         NewUserForm(
+          policy: administration.passwordPolicy,
           onCreate: (name, password, role) =>
               controller.create(userName: name, password: password, role: role),
         ),
@@ -134,7 +145,11 @@ class _Content extends ConsumerWidget {
     UsersController controller,
     ManagedUser user,
   ) async {
-    final password = await PasswordDialog.show(context, user.userName);
+    final password = await PasswordDialog.show(
+      context,
+      user.userName,
+      administration.passwordPolicy,
+    );
     if (password == null || !context.mounted) return;
     await _report(
       context,

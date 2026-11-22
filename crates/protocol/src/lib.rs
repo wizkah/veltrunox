@@ -5,9 +5,10 @@ mod convert;
 
 pub use accounts::{
     CapabilityDto, CredentialsDto, GUEST_ACCESS_PATH, GuestAccessDto, IdentityDto, LOGIN_PATH,
-    LOGOUT_PATH, ME_PATH, NewUserDto, RoleDto, SETUP_PATH, STATUS_PATH, SessionDto, StatusDto,
-    USER_PATH, USERS_PATH, UpdateUserDto, UserDto, capability_from_dto, capability_to_dto,
-    role_from_dto, role_to_dto,
+    LOGOUT_PATH, ME_PATH, NewUserDto, PASSWORD_POLICY_PATH, PasswordPolicyDto, RoleDto, SETUP_PATH,
+    STATUS_PATH, SessionDto, SetPasswordPolicyDto, StatusDto, USER_PATH, USERS_PATH, UpdateUserDto,
+    UserDto, capability_from_dto, capability_to_dto, password_policy_from_dto,
+    password_policy_to_dto, role_from_dto, role_to_dto,
 };
 
 pub use convert::{
@@ -22,6 +23,13 @@ use serde::{Deserialize, Serialize};
 
 /// Path of the recording list endpoint.
 pub const RECORDINGS_PATH: &str = "/api/v1/recordings";
+
+/// Path of one recording (`PUT` renames it, `DELETE` removes it); `{id}` is the recording id.
+pub const RECORDING_PATH: &str = "/api/v1/recordings/{id}";
+
+/// Header of an upload (`POST` to `RECORDINGS_PATH`, the audio file as the raw body) with the
+/// original file name, percent-encoded UTF-8.
+pub const FILE_NAME_HEADER: &str = "x-file-name";
 
 /// Path to start the analysis of one recording again; `{id}` is the recording id.
 pub const ANALYSIS_PATH: &str = "/api/v1/recordings/{id}/analysis";
@@ -252,6 +260,19 @@ pub struct WaveformInfoDto {
     pub length_ms: u64,
     pub sample_rate: u32,
     pub levels: Vec<WaveformLevelInfoDto>,
+}
+
+/// Answer to an upload; `existing` is true when the same audio was in the library already.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UploadedRecordingDto {
+    pub id: u64,
+    pub title: String,
+    pub existing: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RenameRecordingDto {
+    pub title: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

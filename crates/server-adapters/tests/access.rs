@@ -389,3 +389,60 @@ async fn the_channel_needs_a_valid_token_or_guest_access() {
     .unwrap();
     assert_eq!(guest, ["hello", "authenticated", "state"]);
 }
+
+#[tokio::test]
+async fn the_admin_chooses_the_password_rules_and_nobody_else_does() {
+    let url = secured_server().await;
+    let admin = set_up_admin(&url).await;
+    let member = user_token(&url, &admin, "member", "user").await;
+    let (_, status) = call(&url, Method::GET, "/api/v1/status", None, None).await;
+    assert_eq!(status["password_policy"], "standard");
+
+    let strict = json!({"policy": "strict"});
+    for token in [None, Some(member.as_str())] {
+        let (status, _) = call(
+            &url,
+            Method::PUT,
+            "/api/v1/password-policy",
+            token,
+            Some(strict.clone()),
+        )
+        .await;
+        assert!(matches!(
+            status,
+            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
+        ));
+    }
+    let (status, _) = call(
+        &url,
+        Method::PUT,
+        "/api/v1/password-policy",
+        Some(&admin),
+        Some(strict),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, status) = call(&url, Method::GET, "/api/v1/status", None, None).await;
+    assert_eq!(status["password_policy"], "strict");
+
+    let weak = json!({"user_name": "weak", "password": "simple", "role": "user"});
+    let (status, _) = call(
+        &url,
+        Method::POST,
+        "/api/v1/users",
+        Some(&admin),
+        Some(weak),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let strong = json!({"user_name": "strong", "password": "Str0ng-Passw", "role": "user"});
+    let (status, _) = call(
+        &url,
+        Method::POST,
+        "/api/v1/users",
+        Some(&admin),
+        Some(strong),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+}

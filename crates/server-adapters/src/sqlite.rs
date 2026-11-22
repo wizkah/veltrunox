@@ -196,6 +196,38 @@ impl MediaCatalog for SqliteStore {
             title,
         }))
     }
+
+    fn recording_by_hash(&self, content_hash: &str) -> Result<Option<Recording>, StorageError> {
+        let found = self
+            .connection()
+            .query_row(
+                "SELECT id, title FROM recordings WHERE content_hash = ?1",
+                params![content_hash],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()
+            .map_err(storage)?;
+        found
+            .map(|(id, title)| {
+                Ok(Recording {
+                    id: RecordingId::new(unsigned(id)?),
+                    title: RecordingTitle::new(&title).map_err(|error| corrupt("title", error))?,
+                })
+            })
+            .transpose()
+    }
+
+    fn media_paths(&self) -> Result<Vec<PathBuf>, StorageError> {
+        let connection = self.connection();
+        let mut statement = connection
+            .prepare("SELECT media_path FROM recordings WHERE media_path IS NOT NULL")
+            .map_err(storage)?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(storage)?;
+        rows.map(|row| row.map(PathBuf::from).map_err(storage))
+            .collect()
+    }
 }
 
 impl RecordingRepository for SqliteStore {
@@ -276,6 +308,29 @@ impl RecordingRepository for SqliteStore {
             )
             .map_err(storage)?;
         Ok(())
+    }
+
+    fn rename(&self, id: RecordingId, title: RecordingTitle) -> Result<bool, StorageError> {
+        let changed = self
+            .connection()
+            .execute(
+                "UPDATE recordings SET title = ?2 WHERE id = ?1",
+                params![sql_int(id.value())?, title.as_str()],
+            )
+            .map_err(storage)?;
+        Ok(changed > 0)
+    }
+
+    fn delete(&self, id: RecordingId) -> Result<bool, StorageError> {
+        // Bookmarks and waveform levels follow through `ON DELETE CASCADE`.
+        let removed = self
+            .connection()
+            .execute(
+                "DELETE FROM recordings WHERE id = ?1",
+                params![sql_int(id.value())?],
+            )
+            .map_err(storage)?;
+        Ok(removed > 0)
     }
 }
 
@@ -1219,6 +1274,51 @@ mod tests {
             .save_waveform(second.id, Millis::new(1), &waveform)
             .unwrap();
         assert_eq!(store.unanalysed().unwrap(), [second.id]);
+    }
+
+    #[test]
+    fn renaming_and_deleting_a_recording_keep_the_rest_consistent() {
+        let store = SqliteStore::in_memory().unwrap();
+        let title = |text: &str| RecordingTitle::new(text).unwrap();
+        let kept = store
+            .add_media(title("kept"), Path::new("/k.wav"), "hk")
+            .unwrap()
+            .unwrap();
+        let gone = store
+            .add_media(title("gone"), Path::new("/g.wav"), "hg")
+            .unwrap()
+            .unwrap();
+        store
+            .save_analysis(gone.id, sample_analysis(100.0))
+            .unwrap();
+        store
+            .save_waveform(
+                gone.id,
+                Millis::new(1),
+                &Waveform::from_mono(&[0.5; 10], 8_000),
+            )
+            .unwrap();
+
+        assert!(store.rename(kept.id, title("renamed")).unwrap());
+        assert!(!store.rename(RecordingId::new(99), title("x")).unwrap());
+        assert_eq!(
+            store.recording_by_hash("hk").unwrap().unwrap().title,
+            title("renamed")
+        );
+
+        assert!(store.delete(gone.id).unwrap());
+        assert!(!store.delete(gone.id).unwrap());
+        assert_eq!(store.analysis(gone.id).unwrap(), None);
+        assert_eq!(store.waveform(gone.id).unwrap(), None);
+        assert_eq!(store.recording_by_hash("hg").unwrap(), None);
+        assert_eq!(store.media_paths().unwrap(), [PathBuf::from("/k.wav")]);
+        // The hash is free again, so the same audio can be uploaded once more.
+        assert!(
+            store
+                .add_media(title("again"), Path::new("/g2.wav"), "hg")
+                .unwrap()
+                .is_some()
+        );
     }
 
     #[test]

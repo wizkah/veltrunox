@@ -30,8 +30,16 @@ pub enum InvalidUser {
     NameTooLong,
     #[error("user name must not contain control characters")]
     ControlCharacter,
-    #[error("password must have at least {MIN_PASSWORD_CHARS} characters")]
-    PasswordTooShort,
+    #[error("password must have at least {min} characters")]
+    PasswordTooShort { min: usize },
+    #[error("password must contain a lowercase letter")]
+    PasswordNeedsLowercase,
+    #[error("password must contain an uppercase letter")]
+    PasswordNeedsUppercase,
+    #[error("password must contain a digit")]
+    PasswordNeedsDigit,
+    #[error("password must contain a special character")]
+    PasswordNeedsSpecial,
 }
 
 /// A trimmed, non-empty user name. Names are compared without regard to case.
@@ -63,14 +71,49 @@ impl UserName {
     }
 }
 
-pub const MIN_PASSWORD_CHARS: usize = 10;
+/// How demanding the rules for new passwords are; the admin chooses.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PasswordPolicy {
+    /// At least 6 characters.
+    #[default]
+    Standard,
+    /// At least 10 characters with a lowercase letter, an uppercase letter, a digit
+    /// and a special character.
+    Strict,
+}
 
-/// Checks the only rule for passwords: a minimum length.
-pub fn check_password(password: &str) -> Result<(), InvalidUser> {
-    if password.chars().count() < MIN_PASSWORD_CHARS {
-        return Err(InvalidUser::PasswordTooShort);
+impl PasswordPolicy {
+    pub const fn min_chars(self) -> usize {
+        match self {
+            Self::Standard => 6,
+            Self::Strict => 10,
+        }
     }
-    Ok(())
+
+    /// Checks a new password. Passwords set earlier stay valid under any policy.
+    pub fn check(self, password: &str) -> Result<(), InvalidUser> {
+        let min = self.min_chars();
+        if password.chars().count() < min {
+            return Err(InvalidUser::PasswordTooShort { min });
+        }
+        if self == Self::Standard {
+            return Ok(());
+        }
+        let has = |test: fn(&char) -> bool| password.chars().any(|c| test(&c));
+        if !has(|c| c.is_lowercase()) {
+            return Err(InvalidUser::PasswordNeedsLowercase);
+        }
+        if !has(|c| c.is_uppercase()) {
+            return Err(InvalidUser::PasswordNeedsUppercase);
+        }
+        if !has(|c| c.is_numeric()) {
+            return Err(InvalidUser::PasswordNeedsDigit);
+        }
+        if !has(|c| !c.is_alphanumeric() && !c.is_whitespace() && !c.is_control()) {
+            return Err(InvalidUser::PasswordNeedsSpecial);
+        }
+        Ok(())
+    }
 }
 
 /// What a person may be. The guest exists only while guest access is on.
@@ -170,11 +213,44 @@ mod tests {
     }
 
     #[test]
-    fn short_passwords_are_rejected() {
+    fn the_standard_policy_asks_for_six_characters_only() {
+        let policy = PasswordPolicy::default();
+        assert_eq!(policy, PasswordPolicy::Standard);
         assert_eq!(
-            check_password("123456789"),
-            Err(InvalidUser::PasswordTooShort)
+            policy.check("12345"),
+            Err(InvalidUser::PasswordTooShort { min: 6 })
         );
-        assert_eq!(check_password("1234567890"), Ok(()));
+        assert_eq!(policy.check("123456"), Ok(()));
+    }
+
+    #[test]
+    fn the_strict_policy_asks_for_length_and_every_kind_of_character() {
+        let strict = PasswordPolicy::Strict;
+        assert_eq!(
+            strict.check("Ab1!xyz"),
+            Err(InvalidUser::PasswordTooShort { min: 10 })
+        );
+        assert_eq!(
+            strict.check("ABCDEFG1!2"),
+            Err(InvalidUser::PasswordNeedsLowercase)
+        );
+        assert_eq!(
+            strict.check("abcdefg1!2"),
+            Err(InvalidUser::PasswordNeedsUppercase)
+        );
+        assert_eq!(
+            strict.check("Abcdefghi!"),
+            Err(InvalidUser::PasswordNeedsDigit)
+        );
+        assert_eq!(
+            strict.check("Abcdefghi1"),
+            Err(InvalidUser::PasswordNeedsSpecial)
+        );
+        // A space is not a special character.
+        assert_eq!(
+            strict.check("Abcdef ghi1"),
+            Err(InvalidUser::PasswordNeedsSpecial)
+        );
+        assert_eq!(strict.check("Abcdefgh1!"), Ok(()));
     }
 }

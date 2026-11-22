@@ -17,8 +17,13 @@ class ManagedUser {
 
 /// What the admin sees in the user administration.
 class UserAdministration {
-  const UserAdministration({required this.users, required this.guestEnabled});
+  const UserAdministration({
+    required this.users,
+    required this.guestEnabled,
+    this.passwordPolicy = PasswordPolicy.standard,
+  });
 
   final List<ManagedUser> users;
   final bool guestEnabled;
+  final PasswordPolicy passwordPolicy;
 }

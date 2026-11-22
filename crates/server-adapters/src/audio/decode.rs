@@ -3,9 +3,9 @@
 use super::engine::Pcm;
 use std::fs::File;
 use std::path::Path;
-use symphonia::core::codecs::audio::AudioDecoderOptions;
+use symphonia::core::codecs::audio::{AudioDecoder, AudioDecoderOptions};
 use symphonia::core::errors::Error;
-use symphonia::core::formats::{FormatOptions, TrackType, probe::Hint};
+use symphonia::core::formats::{FormatOptions, FormatReader, TrackType, probe::Hint};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 
@@ -23,15 +23,21 @@ impl From<Error> for DecodeError {
     }
 }
 
-/// Decodes the whole file; mono is doubled, channels beyond the second are dropped.
-pub fn decode_file(path: &Path) -> Result<Pcm, DecodeError> {
+/// An opened file: its packets, the decoder for its audio track and the track's id.
+struct Opened {
+    format: Box<dyn FormatReader>,
+    decoder: Box<dyn AudioDecoder>,
+    track_id: u32,
+}
+
+fn open(path: &Path) -> Result<Opened, DecodeError> {
     let file = Box::new(File::open(path)?);
     let stream = MediaSourceStream::new(file, Default::default());
     let mut hint = Hint::new();
     if let Some(extension) = path.extension().and_then(|extension| extension.to_str()) {
         hint.with_extension(extension);
     }
-    let mut format = symphonia::default::get_probe().probe(
+    let format = symphonia::default::get_probe().probe(
         &hint,
         stream,
         FormatOptions::default(),
@@ -45,9 +51,44 @@ pub fn decode_file(path: &Path) -> Result<Pcm, DecodeError> {
         .as_ref()
         .and_then(|parameters| parameters.audio())
         .ok_or_else(|| DecodeError::Audio("no audio parameters".to_owned()))?;
-    let mut decoder = symphonia::default::get_codecs()
+    let decoder = symphonia::default::get_codecs()
         .make_audio_decoder(parameters, &AudioDecoderOptions::default())?;
     let track_id = track.id;
+    Ok(Opened {
+        format,
+        decoder,
+        track_id,
+    })
+}
+
+/// Checks that the file is audio the decoder reads: it is recognised and its first audio
+/// packet decodes. Cheap compared to `decode_file`; damage further in shows up in the analysis.
+pub fn probe_file(path: &Path) -> Result<(), DecodeError> {
+    let Opened {
+        mut format,
+        mut decoder,
+        track_id,
+    } = open(path)?;
+    while let Some(packet) = format.next_packet()? {
+        if packet.track_id != track_id {
+            continue;
+        }
+        match decoder.decode(&packet) {
+            Ok(buffer) if buffer.frames() > 0 => return Ok(()),
+            Ok(_) | Err(Error::DecodeError(_)) => continue,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err(DecodeError::Audio("no audio samples".to_owned()))
+}
+
+/// Decodes the whole file; mono is doubled, channels beyond the second are dropped.
+pub fn decode_file(path: &Path) -> Result<Pcm, DecodeError> {
+    let Opened {
+        mut format,
+        mut decoder,
+        track_id,
+    } = open(path)?;
 
     let mut stereo = Vec::new();
     let mut interleaved: Vec<f32> = Vec::new();
@@ -104,6 +145,22 @@ mod tests {
         std::fs::remove_file(&path).unwrap();
         assert_eq!(pcm.sample_rate(), 8_000);
         assert_eq!(pcm.frames(), 4);
+    }
+
+    #[test]
+    fn probing_accepts_audio_and_refuses_the_rest() {
+        let directory =
+            std::env::temp_dir().join(format!("veltrunox-probe-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let wav = directory.join("a.wav");
+        let text = directory.join("a.txt");
+        std::fs::write(&wav, wav_mono_16bit(8_000, &[0, 16_384, -16_384, 0])).unwrap();
+        std::fs::write(&text, "not audio at all").unwrap();
+        let accepted = probe_file(&wav);
+        let refused = probe_file(&text);
+        std::fs::remove_dir_all(&directory).unwrap();
+        assert!(accepted.is_ok());
+        assert!(matches!(refused, Err(DecodeError::Audio(_))));
     }
 
     #[test]

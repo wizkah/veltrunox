@@ -1,10 +1,11 @@
-//! HTTP endpoints: library, waveforms and bookmarks.
+//! HTTP endpoints: library, upload, recording administration, waveforms and bookmarks.
 
 use crate::{
     access::{AccessError, Caller},
     accounts_http,
     events::events,
     state::AppState,
+    upload::upload,
 };
 use axum::{
     Json, Router,
@@ -13,23 +14,28 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post, put},
 };
+use veltrunox_core::RecordingTitle;
 use veltrunox_core::{
     BookmarkId, BookmarkName, Capability, InvalidValue, Millis, RecordingId, Version,
 };
 use veltrunox_protocol::{
     ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, EVENTS_PATH, ExpectedVersionQuery,
     LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto,
-    RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH, REGIONS_PATH, RecordingListDto, RegionDto,
-    UpdateLabelDto, UpdateRegionDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto,
-    bookmarks_to_dto, label_to_dto, library_entry_to_dto, peaks_to_bytes, range_from_dto,
-    region_to_dto, waveform_info_to_dto,
+    RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH, REGIONS_PATH,
+    RecordingListDto, RegionDto, RenameRecordingDto, UpdateLabelDto, UpdateRegionDto,
+    WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_to_dto, label_to_dto,
+    library_entry_to_dto, peaks_to_bytes, range_from_dto, region_to_dto, waveform_info_to_dto,
 };
-use veltrunox_server_app::{AccountError, BookmarkError, list_recordings};
+use veltrunox_server_app::{AccountError, BookmarkError, PlaybackBroadcast, list_recordings};
 
 /// Builds the HTTP routes of the server.
 pub fn router(app: AppState) -> Router {
     Router::new()
-        .route(RECORDINGS_PATH, get(recordings))
+        .route(RECORDINGS_PATH, get(recordings).post(upload))
+        .route(
+            RECORDING_PATH,
+            put(rename_recording).delete(delete_recording),
+        )
         .route(EVENTS_PATH, get(events))
         .route(ANALYSIS_PATH, post(analyse_again))
         .route(WAVEFORM_PATH, get(waveform_info))
@@ -51,6 +57,8 @@ pub(crate) enum ApiError {
     Access(AccessError),
     Account(AccountError),
     Bookmark(BookmarkError),
+    /// Refused with a message the client can show.
+    Refused(StatusCode, String),
     NotFound,
     Internal,
 }
@@ -61,6 +69,7 @@ impl IntoResponse for ApiError {
             Self::Invalid(error) => (StatusCode::BAD_REQUEST, error.to_string()).into_response(),
             Self::Access(error) => error.into_response(),
             Self::Account(error) => accounts_http::account_error_response(error),
+            Self::Refused(status, message) => (status, message).into_response(),
             Self::Bookmark(BookmarkError::NotFound) | Self::NotFound => {
                 StatusCode::NOT_FOUND.into_response()
             }
@@ -124,6 +133,58 @@ async fn recordings(
     Ok(Json(RecordingListDto {
         recordings: entries.iter().map(library_entry_to_dto).collect(),
     }))
+}
+
+async fn rename_recording(
+    State(app): State<AppState>,
+    caller: Caller,
+    Path(recording): Path<u64>,
+    Json(body): Json<RenameRecordingDto>,
+) -> Result<StatusCode, ApiError> {
+    caller.require(Capability::ManageRecordings)?;
+    let title = RecordingTitle::new(&body.title)
+        .map_err(|error| ApiError::Refused(StatusCode::BAD_REQUEST, error.to_string()))?;
+    let id = RecordingId::new(recording);
+    let hub = app.hub.clone();
+    blocking(move || match app.recordings.rename(id, title) {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(ApiError::NotFound),
+        Err(_) => Err(ApiError::Internal),
+    })
+    .await?;
+    // The library entry changed; clients read it again.
+    hub.analysis_changed(id);
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Removes a recording with everything that belongs to it. If it is loaded, playback stops and
+/// nothing stays selected. The audio file goes too when the upload store owns it; files of an
+/// imported directory are never touched.
+async fn delete_recording(
+    State(app): State<AppState>,
+    caller: Caller,
+    Path(recording): Path<u64>,
+) -> Result<StatusCode, ApiError> {
+    caller.require(Capability::ManageRecordings)?;
+    let id = RecordingId::new(recording);
+    let hub = app.hub.clone();
+    blocking(move || {
+        let path = app.media.media_path(id).map_err(|_| ApiError::Internal)?;
+        // Unload first: no client may start the recording once it is going away.
+        app.playback.unload(id);
+        if !app.recordings.delete(id).map_err(|_| ApiError::Internal)? {
+            return Err(ApiError::NotFound);
+        }
+        if let (Some(path), Some(uploads)) = (path, app.uploads.as_ref())
+            && uploads.owns(&path)
+        {
+            let _ = std::fs::remove_file(path);
+        }
+        Ok(())
+    })
+    .await?;
+    hub.analysis_changed(id);
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Starts the analysis of a recording again; the result arrives through the library.

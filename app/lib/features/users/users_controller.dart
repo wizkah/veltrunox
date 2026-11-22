@@ -45,6 +45,9 @@ class UsersController extends AsyncNotifier<UserAdministration> {
   Future<AccessFailure?> setGuestAccess({required bool enabled}) =>
       _change(() => _source.setGuestAccess(enabled: enabled));
 
+  Future<AccessFailure?> setPasswordPolicy(PasswordPolicy policy) =>
+      _change(() => _source.setPasswordPolicy(policy));
+
   Future<AccessFailure?> _change(Future<void> Function() action) async {
     AccessFailure? failure;
     try {

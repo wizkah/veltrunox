@@ -24,6 +24,7 @@ class _FakeUsers implements UserSource {
     ),
   ];
   bool guest = false;
+  var policy = PasswordPolicy.standard;
   AccessFailure? failure;
   final calls = <String>[];
 
@@ -33,8 +34,11 @@ class _FakeUsers implements UserSource {
   }
 
   @override
-  Future<UserAdministration> load() async =>
-      UserAdministration(users: List.of(users), guestEnabled: guest);
+  Future<UserAdministration> load() async => UserAdministration(
+    users: List.of(users),
+    guestEnabled: guest,
+    passwordPolicy: policy,
+  );
 
   @override
   Future<void> create({
@@ -85,6 +89,13 @@ class _FakeUsers implements UserSource {
     _maybeFail();
     calls.add('guest:$enabled');
     guest = enabled;
+  }
+
+  @override
+  Future<void> setPasswordPolicy(PasswordPolicy policy) async {
+    _maybeFail();
+    calls.add('policy:${policy.name}');
+    this.policy = policy;
   }
 }
 
@@ -145,7 +156,7 @@ void main() {
   testWidgets('deactivating a user goes to the server', (tester) async {
     final source = await _open(tester);
 
-    await tester.tap(find.byType(Switch).at(2));
+    await tester.tap(find.byType(Switch).at(3));
     await tester.pumpAndSettle();
 
     expect(source.calls, ['change:2:null:false:false']);
@@ -183,9 +194,42 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Anlegen'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Mindestens 10 Zeichen.'), findsOneWidget);
+    expect(find.text('Mindestens 6 Zeichen.'), findsOneWidget);
     expect(source.calls, isEmpty);
   });
+
+  testWidgets(
+    'the admin switches to strict rules, which the forms then ask for',
+    (tester) async {
+      final source = await _open(tester);
+
+      await tester.tap(find.text('Strenge Passwortregeln'));
+      await tester.pumpAndSettle();
+      expect(source.calls, ['policy:strict']);
+
+      await _toForm(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Benutzername'),
+        'bo',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Passwort'),
+        'longenough1!',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Anlegen'));
+      await tester.pumpAndSettle();
+      expect(find.text('Es fehlt ein Großbuchstabe.'), findsOneWidget);
+      expect(source.calls, ['policy:strict']);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Passwort'),
+        'Longenough1!',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Anlegen'));
+      await tester.pumpAndSettle();
+      expect(source.calls, ['policy:strict', 'create:bo:user']);
+    },
+  );
 
   testWidgets('a refusal by the server is shown where the person acted', (
     tester,

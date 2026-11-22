@@ -150,7 +150,7 @@ void main() {
     await _type(tester, 'Passwort wiederholen', 'other');
     await tester.tap(find.widgetWithText(FilledButton, 'Einrichten'));
     await tester.pumpAndSettle();
-    expect(find.text('Mindestens 10 Zeichen.'), findsOneWidget);
+    expect(find.text('Mindestens 6 Zeichen.'), findsOneWidget);
     expect(find.text('Die Passwörter stimmen nicht überein.'), findsOneWidget);
     expect(setup.source.calls, isEmpty);
 

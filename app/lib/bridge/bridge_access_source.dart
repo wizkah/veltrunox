@@ -16,6 +16,7 @@ class BridgeAccessSource implements AccessSource {
     return AccessStatus(
       setupNeeded: status.setupNeeded,
       guestEnabled: status.guestEnabled,
+      passwordPolicy: policyFrom(status.passwordPolicy),
     );
   });
 
@@ -74,6 +75,18 @@ class BridgeAccessSource implements AccessSource {
     canManageRecordings: info.canManageRecordings,
     canManageUsers: info.canManageUsers,
   );
+
+  static PasswordPolicy policyFrom(rust.PasswordPolicyChoice policy) =>
+      switch (policy) {
+        rust.PasswordPolicyChoice.standard => PasswordPolicy.standard,
+        rust.PasswordPolicyChoice.strict => PasswordPolicy.strict,
+      };
+
+  static rust.PasswordPolicyChoice policyTo(PasswordPolicy policy) =>
+      switch (policy) {
+        PasswordPolicy.standard => rust.PasswordPolicyChoice.standard,
+        PasswordPolicy.strict => rust.PasswordPolicyChoice.strict,
+      };
 
   static UserRole roleFrom(rust.RoleChoice role) => switch (role) {
     rust.RoleChoice.admin => UserRole.admin,

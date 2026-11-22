@@ -10,7 +10,7 @@ use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 use veltrunox_core::RecordingTitle;
 use veltrunox_server_adapters::{
     AppState, Argon2Hasher, AudioPlayback, RandomTokens, SqliteStore, SystemClock, SystemWallClock,
-    import_directory, router, system_volume, watch_end,
+    UploadStore, import_directory, router, system_volume, watch_end,
 };
 use veltrunox_server_app::AccountService;
 use veltrunox_server_app::RecordingRepository;
@@ -34,6 +34,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let clock = Arc::new(SystemClock::new());
     let catalog = store.clone();
+    let store_for_uploads = store.clone();
     let analyses = store.clone();
     let accounts = Arc::new(AccountService::new(
         store.clone(),
@@ -54,7 +55,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
             hooks,
         ))
     })
-    .with_accounts(accounts);
+    .with_accounts(accounts)
+    .with_uploads(UploadStore::open(
+        &config.upload_directory(),
+        config.max_upload_bytes,
+        store_for_uploads.as_ref(),
+    )?);
     watch_end(&app);
     queue_pending_analyses(&app);
     let listener = tokio::net::TcpListener::bind(&config.address).await?;

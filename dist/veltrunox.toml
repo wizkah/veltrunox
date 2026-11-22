@@ -10,6 +10,13 @@ data_dir = "data"
 # Directory whose audio files are imported as recordings at start-up.
 # media_dir = "/srv/veltrunox/media"
 
+# Directory for uploaded audio files; "<data_dir>/media" if unset. Files that no recording
+# refers to are removed from it at start-up, so do not keep anything else there.
+# upload_dir = "data/media"
+
+# Largest accepted upload in bytes (default 512 MiB).
+# max_upload_bytes = 536870912
+
 # Audio output device by name; the default device if unset. On a Raspberry Pi the default
 # may be an unconnected HDMI output, for example "alsa:plughw:CARD=Headphones,DEV=0".
 # audio_device = "alsa:plughw:CARD=Headphones,DEV=0"

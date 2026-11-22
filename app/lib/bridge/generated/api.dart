@@ -9,9 +9,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `access`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`
+// These functions are ignored because they are not marked as `pub`: `access`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `user_reason`, `view`, `with_channel`, `with_scrub`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Access`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Loads the recording list from the server at `server_url`.
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
@@ -22,6 +22,38 @@ Future<void> reanalyseRecording({
   required String serverUrl,
   required BigInt recordingId,
 }) => RustLib.instance.api.crateApiReanalyseRecording(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+);
+
+/// Sends an audio file to the server. The refusal reason (not audio, too large, not allowed)
+/// comes back as text for the user; the analysis result arrives as a session update.
+Future<UploadedRecordingItem> uploadRecording({
+  required String serverUrl,
+  required String fileName,
+  required List<int> content,
+}) => RustLib.instance.api.crateApiUploadRecording(
+  serverUrl: serverUrl,
+  fileName: fileName,
+  content: content,
+);
+
+/// Gives a recording another title (admin only).
+Future<void> renameRecordingTo({
+  required String serverUrl,
+  required BigInt recordingId,
+  required String title,
+}) => RustLib.instance.api.crateApiRenameRecordingTo(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+  title: title,
+);
+
+/// Deletes a recording with its bookmarks and analysis (admin only).
+Future<void> deleteRecordingForGood({
+  required String serverUrl,
+  required BigInt recordingId,
+}) => RustLib.instance.api.crateApiDeleteRecordingForGood(
   serverUrl: serverUrl,
   recordingId: recordingId,
 );
@@ -292,6 +324,15 @@ Future<void> removeUser({required String serverUrl, required BigInt userId}) =>
       userId: userId,
     );
 
+/// Chooses the rules for new passwords; admin only.
+Future<void> switchPasswordPolicy({
+  required String serverUrl,
+  required PasswordPolicyChoice policy,
+}) => RustLib.instance.api.crateApiSwitchPasswordPolicy(
+  serverUrl: serverUrl,
+  policy: policy,
+);
+
 /// Lets guests in or not; admin only.
 Future<void> switchGuestAccess({
   required String serverUrl,
@@ -333,13 +374,18 @@ class AccessStatusInfo {
   /// Offer guest access.
   final bool guestEnabled;
 
+  /// The rules for new passwords.
+  final PasswordPolicyChoice passwordPolicy;
+
   const AccessStatusInfo({
     required this.setupNeeded,
     required this.guestEnabled,
+    required this.passwordPolicy,
   });
 
   @override
-  int get hashCode => setupNeeded.hashCode ^ guestEnabled.hashCode;
+  int get hashCode =>
+      setupNeeded.hashCode ^ guestEnabled.hashCode ^ passwordPolicy.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -347,7 +393,8 @@ class AccessStatusInfo {
       other is AccessStatusInfo &&
           runtimeType == other.runtimeType &&
           setupNeeded == other.setupNeeded &&
-          guestEnabled == other.guestEnabled;
+          guestEnabled == other.guestEnabled &&
+          passwordPolicy == other.passwordPolicy;
 }
 
 enum AnalysisState { none, queued, running, failed, done }
@@ -437,6 +484,15 @@ class LabelItem {
           version == other.version &&
           name == other.name &&
           positionMs == other.positionMs;
+}
+
+/// How demanding the rules for new passwords are.
+enum PasswordPolicyChoice {
+  /// At least 6 characters.
+  standard,
+
+  /// At least 10 characters with lowercase, uppercase, digit and special character.
+  strict,
 }
 
 /// What happens at the end of the region being played.
@@ -752,6 +808,33 @@ class TimeSpan {
           runtimeType == other.runtimeType &&
           startMs == other.startMs &&
           endMs == other.endMs;
+}
+
+/// What became of an uploaded file.
+class UploadedRecordingItem {
+  final BigInt id;
+  final String title;
+
+  /// The same audio was in the library already; nothing was added.
+  final bool existing;
+
+  const UploadedRecordingItem({
+    required this.id,
+    required this.title,
+    required this.existing,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ title.hashCode ^ existing.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UploadedRecordingItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          existing == other.existing;
 }
 
 /// A user account as the admin sees it.

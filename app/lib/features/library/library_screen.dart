@@ -2,13 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../design/tokens/app_geometry.dart';
+import '../access/access_controller.dart';
 import 'library_controller.dart';
 import 'library_failure.dart';
 import 'library_query.dart';
 import 'library_query_controller.dart';
 import 'library_texts.dart';
 import 'library_toolbar.dart';
+import 'upload_bar.dart';
 import 'recording_details.dart';
+import 'recording_flows.dart';
 import 'recording_list.dart';
 import 'recording_summary.dart';
 
@@ -57,7 +60,7 @@ class LibraryScreen extends ConsumerWidget {
       builder: (context, constraints) {
         final beside = constraints.maxWidth >= _detailsBesideMin;
         if (!beside && details != null) {
-          return _details(ref, details, withBack: true);
+          return _details(context, ref, details, withBack: true);
         }
         final list = _list(context, ref, recordings, query, detailId);
         if (!beside) return list;
@@ -69,13 +72,16 @@ class LibraryScreen extends ConsumerWidget {
               width: _detailsWidth,
               child: details == null
                   ? const SizedBox.shrink()
-                  : _details(ref, details, withBack: false),
+                  : _details(context, ref, details, withBack: false),
             ),
           ],
         );
       },
     );
   }
+
+  static bool _manages(WidgetRef ref) =>
+      ref.watch(rightsProvider)?.canManageRecordings ?? false;
 
   Widget _list(
     BuildContext context,
@@ -109,6 +115,16 @@ class LibraryScreen extends ConsumerWidget {
             onFilter: queryController.filterBy,
           ),
         ),
+        if (ref.watch(rightsProvider)?.canUpload ?? false)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpace.s4,
+              AppSpace.s3,
+              AppSpace.s4,
+              0,
+            ),
+            child: UploadBar(),
+          ),
         const SizedBox(height: AppSpace.s2),
         Expanded(
           child: RecordingList(
@@ -125,6 +141,7 @@ class LibraryScreen extends ConsumerWidget {
   }
 
   Widget _details(
+    BuildContext context,
     WidgetRef ref,
     RecordingSummary recording, {
     required bool withBack,
@@ -134,6 +151,12 @@ class LibraryScreen extends ConsumerWidget {
     onPlay: () => onPlay(recording.id),
     onReanalyse: () =>
         ref.read(libraryProvider.notifier).reanalyse(recording.id),
+    onRename: _manages(ref)
+        ? () => renameRecordingFlow(context, ref, recording)
+        : null,
+    onDelete: _manages(ref)
+        ? () => deleteRecordingFlow(context, ref, recording)
+        : null,
     onBack: withBack ? ref.read(libraryDetailProvider.notifier).close : null,
   );
 }

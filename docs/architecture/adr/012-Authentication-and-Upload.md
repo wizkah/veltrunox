@@ -11,7 +11,7 @@ Until now every client may do everything. The server needs accounts, roles (admi
 
 **Accounts and passwords.**
 - Users live in SQLite (migration): id, unique user name (case-insensitive), role, password hash, active flag, creation time.
-- Passwords are hashed with Argon2id (`argon2` crate, parameters in the configuration, defaults suited to a Raspberry Pi). Verification and hashing run off the async runtime threads. Minimum length 10; no other composition rules.
+- Passwords are hashed with Argon2id (`argon2` crate, parameters in the configuration, defaults suited to a Raspberry Pi). Verification and hashing run off the async runtime threads. The rules for new passwords are a setting of the admin (`PUT /api/v1/password-policy`, stored with the guest switch, shown in the public status): `standard` (default) asks for at least 6 characters, `strict` for at least 10 with a lowercase letter, an uppercase letter, a digit and a special character. Changing the setting leaves existing passwords valid. (Originally fixed at 10 characters; changed on the owner's instruction on 2026-11-22.)
 - First start: while no user exists, `POST /api/v1/setup` creates the first admin. It is refused as soon as one user exists (checked in one transaction). There is no default password.
 
 **Sessions.**

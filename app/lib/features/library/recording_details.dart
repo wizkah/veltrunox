@@ -17,6 +17,8 @@ class RecordingDetails extends StatelessWidget {
     required this.onOpenInPlayer,
     required this.onPlay,
     required this.onReanalyse,
+    this.onRename,
+    this.onDelete,
     this.onBack,
     super.key,
   });
@@ -25,6 +27,10 @@ class RecordingDetails extends StatelessWidget {
   final VoidCallback onOpenInPlayer;
   final VoidCallback onPlay;
   final VoidCallback onReanalyse;
+
+  /// Only for those who may manage recordings; without them the actions are not shown.
+  final VoidCallback? onRename;
+  final VoidCallback? onDelete;
 
   /// Leads back to the list; only for the view of its own.
   final VoidCallback? onBack;
@@ -71,6 +77,20 @@ class RecordingDetails extends StatelessWidget {
                 kind: ActionKind.secondary,
                 onPressed: _pending(analysis.status) ? null : onReanalyse,
               ),
+              if (onRename != null)
+                ActionButton(
+                  label: LibraryTexts.rename,
+                  icon: Icons.edit_outlined,
+                  kind: ActionKind.secondary,
+                  onPressed: onRename,
+                ),
+              if (onDelete != null)
+                ActionButton(
+                  label: LibraryTexts.delete,
+                  icon: Icons.delete_outline,
+                  kind: ActionKind.danger,
+                  onPressed: onDelete,
+                ),
             ],
           ),
         ],

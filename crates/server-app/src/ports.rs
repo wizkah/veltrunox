@@ -2,9 +2,9 @@
 
 use std::path::{Path, PathBuf};
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Label, Millis, PlaybackSettings, PlaybackState, Recording,
-    RecordingAnalysis, RecordingId, RecordingTitle, Region, Role, TimeRange, UserId, UserName,
-    Version, Waveform,
+    BookmarkId, BookmarkName, Bookmarks, Label, Millis, PasswordPolicy, PlaybackSettings,
+    PlaybackState, Recording, RecordingAnalysis, RecordingId, RecordingTitle, Region, Role,
+    TimeRange, UserId, UserName, Version, Waveform,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -22,6 +22,11 @@ pub trait RecordingRepository: Send + Sync {
         id: RecordingId,
         settings: PlaybackSettings,
     ) -> Result<(), StorageError>;
+    /// `false` if the recording does not exist.
+    fn rename(&self, id: RecordingId, title: RecordingTitle) -> Result<bool, StorageError>;
+    /// Removes the recording with its bookmarks, analysis and waveform; `false` if it does
+    /// not exist. The audio file stays: the caller decides what happens to it.
+    fn delete(&self, id: RecordingId) -> Result<bool, StorageError>;
 }
 
 /// Port: the audio files behind the recordings. Files are known by the hash
@@ -36,6 +41,10 @@ pub trait MediaCatalog: Send + Sync {
         path: &Path,
         content_hash: &str,
     ) -> Result<Option<Recording>, StorageError>;
+    /// The recording whose audio has this hash.
+    fn recording_by_hash(&self, content_hash: &str) -> Result<Option<Recording>, StorageError>;
+    /// Every audio file a recording refers to.
+    fn media_paths(&self) -> Result<Vec<PathBuf>, StorageError>;
 }
 
 /// Port: stored analysis results. A new result replaces the old one.
@@ -230,6 +239,9 @@ pub trait UserRepository: Send + Sync {
     fn delete(&self, id: UserId) -> Result<(), UserStoreError>;
     fn guest_enabled(&self) -> Result<bool, StorageError>;
     fn set_guest_enabled(&self, enabled: bool) -> Result<(), StorageError>;
+    /// The rules for new passwords; `Standard` until the admin changes them.
+    fn password_policy(&self) -> Result<PasswordPolicy, StorageError>;
+    fn set_password_policy(&self, policy: PasswordPolicy) -> Result<(), StorageError>;
 }
 
 /// Port: login sessions, known by the digest of their token only.

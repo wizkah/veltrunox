@@ -25,6 +25,10 @@ pub struct Config {
     pub allowed_origin: Option<String>,
     /// Directory with a built web app; replaces the one baked into the binary.
     pub web_dir: Option<PathBuf>,
+    /// Directory for uploaded audio files; `<data_dir>/media` if unset.
+    pub upload_dir: Option<PathBuf>,
+    /// Largest accepted upload in bytes.
+    pub max_upload_bytes: u64,
 }
 
 impl Default for Config {
@@ -36,6 +40,8 @@ impl Default for Config {
             audio_device: None,
             allowed_origin: None,
             web_dir: None,
+            upload_dir: None,
+            max_upload_bytes: 512 << 20,
         }
     }
 }
@@ -58,6 +64,13 @@ impl fmt::Display for ConfigError {
 impl std::error::Error for ConfigError {}
 
 impl Config {
+    /// Where uploaded files are kept.
+    pub fn upload_directory(&self) -> PathBuf {
+        self.upload_dir
+            .clone()
+            .unwrap_or_else(|| self.data_dir.join("media"))
+    }
+
     /// Parses TOML text; unknown keys are rejected so typos do not go unnoticed.
     pub fn parse(text: &str) -> Result<Self, toml::de::Error> {
         toml::from_str(text)
@@ -97,6 +110,16 @@ mod tests {
         assert_eq!(config.address, "0.0.0.0:9000");
         assert_eq!(config.audio_device.as_deref(), Some("alsa:x"));
         assert_eq!(config.data_dir, PathBuf::from("data"));
+    }
+
+    #[test]
+    fn uploads_go_below_the_data_directory_unless_configured() {
+        let config = Config::parse("data_dir = \"/srv/v\"").unwrap();
+        assert_eq!(config.upload_directory(), PathBuf::from("/srv/v/media"));
+        assert_eq!(config.max_upload_bytes, 512 << 20);
+        let config = Config::parse("upload_dir = \"/mnt/audio\"\nmax_upload_bytes = 1000").unwrap();
+        assert_eq!(config.upload_directory(), PathBuf::from("/mnt/audio"));
+        assert_eq!(config.max_upload_bytes, 1000);
     }
 
     #[test]

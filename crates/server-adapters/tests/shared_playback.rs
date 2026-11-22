@@ -100,6 +100,7 @@ async fn a_rejected_intent_reaches_only_its_sender() {
         .connection
         .send_intent(Intent::SelectRecording(RECORDING));
     let next = bystander.next_matching(|event| match event {
+        ChannelEvent::Server(ServerEvent::Authenticated(_)) => None,
         ChannelEvent::Server(event) => Some(event.clone()),
         _ => None,
     });

@@ -3,8 +3,9 @@
 use crate::ports::{Clock, PlaybackBroadcast, RecordingLengths, RecordingRepository, StorageError};
 use std::sync::{Arc, Mutex, PoisonError};
 use veltrunox_core::{
-    Intent, Millis, PlaybackState, TransportError, end_playback, end_region, pause, play,
-    play_region, seek, select_recording, set_key, set_play_mode, set_speed, set_tuning, set_volume,
+    Intent, Millis, PlaybackState, RecordingId, TransportError, end_playback, end_region, pause,
+    play, play_region, seek, select_recording, set_key, set_play_mode, set_speed, set_tuning,
+    set_volume,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -62,6 +63,20 @@ impl PlaybackService {
             self.recordings.save_settings(recording, next.settings)?;
         }
         Ok(self.publish(&mut guard, next))
+    }
+
+    /// Leaves nothing selected if `recording` is the selected one (it is going away); returns
+    /// the published state, or `None` if another recording or none was selected.
+    pub fn unload(&self, recording: RecordingId) -> Option<PlaybackState> {
+        let mut guard = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        if guard.recording != Some(recording) {
+            return None;
+        }
+        let unloaded = PlaybackState {
+            volume: guard.volume,
+            ..PlaybackState::initial(self.clock.now())
+        };
+        Some(self.publish(&mut guard, unloaded))
     }
 
     /// Pauses at the end of the recording once playback has reached it; returns
@@ -218,6 +233,27 @@ mod tests {
             recordings.stored(RecordingId::new(1)),
             PlaybackSettings::default()
         );
+    }
+
+    #[test]
+    fn unloading_the_selected_recording_leaves_nothing_selected_and_keeps_the_volume() {
+        let (service, _, broadcast, _, _) = service();
+        let quiet = Volume::new(25).unwrap();
+        service.apply(Intent::SetVolume(quiet)).unwrap();
+        service
+            .apply(Intent::SelectRecording(RecordingId::new(1)))
+            .unwrap();
+        service.apply(Intent::Play).unwrap();
+
+        assert!(service.unload(RecordingId::new(2)).is_none());
+        let state = service.unload(RecordingId::new(1)).unwrap();
+
+        assert_eq!(state.recording, None);
+        assert!(!state.running);
+        assert_eq!(state.volume, quiet);
+        assert_eq!(service.current(), state);
+        assert_eq!(broadcast.states().last(), Some(&state));
+        assert!(service.unload(RecordingId::new(1)).is_none());
     }
 
     #[test]

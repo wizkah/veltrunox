@@ -1,7 +1,7 @@
 //! Wire types for sign-in, rights and user administration.
 
 use serde::{Deserialize, Serialize};
-use veltrunox_core::{Capability, Role};
+use veltrunox_core::{Capability, PasswordPolicy, Role};
 
 pub const STATUS_PATH: &str = "/api/v1/status";
 /// Creates the first admin (body: `CredentialsDto`, answer: `SessionDto`); only while no user exists.
@@ -17,6 +17,8 @@ pub const USERS_PATH: &str = "/api/v1/users";
 pub const USER_PATH: &str = "/api/v1/users/{id}";
 /// The guest switch (`GuestAccessDto`).
 pub const GUEST_ACCESS_PATH: &str = "/api/v1/guest-access";
+/// The rules for new passwords (`PasswordPolicyDto`); changing them is for admins.
+pub const PASSWORD_POLICY_PATH: &str = "/api/v1/password-policy";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -79,6 +81,36 @@ pub struct StatusDto {
     /// No user exists yet: the first admin must be set up.
     pub setup_needed: bool,
     pub guest_enabled: bool,
+    pub password_policy: PasswordPolicyDto,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PasswordPolicyDto {
+    /// At least 6 characters.
+    #[default]
+    Standard,
+    /// At least 10 characters with lowercase, uppercase, digit and special character.
+    Strict,
+}
+
+pub fn password_policy_to_dto(policy: PasswordPolicy) -> PasswordPolicyDto {
+    match policy {
+        PasswordPolicy::Standard => PasswordPolicyDto::Standard,
+        PasswordPolicy::Strict => PasswordPolicyDto::Strict,
+    }
+}
+
+pub fn password_policy_from_dto(policy: PasswordPolicyDto) -> PasswordPolicy {
+    match policy {
+        PasswordPolicyDto::Standard => PasswordPolicy::Standard,
+        PasswordPolicyDto::Strict => PasswordPolicy::Strict,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SetPasswordPolicyDto {
+    pub policy: PasswordPolicyDto,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

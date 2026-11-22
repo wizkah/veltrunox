@@ -9,6 +9,11 @@ abstract final class UsersTexts {
   static const guestAccessHint =
       'Gäste dürfen ohne Anmeldung abspielen, Markierungen bearbeiten und '
       'hochladen.';
+  static const strictPasswords = 'Strenge Passwortregeln';
+  static const strictPasswordsHint =
+      'Neue Passwörter brauchen mindestens 10 Zeichen mit Klein- und '
+      'Großbuchstabe, Ziffer und Sonderzeichen. Sonst genügen 6 Zeichen. '
+      'Bestehende Passwörter bleiben gültig.';
   static const newUser = 'Neuer Benutzer';
   static const userName = 'Benutzername';
   static const password = 'Passwort';
@@ -24,7 +29,6 @@ abstract final class UsersTexts {
   static const cancel = 'Abbrechen';
   static const delete = 'Löschen';
   static const required = 'Bitte ausfüllen.';
-  static const tooShort = 'Mindestens 10 Zeichen.';
   static const passwordChanged = 'Passwort geändert.';
 
   static String deleteTitle(String name) => 'Benutzer „$name“ löschen?';

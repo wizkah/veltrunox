@@ -14,11 +14,12 @@ import 'package:veltrunox_app/features/markers/marker_controller.dart';
 import 'package:veltrunox_app/features/player/player_controller.dart';
 import 'package:veltrunox_app/features/player/player_state.dart';
 
+import 'no_recording_actions.dart';
 import 'fake_marker_source.dart';
 import 'fake_access_source.dart';
 import 'fake_player_source.dart';
 
-class _Recordings implements RecordingSource {
+class _Recordings with NoRecordingActions implements RecordingSource {
   @override
   Future<List<RecordingSummary>> listRecordings() async => const [
     RecordingSummary(id: 1, title: 'Soundcheck'),

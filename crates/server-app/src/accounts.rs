@@ -6,7 +6,7 @@ use crate::ports::{
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
-use veltrunox_core::{Capability, InvalidUser, Role, UserId, UserName, check_password};
+use veltrunox_core::{Capability, InvalidUser, PasswordPolicy, Role, UserId, UserName};
 
 /// A session unused for this long is gone (30 days).
 const SESSION_MAX_IDLE_SECONDS: u64 = 30 * 24 * 60 * 60;
@@ -53,6 +53,7 @@ pub struct Session {
 pub struct AccessStatus {
     pub setup_needed: bool,
     pub guest_enabled: bool,
+    pub password_policy: PasswordPolicy,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -133,13 +134,14 @@ impl AccountService {
         Ok(AccessStatus {
             setup_needed: self.users.count()? == 0,
             guest_enabled: self.users.guest_enabled()?,
+            password_policy: self.users.password_policy()?,
         })
     }
 
     /// Creates the first admin and signs them in. Only works while no user exists.
     pub fn setup(&self, name: &str, password: &str) -> Result<Session, AccountError> {
         let name = UserName::new(name)?;
-        check_password(password)?;
+        self.users.password_policy()?.check(password)?;
         let hash = self.hasher.hash(password)?;
         match self.users.create_first_admin(&name, &hash)? {
             Some(record) => self.open_session(&record),
@@ -207,7 +209,7 @@ impl AccountService {
         require_manage_users(actor)?;
         require_account_role(role)?;
         let name = UserName::new(name)?;
-        check_password(password)?;
+        self.users.password_policy()?.check(password)?;
         let hash = self.hasher.hash(password)?;
         Ok(self.users.create(&name, role, &hash)?)
     }
@@ -251,7 +253,7 @@ impl AccountService {
         password: &str,
     ) -> Result<(), AccountError> {
         require_manage_users(actor)?;
-        check_password(password)?;
+        self.users.password_policy()?.check(password)?;
         let hash = self.hasher.hash(password)?;
         self.users.set_password_hash(id, &hash)?;
         Ok(self.sessions.delete_for_user(id)?)
@@ -266,6 +268,16 @@ impl AccountService {
     pub fn set_guest_enabled(&self, actor: &Identity, enabled: bool) -> Result<(), AccountError> {
         require_manage_users(actor)?;
         Ok(self.users.set_guest_enabled(enabled)?)
+    }
+
+    /// Sets the rules for new passwords; passwords set earlier stay valid.
+    pub fn set_password_policy(
+        &self,
+        actor: &Identity,
+        policy: PasswordPolicy,
+    ) -> Result<(), AccountError> {
+        require_manage_users(actor)?;
+        Ok(self.users.set_password_policy(policy)?)
     }
 
     /// Fails if `id` is the last active admin, which must stay one.
@@ -413,8 +425,53 @@ mod tests {
     fn setup_refuses_short_passwords() {
         assert!(matches!(
             fixture().service.setup("root", "short"),
-            Err(AccountError::Invalid(InvalidUser::PasswordTooShort))
+            Err(AccountError::Invalid(InvalidUser::PasswordTooShort {
+                min: 6
+            }))
         ));
+    }
+
+    #[test]
+    fn only_an_admin_sets_the_policy_and_it_applies_to_new_passwords() {
+        let fixture = fixture();
+        let admin = admin_of(&fixture);
+        let ann = fixture
+            .service
+            .create_user(&admin, "ann", "simple", Role::User)
+            .unwrap();
+        assert!(matches!(
+            fixture
+                .service
+                .set_password_policy(&Identity::of(&ann), PasswordPolicy::Strict),
+            Err(AccountError::Forbidden)
+        ));
+
+        fixture
+            .service
+            .set_password_policy(&admin, PasswordPolicy::Strict)
+            .unwrap();
+        assert_eq!(
+            fixture.service.status().unwrap().password_policy,
+            PasswordPolicy::Strict
+        );
+        assert!(matches!(
+            fixture
+                .service
+                .create_user(&admin, "bob", "simple", Role::User),
+            Err(AccountError::Invalid(InvalidUser::PasswordTooShort {
+                min: 10
+            }))
+        ));
+        assert!(matches!(
+            fixture.service.set_password(&admin, ann.id, "alllowercase"),
+            Err(AccountError::Invalid(InvalidUser::PasswordNeedsUppercase))
+        ));
+        fixture
+            .service
+            .create_user(&admin, "bob", "Strong-Pass1", Role::User)
+            .unwrap();
+        // The earlier, simple password still works.
+        assert!(fixture.service.login("ann", "simple").is_ok());
     }
 
     #[test]

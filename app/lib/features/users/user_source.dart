@@ -18,4 +18,6 @@ abstract interface class UserSource {
   Future<void> delete(int id);
 
   Future<void> setGuestAccess({required bool enabled});
+
+  Future<void> setPasswordPolicy(PasswordPolicy policy);
 }

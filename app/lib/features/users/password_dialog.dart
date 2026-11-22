@@ -1,28 +1,36 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../shared_ui/action_button.dart';
+import '../access/access_models.dart';
+import '../access/access_texts.dart';
 import 'users_texts.dart';
 
 /// Asks for a new password for one user. Resolves to the password, or `null`
 /// if the admin cancelled.
 class PasswordDialog extends StatefulWidget {
-  const PasswordDialog({required this.userName, super.key});
+  const PasswordDialog({
+    required this.userName,
+    required this.policy,
+    super.key,
+  });
 
   final String userName;
+  final PasswordPolicy policy;
 
-  static Future<String?> show(BuildContext context, String userName) =>
-      showDialog<String>(
-        context: context,
-        builder: (_) => PasswordDialog(userName: userName),
-      );
+  static Future<String?> show(
+    BuildContext context,
+    String userName,
+    PasswordPolicy policy,
+  ) => showDialog<String>(
+    context: context,
+    builder: (_) => PasswordDialog(userName: userName, policy: policy),
+  );
 
   @override
   State<PasswordDialog> createState() => _PasswordDialogState();
 }
 
 class _PasswordDialogState extends State<PasswordDialog> {
-  static const _minPasswordLength = 10;
-
   final _password = TextEditingController();
   bool _submitted = false;
 
@@ -32,9 +40,17 @@ class _PasswordDialogState extends State<PasswordDialog> {
     super.dispose();
   }
 
+  String? get _error {
+    if (!_submitted) return null;
+    final problem = widget.policy.check(_password.text);
+    return problem == null
+        ? null
+        : AccessTexts.passwordProblem(widget.policy, problem);
+  }
+
   void _submit() {
     setState(() => _submitted = true);
-    if (_password.text.length >= _minPasswordLength) {
+    if (widget.policy.check(_password.text) == null) {
       Navigator.of(context).pop(_password.text);
     }
   }
@@ -51,9 +67,10 @@ class _PasswordDialogState extends State<PasswordDialog> {
       onSubmitted: (_) => _submit(),
       decoration: InputDecoration(
         labelText: UsersTexts.newPassword,
-        errorText: _submitted && _password.text.length < _minPasswordLength
-            ? UsersTexts.tooShort
-            : null,
+        helperText: AccessTexts.passwordRule(widget.policy),
+        helperMaxLines: 2,
+        errorMaxLines: 2,
+        errorText: _error,
       ),
     ),
     actions: [

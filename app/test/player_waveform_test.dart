@@ -24,12 +24,13 @@ import 'package:veltrunox_app/features/waveform/region_lanes.dart';
 import 'package:veltrunox_app/features/waveform/waveform_renderer.dart';
 import 'package:veltrunox_app/features/waveform/waveform_source.dart';
 
+import 'no_recording_actions.dart';
 import 'fake_marker_source.dart';
 import 'fake_access_source.dart';
 import 'fake_player_source.dart';
 import 'fake_waveform_source.dart';
 
-class _Recordings implements RecordingSource {
+class _Recordings with NoRecordingActions implements RecordingSource {
   _Recordings({required this.scanned});
 
   final bool scanned;

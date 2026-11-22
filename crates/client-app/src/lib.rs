@@ -23,8 +23,8 @@ pub enum ChannelEvent {
 
 use std::future::Future;
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, RecordingId, Region,
-    TimeRange, UserId, Version,
+    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, PasswordPolicy, RecordingId,
+    RecordingTitle, Region, TimeRange, UserId, Version,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -38,8 +38,8 @@ pub enum LinkError {
     /// The bookmark was changed by someone else; `current` is its stored version.
     #[error("the bookmark changed meanwhile (now at version {})", .current.value())]
     Conflict { current: Version },
-    /// The server refused the values of a bookmark.
-    #[error("the server refused the bookmark: {0}")]
+    /// The server refused the values or the file; the reason is meant for the user.
+    #[error("the server refused it: {0}")]
     Refused(String),
     /// Not signed in, or the token is no longer valid.
     #[error("sign-in required")]
@@ -50,6 +50,15 @@ pub enum LinkError {
     /// Too many failed sign-ins; the server asks to wait.
     #[error("too many failed sign-ins; try again in {retry_after_seconds} seconds")]
     TooManyAttempts { retry_after_seconds: u64 },
+}
+
+/// What the server made of an uploaded file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UploadedRecording {
+    pub id: RecordingId,
+    pub title: RecordingTitle,
+    /// The same audio was in the library already; nothing was added.
+    pub existing: bool,
 }
 
 /// Port: requests to the server. The future is not required to be `Send`
@@ -127,6 +136,22 @@ pub trait ServerLink {
         name: &BookmarkName,
         position: Millis,
     ) -> impl Future<Output = Result<Label, LinkError>>;
+    /// Sends an audio file; the server checks and stores it and queues its analysis.
+    fn upload_recording(
+        &self,
+        file_name: &str,
+        content: Vec<u8>,
+    ) -> impl Future<Output = Result<UploadedRecording, LinkError>>;
+    fn rename_recording(
+        &self,
+        recording: RecordingId,
+        title: &RecordingTitle,
+    ) -> impl Future<Output = Result<(), LinkError>>;
+    /// Removes the recording with its bookmarks and analysis.
+    fn remove_recording(
+        &self,
+        recording: RecordingId,
+    ) -> impl Future<Output = Result<(), LinkError>>;
     /// What may be known without signing in.
     fn fetch_access_status(&self) -> impl Future<Output = Result<AccessStatus, LinkError>>;
     /// Creates the first admin and signs in; only works while no user exists.
@@ -151,6 +176,10 @@ pub trait ServerLink {
     ) -> impl Future<Output = Result<(), LinkError>>;
     fn remove_user(&self, id: UserId) -> impl Future<Output = Result<(), LinkError>>;
     fn switch_guest_access(&self, enabled: bool) -> impl Future<Output = Result<(), LinkError>>;
+    fn switch_password_policy(
+        &self,
+        policy: PasswordPolicy,
+    ) -> impl Future<Output = Result<(), LinkError>>;
 }
 
 /// Use case: load the recording list from the server.
@@ -172,6 +201,32 @@ pub async fn analyse_again(
     recording: RecordingId,
 ) -> Result<(), LinkError> {
     link.request_analysis(recording).await
+}
+
+/// Use case: add a recording from an audio file; the analysis result arrives as a notice.
+pub async fn add_recording(
+    link: &impl ServerLink,
+    file_name: &str,
+    content: Vec<u8>,
+) -> Result<UploadedRecording, LinkError> {
+    link.upload_recording(file_name, content).await
+}
+
+/// Use case: give a recording another title.
+pub async fn rename_recording(
+    link: &impl ServerLink,
+    recording: RecordingId,
+    title: &RecordingTitle,
+) -> Result<(), LinkError> {
+    link.rename_recording(recording, title).await
+}
+
+/// Use case: delete a recording for good.
+pub async fn delete_recording(
+    link: &impl ServerLink,
+    recording: RecordingId,
+) -> Result<(), LinkError> {
+    link.remove_recording(recording).await
 }
 
 /// Use case: the length of a recording, for the position control.
@@ -329,6 +384,14 @@ pub async fn edit_user(
 /// Use case (admin): delete a user.
 pub async fn delete_user(link: &impl ServerLink, id: UserId) -> Result<(), LinkError> {
     link.remove_user(id).await
+}
+
+/// Use case (admin): choose the rules for new passwords.
+pub async fn set_password_policy(
+    link: &impl ServerLink,
+    policy: PasswordPolicy,
+) -> Result<(), LinkError> {
+    link.switch_password_policy(policy).await
 }
 
 /// Use case (admin): let guests in or not.
