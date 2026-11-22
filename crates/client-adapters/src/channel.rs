@@ -171,6 +171,14 @@ impl Supervisor {
                 ChannelEvent::Server(_) => None,
             }
         };
+        // A lost connection is dropped before it is reported, so a caller reacting to
+        // the report never finds it still registered.
+        if matches!(
+            event,
+            ChannelEvent::Link(LinkEvent::Closed | LinkEvent::Failed)
+        ) {
+            remove_connection(self.id);
+        }
         (self.on_event)(event.clone());
         match event {
             ChannelEvent::Link(LinkEvent::Greeted) => {
@@ -182,7 +190,6 @@ impl Supervisor {
                 self.schedule_clock_sync(generation);
             }
             ChannelEvent::Link(LinkEvent::Closed | LinkEvent::Failed) => {
-                remove_connection(self.id);
                 self.schedule_retry(generation, delay);
             }
             ChannelEvent::Server(_) => {}
