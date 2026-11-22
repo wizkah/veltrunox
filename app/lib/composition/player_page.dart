@@ -8,6 +8,7 @@ import '../features/markers/marker_sheet_button.dart';
 import '../features/player/player_controller.dart';
 import '../features/player/player_screen.dart';
 import 'loaded_recording.dart';
+import 'player_waveform.dart';
 
 /// The player with the markers of its recording wired to it: playing a marker
 /// starts the shared player.
@@ -49,6 +50,9 @@ class PlayerPage extends ConsumerWidget {
           .read(shellDestinationProvider.notifier)
           .select(ShellDestination.library),
       title: recording?.title,
+      waveform: recordingId == null
+          ? null
+          : PlayerWaveform(recordingId: recordingId, scanned: analysis != null),
       analysis: analysis,
       markers: recordingId == null ? null : panel(),
       markerOpener: recordingId == null

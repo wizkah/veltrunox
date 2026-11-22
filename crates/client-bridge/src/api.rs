@@ -9,8 +9,9 @@ use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
 use veltrunox_client_adapters::{EventChannel, HttpServerLink, SystemTimer, open_channel};
 use veltrunox_client_app::{
     ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkEvent, ScrubThrottle, ServerEvent,
-    SessionView, ViewChange, add_label, add_region, analyse_again, delete_label, delete_region,
-    edit_label, edit_region, load_bookmarks, load_length, load_library,
+    SessionView, ViewChange, WaveformCache, add_label, add_region, analyse_again, delete_label,
+    delete_region, edit_label, edit_region, load_bookmarks, load_length, load_library,
+    load_waveform,
 };
 use veltrunox_core::{
     AnalysisProgress, BookmarkId, BookmarkName, Bpm, Intent, InvalidValue, KeyMode, KeyShift,
@@ -97,6 +98,52 @@ pub async fn recording_length_ms(server_url: String, recording_id: u64) -> Optio
         .await
         .ok()
         .map(Millis::value)
+}
+
+/// One resolution of a waveform: per block the minimum, then the maximum, as signed bytes.
+pub struct WaveformLevelData {
+    pub frames_per_block: u32,
+    pub peaks: Vec<u8>,
+}
+
+/// The peaks of a recording from coarse to fine, with the length they cover.
+pub struct WaveformData {
+    pub length_ms: u64,
+    pub sample_rate: u32,
+    pub levels: Vec<WaveformLevelData>,
+}
+
+/// Waveforms fetched so far; they do not change once a recording is scanned.
+static WAVEFORMS: LazyLock<Mutex<WaveformCache>> =
+    LazyLock::new(|| Mutex::new(WaveformCache::default()));
+
+/// The waveform of a recording. It is fetched once and then kept in memory. Fails while the
+/// recording has no scan or the server cannot be reached.
+pub async fn recording_waveform(
+    server_url: String,
+    recording_id: u64,
+) -> Result<WaveformData, String> {
+    let link = HttpServerLink::new(&server_url);
+    let found = load_waveform(&link, &WAVEFORMS, RecordingId::new(recording_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(WaveformData {
+        length_ms: found.length.value(),
+        sample_rate: found.waveform.sample_rate,
+        levels: found
+            .waveform
+            .levels
+            .iter()
+            .map(|level| WaveformLevelData {
+                frames_per_block: level.frames_per_block,
+                peaks: level
+                    .peaks
+                    .iter()
+                    .flat_map(|peak| [peak.min.to_le_bytes()[0], peak.max.to_le_bytes()[0]])
+                    .collect(),
+            })
+            .collect(),
+    })
 }
 
 /// A point marker of a recording.

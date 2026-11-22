@@ -28,6 +28,9 @@ abstract final class MarkerTexts {
   static const saveFailed =
       'Die Änderung wurde nicht übernommen. Die Liste wird neu geladen.';
 
+  static String defaultLabelName(int number) => 'Label $number';
+  static String defaultRegionName(int number) => 'Region $number';
+  static const setLabelHere = 'Label hier setzen';
   static String outsideRecording(String length) =>
       'Außerhalb der Aufnahme (Länge $length)';
   static String deleteMessage(String name) =>

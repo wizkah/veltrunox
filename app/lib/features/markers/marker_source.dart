@@ -8,6 +8,11 @@ abstract interface class MarkerSource {
   /// Ids of recordings whose markers changed on the server.
   Stream<int> changes();
 
+  Future<void> addLabel(
+    int recordingId, {
+    required String title,
+    required int positionMs,
+  });
   Future<void> updateLabel(
     LabelMarker label, {
     required String title,

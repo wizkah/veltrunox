@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:material_ui/material_ui.dart';
 
 import 'labeled_slider.dart';
 import 'player_texts.dart';
 import 'position_display.dart';
+import 'scrub_hold.dart';
 
 /// Identifies the position slider.
 const positionSliderKey = ValueKey('position-slider');
@@ -48,36 +47,18 @@ class PositionSlider extends StatefulWidget {
 }
 
 class _PositionSliderState extends State<PositionSlider> {
-  Timer? _hold;
-
-  /// The recording already plays on from the held handle; the release must not
-  /// move the playback back.
-  bool _playingOn = false;
+  late final ScrubHold _scrub = ScrubHold(
+    onScrub: (position) => widget.onScrub(position),
+    onScrubEnd: (position) => widget.onScrubEnd(position),
+    onHold: (position) => widget.onHold(position),
+    onHoldEnd: () => widget.onHoldEnd(),
+    holdDelay: widget.holdDelay,
+  );
 
   @override
   void dispose() {
-    _hold?.cancel();
+    _scrub.dispose();
     super.dispose();
-  }
-
-  void _onMove(int position) {
-    _hold?.cancel();
-    _playingOn = false;
-    widget.onScrub(position);
-    _hold = Timer(widget.holdDelay, () {
-      _playingOn = true;
-      widget.onHold(position);
-    });
-  }
-
-  void _onRelease(int position) {
-    _hold?.cancel();
-    if (_playingOn) {
-      widget.onHoldEnd();
-    } else {
-      widget.onScrubEnd(position);
-    }
-    _playingOn = false;
   }
 
   @override
@@ -92,8 +73,8 @@ class _PositionSliderState extends State<PositionSlider> {
       min: 0,
       max: known ? length.toDouble() : 1,
       format: (value) => formatPosition(value.round()),
-      onChanging: (value) => _onMove(value.round()),
-      onChanged: (value) => _onRelease(value.round()),
+      onChanging: (value) => _scrub.moved(value.round()),
+      onChanged: (value) => _scrub.released(value.round()),
     );
   }
 }

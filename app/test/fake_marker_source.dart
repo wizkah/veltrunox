@@ -34,6 +34,23 @@ class FakeMarkerSource implements MarkerSource {
   }
 
   @override
+  Future<void> addLabel(
+    int recordingId, {
+    required String title,
+    required int positionMs,
+  }) async => _write(
+    'addLabel $title $positionMs',
+    () => markers.add(
+      LabelMarker(
+        id: _nextId++,
+        version: 1,
+        title: title,
+        positionMs: positionMs,
+      ),
+    ),
+  );
+
+  @override
   Future<void> addRegion(
     int recordingId, {
     required String title,

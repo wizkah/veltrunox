@@ -18,6 +18,7 @@ class PlayerControls extends ConsumerWidget {
     required this.state,
     required this.analysis,
     this.beforeSettings,
+    this.showPositionSlider = true,
     super.key,
   });
 
@@ -27,6 +28,9 @@ class PlayerControls extends ConsumerWidget {
   /// Shown between the transport and the settings, for what belongs close to
   /// the transport (for example the way to the markers on a narrow screen).
   final Widget? beforeSettings;
+
+  /// Hidden where another control moves the position (the waveform).
+  final bool showPositionSlider;
 
   /// From this width the volume stands beside the transport and the panels
   /// beside each other.
@@ -48,15 +52,16 @@ class PlayerControls extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         PositionDisplay(positionMs: position),
-        PositionSlider(
-          positionMs: position.clamp(0, length ?? 0),
-          lengthMs: length,
-          onScrub: controller.scrub,
-          onScrubEnd: controller.endScrub,
-          onHold: (position) =>
-              controller.hold(position, running: state.running),
-          onHoldEnd: controller.endHold,
-        ),
+        if (showPositionSlider)
+          PositionSlider(
+            positionMs: position.clamp(0, length ?? 0),
+            lengthMs: length,
+            onScrub: controller.scrub,
+            onScrubEnd: controller.endScrub,
+            onHold: (position) =>
+                controller.hold(position, running: state.running),
+            onHoldEnd: controller.endHold,
+          ),
         TransportControls(
           running: state.running,
           playMode: state.playMode,

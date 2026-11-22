@@ -7,7 +7,10 @@ mod support;
 use std::path::{Path, PathBuf};
 use support::{TestClient, start_server};
 use veltrunox_client_adapters::HttpServerLink;
-use veltrunox_client_app::{ChannelEvent, ServerEvent, analyse_again, load_length, load_library};
+use veltrunox_client_app::{
+    ChannelEvent, ServerEvent, WaveformCache, analyse_again, load_length, load_library,
+    load_waveform,
+};
 use veltrunox_core::{AnalysisProgress, KeyMode, LibraryEntry, RecordingId};
 use veltrunox_protocol::{WaveformInfoDto, peaks_from_bytes};
 use veltrunox_server_adapters::{SqliteStore, import_directory};
@@ -135,6 +138,31 @@ async fn an_imported_recording_is_analysed_in_the_background_and_clients_are_tol
         .await
         .unwrap();
     assert_eq!(length.value(), 30_000);
+    // The client fetches all levels once and then serves them from memory.
+    let cache = std::sync::Mutex::new(WaveformCache::default());
+    let link = HttpServerLink::new(&url);
+    let fetched = load_waveform(&link, &cache, RecordingId::new(1))
+        .await
+        .unwrap();
+    assert_eq!(fetched.length.value(), 30_000);
+    assert_eq!(fetched.waveform.sample_rate, RATE);
+    assert_eq!(fetched.waveform.levels.len(), info.levels.len());
+    let finest_fetched = fetched.waveform.levels.last().unwrap();
+    assert_eq!(
+        finest_fetched.peaks.len() as u32,
+        info.levels.last().unwrap().blocks
+    );
+    let again = load_waveform(
+        &HttpServerLink::new("http://127.0.0.1:1"),
+        &cache,
+        RecordingId::new(1),
+    )
+    .await
+    .unwrap();
+    assert!(
+        std::sync::Arc::ptr_eq(&fetched, &again),
+        "the second request needs no server"
+    );
     let finest = info.levels.last().unwrap();
     assert_eq!(finest.frames_per_block, 1024);
     assert_eq!(finest.blocks, (30 * RATE).div_ceil(1024));
@@ -218,4 +246,12 @@ async fn the_client_finds_no_length_for_a_recording_that_was_not_scanned() {
     let url = start_server(support::store_with_recording()).await;
     let length = load_length(&HttpServerLink::new(&url), RecordingId::new(1)).await;
     assert!(length.is_err());
+}
+
+#[tokio::test]
+async fn the_client_finds_no_waveform_for_a_recording_that_was_not_scanned() {
+    let url = start_server(support::store_with_recording()).await;
+    let cache = std::sync::Mutex::new(WaveformCache::default());
+    let waveform = load_waveform(&HttpServerLink::new(&url), &cache, RecordingId::new(1)).await;
+    assert!(waveform.is_err());
 }

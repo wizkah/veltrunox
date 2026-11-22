@@ -71,6 +71,15 @@ class MarkerController {
     ),
   );
 
+  Future<bool> addLabel({required String title, required int positionMs}) =>
+      _attempt(
+        () => _source.addLabel(
+          _recordingId,
+          title: title,
+          positionMs: positionMs,
+        ),
+      );
+
   Future<bool> updateRegion(
     RegionMarker region, {
     required String title,

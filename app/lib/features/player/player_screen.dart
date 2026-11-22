@@ -19,6 +19,7 @@ class PlayerScreen extends ConsumerWidget {
     this.analysis,
     this.markers,
     this.markerOpener,
+    this.waveform,
     super.key,
   });
 
@@ -30,6 +31,10 @@ class PlayerScreen extends ConsumerWidget {
   final PlayerAnalysis? analysis;
   final Widget? markers;
   final Widget? markerOpener;
+
+  /// Shown between the title and the controls; moves the position, so the
+  /// plain position slider is left out when it is there.
+  final Widget? waveform;
 
   /// From this width the markers stand beside the controls.
   static const _markersBesideMin = AppBreakpoint.desktopMin;
@@ -57,8 +62,10 @@ class PlayerScreen extends ConsumerWidget {
           state: loaded,
           analysis: analysis,
           beforeSettings: beside ? null : markerOpener,
+          showPositionSlider: waveform == null,
         );
         final header = _title(context);
+        final waveformBlock = _waveformBlock();
         return SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpace.s4),
           child: beside
@@ -68,7 +75,7 @@ class PlayerScreen extends ConsumerWidget {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [?header, controls],
+                        children: [?header, ?waveformBlock, controls],
                       ),
                     ),
                     if (markers != null) ...[
@@ -79,12 +86,19 @@ class PlayerScreen extends ConsumerWidget {
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [?header, controls],
+                  children: [?header, ?waveformBlock, controls],
                 ),
         );
       },
     );
   }
+
+  Widget? _waveformBlock() => waveform == null
+      ? null
+      : Padding(
+          padding: const EdgeInsets.only(bottom: AppSpace.s3),
+          child: waveform,
+        );
 
   Widget? _title(BuildContext context) {
     final name = title;

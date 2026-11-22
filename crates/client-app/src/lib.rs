@@ -3,10 +3,12 @@
 mod connection;
 mod reconnect;
 mod session;
+mod waveform;
 
 pub use connection::{ConnectionMonitor, ConnectionStatus, LinkEvent};
 pub use reconnect::{CLOCK_SYNC_INTERVAL, ReconnectPolicy, Timer};
 pub use session::{ScrubThrottle, ServerEvent, SessionView, ViewChange};
+pub use waveform::{RecordingWaveform, WaveformCache, cached_waveform};
 
 /// What the real-time channel reports: its own lifecycle or a message from the server.
 #[derive(Debug, Clone, PartialEq)]
@@ -55,6 +57,11 @@ pub trait ServerLink {
         &self,
         recording: RecordingId,
     ) -> impl Future<Output = Result<Millis, LinkError>>;
+    /// The length and the peaks of the recording as stored by its scan; an error while there is none.
+    fn fetch_waveform(
+        &self,
+        recording: RecordingId,
+    ) -> impl Future<Output = Result<RecordingWaveform, LinkError>>;
     fn create_label(
         &self,
         recording: RecordingId,
@@ -120,6 +127,18 @@ pub async fn load_length(
     recording: RecordingId,
 ) -> Result<Millis, LinkError> {
     link.fetch_length(recording).await
+}
+
+/// Use case: the waveform of a recording, from memory once it was fetched.
+pub async fn load_waveform(
+    link: &impl ServerLink,
+    cache: &std::sync::Mutex<WaveformCache>,
+    recording: RecordingId,
+) -> Result<std::sync::Arc<RecordingWaveform>, LinkError> {
+    cached_waveform(cache, recording, async || {
+        link.fetch_waveform(recording).await
+    })
+    .await
 }
 
 /// Use case: add a label at a position.

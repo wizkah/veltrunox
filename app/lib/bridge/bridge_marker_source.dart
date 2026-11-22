@@ -39,6 +39,18 @@ class BridgeMarkerSource implements MarkerSource {
   Stream<int> changes() => session.bookmarkChanges();
 
   @override
+  Future<void> addLabel(
+    int recordingId, {
+    required String title,
+    required int positionMs,
+  }) => rust.createLabel(
+    serverUrl: serverUrl,
+    recordingId: BigInt.from(recordingId),
+    name: title,
+    positionMs: BigInt.from(positionMs),
+  );
+
+  @override
   Future<void> updateLabel(
     LabelMarker label, {
     required String title,

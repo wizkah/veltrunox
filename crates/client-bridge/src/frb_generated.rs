@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2084111322;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1015835784;
 
 // Section: executor
 
@@ -450,6 +450,45 @@ fn wire__crate__api__recording_length_ms_impl(
                         let output_ok = Ok::<_, ()>(
                             crate::api::recording_length_ms(api_server_url, api_recording_id).await,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__recording_waveform_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "recording_waveform",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_server_url = <String>::sse_decode(&mut deserializer);
+            let api_recording_id = <u64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::recording_waveform(api_server_url, api_recording_id)
+                                .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -903,6 +942,18 @@ impl SseDecode for Vec<crate::api::RegionItem> {
     }
 }
 
+impl SseDecode for Vec<crate::api::WaveformLevelData> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::WaveformLevelData>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1152,6 +1203,13 @@ impl SseDecode for crate::api::TimeSpan {
     }
 }
 
+impl SseDecode for u32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u32::<NativeEndian>().unwrap()
+    }
+}
+
 impl SseDecode for u64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1169,6 +1227,32 @@ impl SseDecode for u8 {
 impl SseDecode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
+}
+
+impl SseDecode for crate::api::WaveformData {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_lengthMs = <u64>::sse_decode(deserializer);
+        let mut var_sampleRate = <u32>::sse_decode(deserializer);
+        let mut var_levels = <Vec<crate::api::WaveformLevelData>>::sse_decode(deserializer);
+        return crate::api::WaveformData {
+            length_ms: var_lengthMs,
+            sample_rate: var_sampleRate,
+            levels: var_levels,
+        };
+    }
+}
+
+impl SseDecode for crate::api::WaveformLevelData {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_framesPerBlock = <u32>::sse_decode(deserializer);
+        let mut var_peaks = <Vec<u8>>::sse_decode(deserializer);
+        return crate::api::WaveformLevelData {
+            frames_per_block: var_framesPerBlock,
+            peaks: var_peaks,
+        };
+    }
 }
 
 fn pde_ffi_dispatcher_primary_impl(
@@ -1190,13 +1274,14 @@ fn pde_ffi_dispatcher_primary_impl(
         8 => wire__crate__api__playback_position_ms_impl(port, ptr, rust_vec_len, data_len),
         9 => wire__crate__api__reanalyse_recording_impl(port, ptr, rust_vec_len, data_len),
         10 => wire__crate__api__recording_length_ms_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__remove_label_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__remove_region_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__scrub_to_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__send_command_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__speed_for_target_bpm_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__tuning_supported_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__watch_session_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__recording_waveform_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__remove_label_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__remove_region_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__scrub_to_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__send_command_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__speed_for_target_bpm_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__tuning_supported_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__watch_session_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1496,6 +1581,41 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::TimeSpan> for crate::api::Tim
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::WaveformData {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.length_ms.into_into_dart().into_dart(),
+            self.sample_rate.into_into_dart().into_dart(),
+            self.levels.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::WaveformData {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::WaveformData> for crate::api::WaveformData {
+    fn into_into_dart(self) -> crate::api::WaveformData {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::WaveformLevelData {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.frames_per_block.into_into_dart().into_dart(),
+            self.peaks.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::WaveformLevelData {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::WaveformLevelData>
+    for crate::api::WaveformLevelData
+{
+    fn into_into_dart(self) -> crate::api::WaveformLevelData {
+        self
+    }
+}
 
 impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1647,6 +1767,16 @@ impl SseEncode for Vec<crate::api::RegionItem> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::RegionItem>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::WaveformLevelData> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::WaveformLevelData>::sse_encode(item, serializer);
         }
     }
 }
@@ -1846,6 +1976,13 @@ impl SseEncode for crate::api::TimeSpan {
     }
 }
 
+impl SseEncode for u32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u32::<NativeEndian>(self).unwrap();
+    }
+}
+
 impl SseEncode for u64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1863,6 +2000,23 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
+}
+
+impl SseEncode for crate::api::WaveformData {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.length_ms, serializer);
+        <u32>::sse_encode(self.sample_rate, serializer);
+        <Vec<crate::api::WaveformLevelData>>::sse_encode(self.levels, serializer);
+    }
+}
+
+impl SseEncode for crate::api::WaveformLevelData {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.frames_per_block, serializer);
+        <Vec<u8>>::sse_encode(self.peaks, serializer);
+    }
 }
 
 #[cfg(not(target_family = "wasm"))]

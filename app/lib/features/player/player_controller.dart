@@ -113,6 +113,12 @@ class PlayerController {
     return _source.seek(0);
   }
 
+  /// Moves the position without starting playback.
+  Future<void> seek(int positionMs) {
+    _changes.ownAction();
+    return _source.seek(positionMs);
+  }
+
   /// Jumps to `positionMs` and plays on to the end of the recording.
   Future<void> playFrom(int positionMs) async {
     _changes.ownAction();

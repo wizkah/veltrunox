@@ -35,6 +35,16 @@ Future<BigInt?> recordingLengthMs({
   recordingId: recordingId,
 );
 
+/// The waveform of a recording. It is fetched once and then kept in memory. Fails while the
+/// recording has no scan or the server cannot be reached.
+Future<WaveformData> recordingWaveform({
+  required String serverUrl,
+  required BigInt recordingId,
+}) => RustLib.instance.api.crateApiRecordingWaveform(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+);
+
 /// Loads the labels and regions of a recording.
 Future<BookmarkSet> listBookmarks({
   required String serverUrl,
@@ -487,4 +497,48 @@ class TimeSpan {
           runtimeType == other.runtimeType &&
           startMs == other.startMs &&
           endMs == other.endMs;
+}
+
+/// The peaks of a recording from coarse to fine, with the length they cover.
+class WaveformData {
+  final BigInt lengthMs;
+  final int sampleRate;
+  final List<WaveformLevelData> levels;
+
+  const WaveformData({
+    required this.lengthMs,
+    required this.sampleRate,
+    required this.levels,
+  });
+
+  @override
+  int get hashCode => lengthMs.hashCode ^ sampleRate.hashCode ^ levels.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WaveformData &&
+          runtimeType == other.runtimeType &&
+          lengthMs == other.lengthMs &&
+          sampleRate == other.sampleRate &&
+          levels == other.levels;
+}
+
+/// One resolution of a waveform: per block the minimum, then the maximum, as signed bytes.
+class WaveformLevelData {
+  final int framesPerBlock;
+  final Uint8List peaks;
+
+  const WaveformLevelData({required this.framesPerBlock, required this.peaks});
+
+  @override
+  int get hashCode => framesPerBlock.hashCode ^ peaks.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WaveformLevelData &&
+          runtimeType == other.runtimeType &&
+          framesPerBlock == other.framesPerBlock &&
+          peaks == other.peaks;
 }
