@@ -3,7 +3,7 @@
 **Status:** working draft for the first UI implementation
 **Audience:** developers and AI coding agents
 **Platform:** responsive browser client; a later native app is not anticipated
-**UI language:** German at first; strings must not be hard-wired (see O-07)
+**UI language:** German and English in the first version; strings come from a catalogue, none are hard-wired (D-21)
 **Companion file:** [`design-tokens.json`](design-tokens.json)
 
 > **How binding is this?** Every rule carries one marker. **[B] confirmed** (product requirement or confirmed design decision), **[V] proposal v0.1** (concrete, testable starting values to be validated on a device), **[O] open** (must not be decided implicitly by an implementation). Where this text and a mockup disagree, this text wins.
@@ -184,7 +184,7 @@ A guest has the rights of a user without signing in and exists only while the ad
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-The client count is shown at most as a number until O-01 is decided.
+Connected clients are shown as a number only, not by name (D-16).
 
 ### 5.2 Mobile structure [V]
 
@@ -341,7 +341,7 @@ Empty titles at creation are allowed, but the display needs a sensible fallback 
 ### 6.6 Snap and zoom [B/V]
 
 - Snap to marker positions is **optional** and visibly switchable [B].
-- [V] Snap first to labels, region starts and region ends; a musical beat grid is out of scope (O-02).
+- [V] Snap first to labels, region starts and region ends; a musical beat grid is out of scope (D-17).
 - [V] Snap is temporarily visible while dragging (line plus name/times) and never triggers a dialog.
 - [V] The pinch zoom centre lies between the fingers; with `+`/`−` it lies at the visible playhead if in view, otherwise at the viewport centre.
 - [V] "Fit whole recording" is its own clearly distinct action.
@@ -380,7 +380,7 @@ When another person changes the global position, the visible playback display fo
 - No modal confirmation and no lasting disturbance.
 - The playhead and the transport state update visibly.
 - [V] If the actor is unknown: "Playback position was changed" rather than an invented name.
-- [V] During a local drag, remote updates must not make the handle jump incomprehensibly; the rule for simultaneous editing stays open (O-05).
+- [V] During a local drag, remote updates must not make the handle jump incomprehensibly. Simultaneous editing of one marker follows D-19.
 
 ### 7.3 Connection status [B]
 
@@ -392,7 +392,7 @@ When another person changes the global position, the visible playback display fo
 | Disconnected | Conspicuous but calm notice "Connection to the server lost" | "Reconnect" |
 | After reconnect | Align the display with the current shared state | never keep showing a stale position silently |
 
-[O] How actions taken locally during a disconnection are treated is not a v0.1 UI decision (O-08).
+While disconnected, the UI warns that nothing is processed until the server is connected again, and values changed locally are reset to the shared state (D-22).
 
 ## 8. Library
 
@@ -440,7 +440,7 @@ The library is a large, searchable song list. Each recording shows at least its 
 | Metadata / rename | Only where permitted (section 4.3) | [B] |
 | Delete | Confirm; name the recording being deleted | [B] |
 
-[O-06] Whether a recording is playable while its analysis runs is up to the application. The UI always shows the analysis state and does not invent playability.
+A recording is playable while its analysis runs (D-20). Until the analysis delivers a waveform, the player shows an empty waveform with a hint that the analysis is still running. The UI always shows the analysis state.
 
 ## 9. Sign-in and administration
 
@@ -618,6 +618,15 @@ These are target criteria, not statements about existing code.
 - **D-13:** the library is a large song list; no setlists; no admin area in the v0.1 navigation.
 - **D-14:** rights follow the product's role model (section 4.3).
 - **D-15:** play mode is a three-state toggle next to the play button: play to end (always the initial state), play to region end, loop; it only affects region playback.
+- **D-16:** connected clients are shown as a count only, not by name.
+- **D-17:** no musical grid (bars/beats) and no beat snap.
+- **D-18:** no separate bpm per region. Tempo detection per region may follow later.
+- **D-19:** simultaneous editing of one marker: the server is authoritative and the last write wins. A local drag is not interrupted; when it ends, the shared state is shown, and if another client's change replaced it, a short notice says so.
+- **D-20:** a recording is playable during analysis; until the waveform exists the player shows an empty waveform with a hint that the analysis is running.
+- **D-21:** the first version supports German and English; strings come from a catalogue.
+- **D-22:** while the server is not connected, the UI warns that nothing is processed; locally changed values are reset to the shared state.
+- **D-23:** no stored view preferences; zoom and scroll are local and temporary.
+- **D-24:** a new label is named "Label N" (N = number of labels plus one) without a name prompt; the name is editable afterwards. The same applies to regions ("Region N").
 
 ### 15.2 Proposals to validate [V]
 
@@ -630,19 +639,8 @@ These are target criteria, not statements about existing code.
 
 ### 15.3 Open decisions [O]
 
-| ID | Question | Meaning for the UI |
-|---|---|---|
-| O-01 | Show connected clients by name? | Placement and level of detail of the client display |
-| O-02 | Musical grid (bars/beats)? | Extra grid layer and snap modes |
-| O-04 | Separate bpm per region? | Extra region parameters and editing UI |
-| O-05 | Simultaneous editing of one marker: conflict display? | Feedback, versioning, locking or merging |
-| O-06 | Playback while analysis is still running? | Enabled/unavailable state of recording actions |
-| O-07 | Multiple languages / language switch? | String catalogue, space requirements, locale behaviour |
-| O-08 | Exact semantics of unconfirmed input while offline? | UI feedback, pending actions, error handling |
-| O-09 | Stored or temporary zoom/view preferences? | Locality and lifetime of the viewport |
-| O-10 | Default name and name editing right after creating a label? | One-tap flow and immediate editability |
+None at present.
 
-Open points are not blockers for an isolated, interactive design-system prototype, but they must not be hidden as undocumented assumptions.
 
 ## 16. Implementation order
 
