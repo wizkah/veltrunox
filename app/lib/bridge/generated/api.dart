@@ -11,7 +11,7 @@ part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `access`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `user_reason`, `view`, `with_channel`, `with_scrub`, `write_failure`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Access`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Loads the recording list from the server at `server_url`.
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
