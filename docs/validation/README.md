@@ -207,3 +207,20 @@ Limits:
 - Whether the slider handle briefly jumps back after the release before the new state arrives was not examined; it was not measured how often the bridge calls arrive while dragging.
 - The slider was tried with mouse input in one browser, not on a touch device.
 
+## Audible scrubbing (2026-11-22)
+
+Environment: macOS (Apple silicon), native tests; Raspberry Pi 4 Model B (Debian 12), release build installed. Prompted by the first listening on the Pi, where dragging the position handle was silent and the time display ran on.
+
+| Check | Result |
+|---|---|
+| Unit tests of the engine: a scrub piece is audible from the first frames, plays as recorded (440 Hz measured as 440 Hz), is soft at both ends and silent after 120 ms; a new position overlaps the old piece without a gap; stopping silences it and normal playing works afterwards | Pass |
+| Unit tests of the player core: one piece per new position, none while the handle is held still, the running state is not touched while dragging, the release puts the engine on the final position and resumes (or stays paused) | Pass |
+| Unit test of the shared state: the position holds while scrubbing and runs on after the release | Pass |
+| Pi: the new build is installed and the service starts | Pass |
+
+Limits:
+
+- Not listened to yet. How the pieces sound on the Pi (clicks, length, loudness against normal playing) and whether the time display now stays under the handle is not judged.
+- The pieces play at the recording's own speed and pitch; speed, key and tuning settings do not apply to them.
+- Reason for playing from the recording directly: after a seek the time stretcher needs about 55 ms before sound comes out (measured at 44.1 kHz), too long for dragging at 20 positions per second.
+

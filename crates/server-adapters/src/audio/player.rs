@@ -18,6 +18,8 @@ pub enum Command {
     Pitch(f64),
     Loop(Option<(u64, u64)>),
     Seek(u64),
+    /// Plays a short piece at the position, for the dragged position handle.
+    Scrub(u64),
     /// The output volume of the room; the output decides how it is applied.
     Volume(Volume),
     /// Amplitude factor of the render thread (the volume where there is no system mixer).
@@ -131,14 +133,26 @@ impl PlayerCore {
         let jumped = previous.is_none_or(|last| {
             last.position_at(now).value().abs_diff(target.value()) > SEEK_THRESHOLD_MS
         });
-        // While scrubbing the room hears nothing (ADR-005 fallback) but the
-        // engine follows, so the release lands on the right place.
-        if jumped || state.scrubbing {
+        let scrubbing = state.scrubbing;
+        // The sound of a drag is a short piece per position (below); on the release the
+        // engine is put on the final position, wherever the last piece left it.
+        let released = previous.is_some_and(|last| last.scrubbing) && !scrubbing;
+        if (jumped && !scrubbing) || released {
             sink.send(Command::Seek(target.value()));
         }
-        let audible = state.running && !state.scrubbing;
-        if previous.is_none_or(|last| (last.running && !last.scrubbing) != audible) || jumped {
+        let audible = state.running && !scrubbing;
+        if previous.is_none_or(|last| (last.running && !last.scrubbing) != audible)
+            || (jumped && !scrubbing)
+            || released
+        {
             sink.send(Command::Running(audible));
+        }
+        let dragged = scrubbing
+            && previous.is_none_or(|last| {
+                !last.scrubbing || last.reference.position != state.reference.position
+            });
+        if dragged {
+            sink.send(Command::Scrub(target.value()));
         }
         // The engine stops a little after the shared position froze. Putting it on that
         // position keeps repeated pauses from moving the sound ahead of the shared state.
@@ -166,6 +180,7 @@ mod tests {
         Pitch(f64),
         Loop(Option<(u64, u64)>),
         Seek(u64),
+        Scrub(u64),
         Volume(u8),
     }
 
@@ -185,6 +200,7 @@ mod tests {
                 Command::Pitch(pitch) => Seen::Pitch(pitch),
                 Command::Loop(range) => Seen::Loop(range),
                 Command::Seek(position) => Seen::Seek(position),
+                Command::Scrub(position) => Seen::Scrub(position),
                 Command::Volume(volume) => Seen::Volume(volume.percent()),
                 Command::Gain(_) => unreachable!("only the output sends a gain"),
             });
@@ -284,16 +300,34 @@ mod tests {
     }
 
     #[test]
-    fn scrubbing_follows_silently_and_the_release_resumes() {
+    fn scrubbing_plays_a_piece_per_position_and_the_release_resumes() {
         let mut core = PlayerCore::default();
         let state = play(&selected(), Millis::ZERO).unwrap();
         apply(&mut core, &state, 0);
         let scrub = seek(&state, Millis::new(5_000), true, Millis::new(100)).unwrap();
         let seen = apply(&mut core, &scrub, 100);
-        assert_eq!(seen, [Seen::Seek(5_000), Seen::Running(false)]);
-        let released = seek(&scrub, Millis::new(5_040), false, Millis::new(150)).unwrap();
-        let seen = apply(&mut core, &released, 150);
-        assert_eq!(seen, [Seen::Running(true)]);
+        assert_eq!(seen, [Seen::Running(false), Seen::Scrub(5_000)]);
+        // Held still: nothing new; moved: the next piece, the running state stays untouched.
+        assert!(apply(&mut core, &scrub, 400).is_empty());
+        let moved = seek(&scrub, Millis::new(9_000), true, Millis::new(500)).unwrap();
+        assert_eq!(apply(&mut core, &moved, 500), [Seen::Scrub(9_000)]);
+        let released = seek(&moved, Millis::new(9_000), false, Millis::new(600)).unwrap();
+        let seen = apply(&mut core, &released, 600);
+        assert_eq!(seen, [Seen::Seek(9_000), Seen::Running(true)]);
+    }
+
+    #[test]
+    fn scrubbing_while_paused_ends_paused() {
+        let mut core = PlayerCore::default();
+        let state = selected();
+        apply(&mut core, &state, 0);
+        let scrub = seek(&state, Millis::new(2_000), true, Millis::new(100)).unwrap();
+        assert_eq!(apply(&mut core, &scrub, 100), [Seen::Scrub(2_000)]);
+        let released = seek(&scrub, Millis::new(2_000), false, Millis::new(200)).unwrap();
+        assert_eq!(
+            apply(&mut core, &released, 200),
+            [Seen::Seek(2_000), Seen::Running(false)]
+        );
     }
 
     #[test]

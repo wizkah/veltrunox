@@ -72,6 +72,7 @@ Without the `embedded-web` feature (the default for `cargo run`), the server ser
 | `docs/architecture/adr/` | Architecture decisions |
 | `docs/development/Clean-Code.md` | Coding guidelines |
 | `docs/development/GUI-Architecture.md` | GUI architecture |
+| `docs/design/` | Design specification and design tokens |
 | `docs/logo/` | Logo |
 | `docs/validation/` | Verification results and their limits |
 | `CHANGELOG.md` | Changes |

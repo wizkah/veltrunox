@@ -1,7 +1,8 @@
 # ADR-005 – Real-time protocol
 
 **Status:** Accepted  
-**Date:** 2026-11-21
+**Date:** 2026-11-21  
+**Amended by:** ADR-010 (loop range and `set loop` become play range, play mode, `play_region`)
 
 ## Context
 

@@ -51,6 +51,14 @@ impl Pcm {
     }
 }
 
+/// Length of the piece played at a scrub position, in milliseconds.
+const GRAIN_MS: u64 = 120;
+/// Fades at the edges of a piece, in milliseconds, so the cuts do not click.
+const GRAIN_FADE_IN_MS: u64 = 3;
+const GRAIN_FADE_OUT_MS: u64 = 8;
+/// Pieces sounding at once: the newest and the one it fades out.
+const MAX_GRAINS: usize = 3;
+
 /// Plays one recording: speed and pitch independently, with a loop that wraps
 /// at sample level.
 pub struct Engine {
@@ -67,6 +75,17 @@ pub struct Engine {
     /// Fraction of an input frame not yet consumed.
     carry: f64,
     input: Vec<f32>,
+    /// The pieces of a dragged position handle that sound now.
+    grains: Vec<Grain>,
+}
+
+/// A short piece of the recording played as it is, for scrubbing.
+struct Grain {
+    /// Next source frame to play.
+    frame: f64,
+    /// Output frames played so far and left.
+    played: usize,
+    left: usize,
 }
 
 impl Engine {
@@ -83,13 +102,38 @@ impl Engine {
             read: 0,
             carry: 0.0,
             input: Vec::with_capacity(SCRATCH_FRAMES * CHANNELS),
+            grains: Vec::with_capacity(MAX_GRAINS),
         };
         engine.apply_pitch();
         engine
     }
 
+    /// Starts or stops playing; ends the pieces of scrubbing.
     pub fn set_running(&mut self, running: bool) {
+        self.grains.clear();
         self.running = running;
+    }
+
+    /// Plays a short piece from `position` (milliseconds) as it is recorded, so
+    /// dragging through the recording is audible at once. The piece before it
+    /// fades out; settings of speed and pitch do not apply to it.
+    pub fn scrub_ms(&mut self, position: u64) {
+        let fade_out = self.frames_out(GRAIN_FADE_OUT_MS);
+        for grain in &mut self.grains {
+            grain.left = grain.left.min(fade_out);
+        }
+        if self.grains.len() == MAX_GRAINS {
+            self.grains.remove(0);
+        }
+        self.grains.push(Grain {
+            frame: self.frame_at(position) as f64,
+            played: 0,
+            left: self.frames_out(GRAIN_MS),
+        });
+    }
+
+    fn frames_out(&self, millis: u64) -> usize {
+        (u64::from(self.output_rate) * millis / 1_000) as usize
     }
 
     pub fn set_speed(&mut self, factor: f64) {
@@ -139,6 +183,10 @@ impl Engine {
 
     /// Fills `output` (interleaved stereo at the output rate).
     pub fn render(&mut self, output: &mut [f32]) {
+        if !self.grains.is_empty() {
+            self.render_grains(output);
+            return;
+        }
         if !self.running || self.finished() {
             output.fill(0.0);
             return;
@@ -148,7 +196,35 @@ impl Engine {
         let frames = wanted.floor() as usize;
         self.carry = wanted - frames as f64;
         self.fill_input(frames);
-        self.stretch.process(&self.input, output);
+        self.stretch.process(&self.input, &mut *output);
+    }
+
+    /// Mixes the sounding pieces of scrubbing into `output`.
+    fn render_grains(&mut self, output: &mut [f32]) {
+        output.fill(0.0);
+        let step = f64::from(self.pcm.sample_rate()) / f64::from(self.output_rate);
+        let fade_in = self.frames_out(GRAIN_FADE_IN_MS).max(1) as f32;
+        let fade_out = self.frames_out(GRAIN_FADE_OUT_MS).max(1) as f32;
+        let total = self.pcm.frames();
+        for grain in &mut self.grains {
+            for out in output.as_chunks_mut::<CHANNELS>().0 {
+                if grain.left == 0 {
+                    break;
+                }
+                let source = grain.frame as usize;
+                if source < total {
+                    let gain = ((grain.played + 1) as f32 / fade_in).min(1.0)
+                        * (grain.left as f32 / fade_out).min(1.0);
+                    for (channel, sample) in out.iter_mut().enumerate() {
+                        *sample += self.pcm.samples[source * CHANNELS + channel] * gain;
+                    }
+                }
+                grain.frame += step;
+                grain.played += 1;
+                grain.left -= 1;
+            }
+        }
+        self.grains.retain(|grain| grain.left > 0);
     }
 
     /// Source frames for the next `frames` input frames; a running loop wraps at its end.
@@ -297,6 +373,41 @@ mod tests {
         assert!(engine.finished());
         let after = render_seconds(&mut engine, 0.1);
         assert!(after.iter().all(|sample| *sample == 0.0));
+    }
+
+    #[test]
+    fn a_scrub_piece_is_audible_at_once_and_then_silent() {
+        let mut engine = Engine::new(sine(440.0, 8.0), RATE);
+        engine.scrub_ms(4_000);
+        let rendered = render_seconds(&mut engine, 0.5);
+        let piece = (u64::from(RATE) * GRAIN_MS / 1_000) as usize;
+        assert!(rms(&rendered[200..2_000]) > 0.4);
+        assert!(rendered[piece + 1..].iter().all(|sample| *sample == 0.0));
+        // It starts and ends softly, and plays as recorded.
+        assert!(rendered[0].abs() < 0.1 && rendered[piece - 1].abs() < 0.1);
+        let hertz = measured_hertz(&rendered[200..piece - 400], RATE);
+        assert!((hertz - 440.0).abs() < 8.0, "got {hertz} Hz");
+    }
+
+    #[test]
+    fn a_new_scrub_position_overlaps_the_old_piece_without_a_gap() {
+        let mut engine = Engine::new(sine(440.0, 8.0), RATE);
+        engine.scrub_ms(1_000);
+        render_seconds(&mut engine, 0.05);
+        engine.scrub_ms(5_000);
+        let rendered = render_seconds(&mut engine, 0.1);
+        assert!(rms(&rendered) > 0.4);
+    }
+
+    #[test]
+    fn stopping_silences_a_scrub_piece_and_playing_goes_on_normally() {
+        let mut engine = Engine::new(sine(440.0, 8.0), RATE);
+        engine.scrub_ms(1_000);
+        engine.set_running(false);
+        assert!(render_seconds(&mut engine, 0.05).iter().all(|s| *s == 0.0));
+        engine.seek_ms(2_000);
+        engine.set_running(true);
+        assert!(rms(&render_seconds(&mut engine, 0.5)[RATE as usize / 4..]) > 0.4);
     }
 
     #[test]

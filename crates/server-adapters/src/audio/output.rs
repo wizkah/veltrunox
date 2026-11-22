@@ -202,6 +202,7 @@ impl Renderer {
                         Command::Pitch(semitones) => engine.set_pitch_semitones(semitones),
                         Command::Loop(range) => engine.set_loop_ms(range),
                         Command::Seek(position) => engine.seek_ms(position),
+                        Command::Scrub(position) => engine.scrub_ms(position),
                         Command::Replace(_)
                         | Command::Unload
                         | Command::Volume(_)

@@ -1,0 +1,309 @@
+{
+  "$description": "Veltrunox design tokens v0.1. All concrete values are proposals for prototypes and must be validated on a device. Names and types follow DTCG.",
+  "meta": {
+    "name": "Veltrunox",
+    "version": "0.1.0",
+    "date": "2026-11-22",
+    "status": "proposal",
+    "theme": "dark"
+  },
+  "color": {
+    "canvas": {
+      "$type": "color",
+      "$value": "#071519"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "#102A30"
+    },
+    "surfaceRaised": {
+      "$type": "color",
+      "$value": "#16353B"
+    },
+    "border": {
+      "$type": "color",
+      "$value": "#356169"
+    },
+    "textPrimary": {
+      "$type": "color",
+      "$value": "#F5F8F8"
+    },
+    "textSecondary": {
+      "$type": "color",
+      "$value": "#B9CED1"
+    },
+    "action": {
+      "$type": "color",
+      "$value": "#FF9D16"
+    },
+    "actionHover": {
+      "$type": "color",
+      "$value": "#FFC063"
+    },
+    "onAction": {
+      "$type": "color",
+      "$value": "#071519"
+    },
+    "accent": {
+      "$type": "color",
+      "$value": "#14C5C9"
+    },
+    "accentSoft": {
+      "$type": "color",
+      "$value": "#65E2DC"
+    },
+    "regionOther": {
+      "$type": "color",
+      "$value": "#56BDF0"
+    },
+    "success": {
+      "$type": "color",
+      "$value": "#34D399"
+    },
+    "warning": {
+      "$type": "color",
+      "$value": "#FDBA74"
+    },
+    "error": {
+      "$type": "color",
+      "$value": "#FB7185"
+    },
+    "focus": {
+      "$type": "color",
+      "$value": "#65E2DC"
+    },
+    "scrim": {
+      "$type": "color",
+      "$value": "#000000B8"
+    }
+  },
+  "font": {
+    "family": {
+      "$type": "fontFamily",
+      "$value": [
+        "Inter",
+        "system-ui",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "sans-serif"
+      ]
+    },
+    "size": {
+      "small": {
+        "$type": "dimension",
+        "$value": {
+          "value": 14,
+          "unit": "px"
+        }
+      },
+      "body": {
+        "$type": "dimension",
+        "$value": {
+          "value": 16,
+          "unit": "px"
+        }
+      },
+      "section": {
+        "$type": "dimension",
+        "$value": {
+          "value": 20,
+          "unit": "px"
+        }
+      },
+      "page": {
+        "$type": "dimension",
+        "$value": {
+          "value": 24,
+          "unit": "px"
+        }
+      }
+    },
+    "lineHeight": {
+      "small": {
+        "$type": "number",
+        "$value": 1.4286
+      },
+      "body": {
+        "$type": "number",
+        "$value": 1.5
+      },
+      "section": {
+        "$type": "number",
+        "$value": 1.4
+      },
+      "page": {
+        "$type": "number",
+        "$value": 1.3333
+      }
+    },
+    "weight": {
+      "regular": {
+        "$type": "fontWeight",
+        "$value": 400
+      },
+      "medium": {
+        "$type": "fontWeight",
+        "$value": 500
+      },
+      "semibold": {
+        "$type": "fontWeight",
+        "$value": 600
+      },
+      "bold": {
+        "$type": "fontWeight",
+        "$value": 700
+      }
+    }
+  },
+  "space": {
+    "1": {
+      "$type": "dimension",
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      }
+    },
+    "2": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      }
+    },
+    "3": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      }
+    },
+    "4": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      }
+    },
+    "6": {
+      "$type": "dimension",
+      "$value": {
+        "value": 24,
+        "unit": "px"
+      }
+    },
+    "8": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      }
+    }
+  },
+  "radius": {
+    "small": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      }
+    },
+    "medium": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      }
+    },
+    "large": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      }
+    },
+    "pill": {
+      "$type": "dimension",
+      "$value": {
+        "value": 999,
+        "unit": "px"
+      }
+    }
+  },
+  "size": {
+    "touchTarget": {
+      "$type": "dimension",
+      "$value": {
+        "value": 48,
+        "unit": "px"
+      }
+    },
+    "primaryPlay": {
+      "$type": "dimension",
+      "$value": {
+        "value": 64,
+        "unit": "px"
+      }
+    },
+    "regionLaneHeight": {
+      "$type": "dimension",
+      "$value": {
+        "value": 36,
+        "unit": "px"
+      }
+    },
+    "regionHandleVisualWidth": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      }
+    },
+    "borderWidth": {
+      "$type": "dimension",
+      "$value": {
+        "value": 1,
+        "unit": "px"
+      }
+    },
+    "focusRingWidth": {
+      "$type": "dimension",
+      "$value": {
+        "value": 3,
+        "unit": "px"
+      }
+    }
+  },
+  "motion": {
+    "quick": {
+      "$type": "duration",
+      "$value": {
+        "value": 120,
+        "unit": "ms"
+      }
+    },
+    "normal": {
+      "$type": "duration",
+      "$value": {
+        "value": 180,
+        "unit": "ms"
+      }
+    }
+  },
+  "breakpoint": {
+    "tabletMin": {
+      "$type": "dimension",
+      "$value": {
+        "value": 600,
+        "unit": "px"
+      }
+    },
+    "desktopMin": {
+      "$type": "dimension",
+      "$value": {
+        "value": 1024,
+        "unit": "px"
+      }
+    }
+  }
+}

@@ -79,7 +79,8 @@ impl PlaybackState {
     /// The playback position at `now`, following speed and loop range.
     pub fn position_at(&self, now: Millis) -> Millis {
         let start = self.reference.position;
-        if !self.running {
+        // While the position handle is dragged the position is the one under it.
+        if !self.running || self.scrubbing {
             return start;
         }
         let elapsed = now.saturating_sub(self.reference.server_time).value() as f64;
@@ -382,6 +383,15 @@ mod tests {
         let state = set_loop(&state, Some(range), ms(0)).unwrap();
         let state = play(&state, ms(0)).unwrap();
         assert_eq!(end_playback(&state, ms(10_000), ms(60_000)), None);
+    }
+
+    #[test]
+    fn the_position_holds_while_scrubbing_and_runs_on_after_the_release() {
+        let playing = play(&loaded(0), ms(0)).unwrap();
+        let scrubbing = seek(&playing, ms(5_000), true, ms(100)).unwrap();
+        assert_eq!(scrubbing.position_at(ms(900)), ms(5_000));
+        let released = seek(&scrubbing, ms(5_000), false, ms(1_000)).unwrap();
+        assert_eq!(released.position_at(ms(1_200)), ms(5_200));
     }
 
     #[test]
