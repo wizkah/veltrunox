@@ -234,5 +234,7 @@ Environment: Flutter widget tests; Raspberry Pi 4 Model B, release build install
 | Widget tests: after 130 ms without movement the final position is reported once (playback goes on), the release then reports nothing more, and moving again scrubs again | Pass |
 | Pi: new build installed, service starts | Pass |
 
-Limits: not listened to; the 130 ms rest time was chosen by estimate (the scrub piece lasts 120 ms). While playing on, the handle stays where it was held and does not follow the position until it is let go.
+| Pi: listening check by the user (playing on after a rest; repeated pause and resume) | Pass (reported as good, no further detail) |
+
+Limits: the 130 ms rest time was chosen by estimate (the scrub piece lasts 120 ms). While playing on, the handle stays where it was held and does not follow the position until it is let go. The listening check was informal; no drift measurement over many pauses.
 
