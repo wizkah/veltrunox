@@ -18,7 +18,8 @@ enum RegionEdge { start, end }
 
 /// The regions below the waveform, in lanes. While a handle is dragged only the
 /// drawn region changes; the lane assignment stays as it was until the drag
-/// ends and the new times arrive as [regions].
+/// ends and the new times arrive as [regions], when the lanes are laid out
+/// anew.
 class RegionLanes extends StatefulWidget {
   const RegionLanes({
     required this.regions,
@@ -73,7 +74,7 @@ class _RegionLanesState extends State<RegionLanes> {
   void didUpdateWidget(RegionLanes old) {
     super.didUpdateWidget(old);
     if (_drag == null) {
-      _assignment = layoutRegionLanes(widget.regions, previous: _assignment);
+      _assignment = layoutRegionLanes(widget.regions);
     }
   }
 

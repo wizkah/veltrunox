@@ -4,14 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'time_viewport.dart';
 
 /// The local view of one recording's waveform: what is visible, whether
-/// dragged markers snap, whether a region is being drawn, and which region is
+/// dragged markers snap, and which region is
 /// selected for editing. None of it is shared with other clients.
 @immutable
 class WaveformViewState {
   const WaveformViewState({
     this.viewport,
     this.snapEnabled = true,
-    this.drawingRegion = false,
     this.selectedRegionId,
     this.showAllLanes = false,
   });
@@ -19,20 +18,17 @@ class WaveformViewState {
   /// `null` until the width of the waveform is known.
   final TimeViewport? viewport;
   final bool snapEnabled;
-  final bool drawingRegion;
   final int? selectedRegionId;
   final bool showAllLanes;
 
   WaveformViewState copyWith({
     TimeViewport? viewport,
     bool? snapEnabled,
-    bool? drawingRegion,
     Object? selectedRegionId = _keep,
     bool? showAllLanes,
   }) => WaveformViewState(
     viewport: viewport ?? this.viewport,
     snapEnabled: snapEnabled ?? this.snapEnabled,
-    drawingRegion: drawingRegion ?? this.drawingRegion,
     selectedRegionId: identical(selectedRegionId, _keep)
         ? this.selectedRegionId
         : selectedRegionId as int?,
@@ -87,11 +83,6 @@ class WaveformViewController extends Notifier<WaveformViewState> {
       _update((v) => v.revealing(startMs.toDouble(), endMs.toDouble()));
 
   void toggleSnap() => state = state.copyWith(snapEnabled: !state.snapEnabled);
-
-  void toggleDrawingRegion() =>
-      state = state.copyWith(drawingRegion: !state.drawingRegion);
-
-  void endDrawingRegion() => state = state.copyWith(drawingRegion: false);
 
   void selectRegion(int? id) => state = state.copyWith(selectedRegionId: id);
 

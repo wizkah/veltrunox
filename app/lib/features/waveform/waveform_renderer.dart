@@ -14,12 +14,14 @@ class WaveformRenderer extends StatefulWidget {
   const WaveformRenderer({
     required this.data,
     required this.viewport,
+    this.height = WaveformGeometry.waveformHeight,
     this.missingText = WaveformTexts.loading,
     super.key,
   });
 
   final WaveformData? data;
   final TimeViewport viewport;
+  final double height;
 
   /// Shown instead of the waveform while [data] is null.
   final String missingText;
@@ -55,7 +57,7 @@ class _WaveformRendererState extends State<WaveformRenderer> {
     final columns = _columns;
     return SizedBox(
       width: widget.viewport.widthPx,
-      height: WaveformGeometry.waveformHeight,
+      height: widget.height,
       child: columns == null
           ? Center(
               child: Text(

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../design/tokens/app_geometry.dart';
 import '../features/markers/marker.dart';
 import '../features/markers/marker_actions_sheet.dart';
 import '../features/markers/marker_controller.dart';
@@ -15,7 +14,6 @@ import '../features/waveform/waveform_placeholder.dart';
 import '../features/waveform/waveform_source.dart';
 import '../features/waveform/waveform_texts.dart';
 import '../features/waveform/waveform_view_controller.dart';
-import '../shared_ui/action_button.dart';
 import '../shared_ui/toast_notice.dart';
 
 /// The waveform of the loaded recording wired to the shared player and to the
@@ -178,45 +176,22 @@ class _PlayerWaveformState extends ConsumerState<PlayerWaveform> {
       0,
       loaded.lengthMs,
     );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        WaveformPanel(
-          recordingId: recordingId,
-          durationMs: loaded.lengthMs,
-          data: loaded.data,
-          positionMs: position,
-          markers: markers,
-          onPlayFrom: _player.playFrom,
-          onPlayRegion: (region) =>
-              _player.playRegion(startMs: region.startMs, endMs: region.endMs),
-          onSeek: _player.seek,
-          onScrub: _scrub.moved,
-          onScrubEnd: _scrub.released,
-          onRegionDrawn: (start, end) => _drawRegion(markers, start, end),
-          onRegionResized: _resizeRegion,
-          onMarkerContext: (marker) => _openActions(marker, loaded.lengthMs),
-        ),
-        const SizedBox(height: AppSpace.s2),
-        Wrap(
-          spacing: AppSpace.s2,
-          runSpacing: AppSpace.s2,
-          children: [
-            ActionButton(
-              label: MarkerTexts.setLabelHere,
-              icon: Icons.add_location_alt_outlined,
-              kind: ActionKind.secondary,
-              onPressed: () => _setLabelHere(markers),
-            ),
-            ActionButton(
-              label: MarkerTexts.setRegionHere,
-              icon: Icons.add_road,
-              kind: ActionKind.secondary,
-              onPressed: () => _setRegionHere(markers, loaded.lengthMs),
-            ),
-          ],
-        ),
-      ],
+    return WaveformPanel(
+      recordingId: recordingId,
+      durationMs: loaded.lengthMs,
+      data: loaded.data,
+      positionMs: position,
+      markers: markers,
+      onPlayFrom: _player.playFrom,
+      onPlayRegion: (region) =>
+          _player.playRegion(startMs: region.startMs, endMs: region.endMs),
+      onSeek: _player.seek,
+      onScrub: _scrub.moved,
+      onScrubEnd: _scrub.released,
+      onSetLabel: () => _setLabelHere(markers),
+      onSetRegion: () => _setRegionHere(markers, loaded.lengthMs),
+      onRegionResized: _resizeRegion,
+      onMarkerContext: (marker) => _openActions(marker, loaded.lengthMs),
     );
   }
 }

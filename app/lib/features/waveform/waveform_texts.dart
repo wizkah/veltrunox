@@ -7,7 +7,8 @@ abstract final class WaveformTexts {
   static const zoomOut = 'Verkleinern';
   static const fit = 'Ganze Aufnahme zeigen';
   static const snap = 'Einrasten an Markierungen';
-  static const newRegion = 'Region aufziehen';
+  static const setLabelHere = 'Label hier setzen';
+  static const setRegionHere = 'Region hier anlegen';
   static const allRegions = 'Alle Regionen';
   static const fewerRegions = 'Weniger Regionen';
   static const playhead = 'Abspielposition';

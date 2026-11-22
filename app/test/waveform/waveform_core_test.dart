@@ -99,6 +99,16 @@ void main() {
       expect(wider.startMs, zoomed.startMs);
       expect(wider.widthPx, 1200);
     });
+
+    test('a resize never leaves the zoom below the whole recording', () {
+      final zoomed = fit.zoomedAt(2, 0);
+      final wider = zoomed.withWidth(4000);
+      expect(wider.visibleSpanMs, lessThanOrEqualTo(fit.durationMs + 1e-6));
+      expect(wider.isFitted, isTrue);
+      expect(fit.withWidth(500).isFitted, isTrue);
+      expect(fit.withWidth(500).visibleSpanMs, closeTo(fit.durationMs, 1e-6));
+      expect(fit.zoomedAt(0.1, 0), fit);
+    });
   });
 
   group('layoutRegionLanes', () {
@@ -157,31 +167,18 @@ void main() {
       expect(b.laneById, a.laneById);
     });
 
-    test('a previous layout is kept while it causes no overlap (UI-AC-04)', () {
-      final before = layoutRegionLanes([
-        region(1, 0, 10000),
-        region(2, 5000, 15000),
+    test('lanes are compact again once a region has moved away', () {
+      // Regions 5, 6 and 8 overlap none of each other: they share a lane
+      // below the long region 1, wherever they were before.
+      final result = layoutRegionLanes([
+        region(1, 0, 20000),
+        region(6, 0, 4000),
+        region(5, 6000, 9000),
+        region(8, 11000, 20000),
       ]);
-      // Region 1 shrinks away from region 2: it could drop to lane 0 of its
-      // own, but the lanes must not change during the drag.
-      final after = layoutRegionLanes([
-        region(1, 0, 4000),
-        region(2, 5000, 15000),
-      ], previous: before);
-      expect(after.laneById, before.laneById);
-    });
-
-    test('a conflicting kept lane is replaced', () {
-      final before = layoutRegionLanes([
-        region(1, 0, 4000),
-        region(2, 5000, 15000),
-      ]);
-      expect(before.laneCount, 1);
-      final after = layoutRegionLanes([
-        region(1, 0, 10000),
-        region(2, 5000, 15000),
-      ], previous: before);
-      expect(after.laneCount, 2);
+      expect(result.laneOf(5), result.laneOf(8));
+      expect(result.laneOf(6), result.laneOf(5));
+      expect(result.laneCount, 2);
     });
 
     test(

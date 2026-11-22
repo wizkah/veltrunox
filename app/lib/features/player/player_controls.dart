@@ -5,7 +5,6 @@ import '../../design/tokens/app_geometry.dart';
 import 'player_analysis.dart';
 import 'player_controller.dart';
 import 'player_state.dart';
-import 'position_display.dart';
 import 'position_slider.dart';
 import 'settings_controls.dart';
 import 'transport_controls.dart';
@@ -13,6 +12,8 @@ import 'volume_control.dart';
 
 /// Transport, position, volume and the tempo and pitch panels of the loaded
 /// recording; the shared state is passed in, actions go to the controller.
+/// Given a bounded height on a wide screen, it fills it: [above] takes what the
+/// transport and the panels leave. Otherwise it is as high as its content.
 class PlayerControls extends ConsumerWidget {
   const PlayerControls({
     required this.state,
@@ -27,7 +28,7 @@ class PlayerControls extends ConsumerWidget {
 
   /// Shown above the transport, in the same column (the waveform, and on a
   /// narrow screen the way to the markers). On a wide screen the volume stands
-  /// beside it and the transport.
+  /// beside it, the transport and the panels, over their whole height.
   final Widget? above;
 
   /// Hidden where another control moves the position (the waveform).
@@ -35,7 +36,13 @@ class PlayerControls extends ConsumerWidget {
 
   /// From this width the volume stands beside the transport and the panels
   /// beside each other.
-  static const _wideMin = 720.0;
+  static const _wideMin = 900.0;
+
+  /// Width of the upright volume panel on a wide screen.
+  static const _volumeWidth = 128.0;
+
+  /// The least height the upright volume panel needs for its content.
+  static const _volumeMinHeight = 280.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,7 +59,6 @@ class PlayerControls extends ConsumerWidget {
     final transport = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        PositionDisplay(positionMs: position),
         if (showPositionSlider)
           PositionSlider(
             positionMs: position.clamp(0, length ?? 0),
@@ -72,11 +78,14 @@ class PlayerControls extends ConsumerWidget {
         ),
       ],
     );
-    final main = Column(
-      mainAxisSize: MainAxisSize.min,
+    Widget main({required bool fill}) => Column(
+      mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (above != null) ...[above!, const SizedBox(height: AppSpace.s3)],
+        if (above != null) ...[
+          if (fill) Expanded(child: above!) else above!,
+          const SizedBox(height: AppSpace.s3),
+        ],
         transport,
       ],
     );
@@ -100,27 +109,54 @@ class PlayerControls extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= _wideMin;
-        return Column(
+        if (wide) {
+          final fill = constraints.hasBoundedHeight;
+          // The volume panel is laid over the right edge and stretched down to
+          // the panels; the waveform inside `main` rules out measuring that
+          // height beforehand.
+          final top = ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: _volumeMinHeight),
+            child: Stack(
+              fit: fill ? StackFit.expand : StackFit.loose,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    right: _volumeWidth + AppSpace.s4,
+                  ),
+                  child: main(fill: fill),
+                ),
+                Positioned(
+                  top: 0,
+                  bottom: 0,
+                  right: 0,
+                  width: _volumeWidth,
+                  child: volume(vertical: true),
+                ),
+              ],
+            ),
+          );
+          return Column(
+            mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
+            children: [
+              if (fill) Expanded(child: top) else top,
+              const SizedBox(height: AppSpace.s3),
+              settings(sideBySide: true),
+            ],
+          );
+        }
+        final stacked = Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (wide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: main),
-                  const SizedBox(width: AppSpace.s4),
-                  volume(vertical: true),
-                ],
-              )
-            else ...[
-              main,
-              const SizedBox(height: AppSpace.s3),
-              volume(vertical: false),
-            ],
+            main(fill: false),
             const SizedBox(height: AppSpace.s3),
-            settings(sideBySide: wide),
+            volume(vertical: false),
+            const SizedBox(height: AppSpace.s3),
+            settings(sideBySide: false),
           ],
         );
+        return constraints.hasBoundedHeight
+            ? SingleChildScrollView(child: stacked)
+            : stacked;
       },
     );
   }

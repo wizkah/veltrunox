@@ -62,15 +62,20 @@ final class TimeViewport {
   TimeViewport pannedByPixels(double deltaPx) =>
       _clamped(startMs - deltaPx * msPerPx, msPerPx);
 
-  /// Keeps the visible time range when the widget is resized.
+  /// Keeps the visible time range when the widget is resized; a view of the
+  /// whole recording stays one, and the zoom never goes below it.
   TimeViewport withWidth(double newWidthPx) {
     final safeWidth = math.max(newWidthPx, 1.0);
-    return TimeViewport._(
+    if (isFitted) {
+      return TimeViewport.fit(durationMs: durationMs, widthPx: safeWidth);
+    }
+    final resized = TimeViewport._(
       durationMs: durationMs,
       widthPx: safeWidth,
       startMs: startMs,
       msPerPx: msPerPx,
-    )._clamped(startMs, msPerPx);
+    );
+    return resized._clamped(startMs, resized._clampMsPerPx(msPerPx));
   }
 
   TimeViewport fitted() =>

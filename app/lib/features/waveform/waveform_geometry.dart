@@ -7,6 +7,9 @@ abstract final class WaveformGeometry {
   static const rulerHeight = 28.0;
   static const labelBandHeight = AppSize.touchTarget;
   static const waveformHeight = 128.0;
+
+  /// The least the waveform shrinks to when the regions need the room.
+  static const waveformMinHeight = 64.0;
   static const laneHeight = AppSize.regionLaneHeight;
   static const laneGap = AppSpace.s1;
 

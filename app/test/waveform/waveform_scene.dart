@@ -35,7 +35,8 @@ class Intents {
   final seeks = <int>[];
   final scrubs = <int>[];
   final scrubEnds = <int>[];
-  final drawn = <(int, int)>[];
+  var labelsSet = 0;
+  var regionsSet = 0;
   final resized = <(int, int, int)>[];
 }
 
@@ -68,7 +69,8 @@ Future<Intents> pumpScene(
               onSeek: intents.seeks.add,
               onScrub: intents.scrubs.add,
               onScrubEnd: intents.scrubEnds.add,
-              onRegionDrawn: (start, end) => intents.drawn.add((start, end)),
+              onSetLabel: () => intents.labelsSet++,
+              onSetRegion: () => intents.regionsSet++,
               onRegionResized: (region, start, end) =>
                   intents.resized.add((region.id, start, end)),
               onMarkerContext: (_) {},

@@ -40,6 +40,12 @@ class PlayerScreen extends ConsumerWidget {
   static const _markersBesideMin = AppBreakpoint.desktopMin;
   static const _markerColumnWidth = 380.0;
 
+  /// From this height (and when the markers stand beside) the page fits the
+  /// screen: the markers list and the regions scroll on their own. Below it
+  /// even the smallest waveform and one region lane do not fit, and the whole
+  /// page scrolls.
+  static const _fitHeightMin = 720.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(playerStateProvider);
@@ -65,25 +71,41 @@ class PlayerScreen extends ConsumerWidget {
           showPositionSlider: waveform == null,
         );
         final header = _title(context);
+        final fits =
+            beside &&
+            constraints.hasBoundedHeight &&
+            constraints.maxHeight >= _fitHeightMin;
         final main = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [?header, controls],
+          children: [
+            ?header,
+            if (fits) Expanded(child: controls) else controls,
+          ],
         );
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpace.s4),
-          child: beside
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (markers != null) ...[
-                      SizedBox(width: _markerColumnWidth, child: markers),
-                      const SizedBox(width: AppSpace.s6),
-                    ],
-                    Expanded(child: main),
-                  ],
-                )
-              : main,
+        if (!beside) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpace.s4),
+            child: main,
+          );
+        }
+        final row = Row(
+          crossAxisAlignment: fits
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.start,
+          children: [
+            if (markers != null) ...[
+              SizedBox(width: _markerColumnWidth, child: markers),
+              const SizedBox(width: AppSpace.s6),
+            ],
+            Expanded(child: main),
+          ],
         );
+        return fits
+            ? Padding(padding: const EdgeInsets.all(AppSpace.s4), child: row)
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpace.s4),
+                child: row,
+              );
       },
     );
   }
@@ -92,14 +114,12 @@ class PlayerScreen extends ConsumerWidget {
   /// markers, then the waveform.
   Widget? _aboveTransport({required bool showMarkerOpener}) {
     final opener = showMarkerOpener ? markerOpener : null;
-    if (opener == null && waveform == null) return null;
+    if (opener == null) return waveform;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (opener != null)
-          Align(alignment: Alignment.centerLeft, child: opener),
-        if (opener != null && waveform != null)
-          const SizedBox(height: AppSpace.s3),
+        Align(alignment: Alignment.centerLeft, child: opener),
+        if (waveform != null) const SizedBox(height: AppSpace.s3),
         ?waveform,
       ],
     );

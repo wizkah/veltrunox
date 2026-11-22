@@ -12,9 +12,12 @@ import 'package:veltrunox_app/features/library/recording_source.dart';
 import 'package:veltrunox_app/features/library/recording_summary.dart';
 import 'package:veltrunox_app/features/markers/marker.dart';
 import 'package:veltrunox_app/features/markers/marker_controller.dart';
+import 'package:veltrunox_app/features/player/panel_surface.dart';
 import 'package:veltrunox_app/features/player/player_controller.dart';
 import 'package:veltrunox_app/features/player/player_state.dart';
 import 'package:veltrunox_app/features/player/position_slider.dart';
+import 'package:veltrunox_app/features/player/settings_panel.dart';
+import 'package:veltrunox_app/features/player/volume_control.dart';
 import 'package:veltrunox_app/features/waveform/label_layer.dart';
 import 'package:veltrunox_app/features/waveform/region_handle.dart';
 import 'package:veltrunox_app/features/waveform/region_lanes.dart';
@@ -88,8 +91,10 @@ Future<_App> _pump(
   WidgetTester tester, {
   bool scanned = true,
   double width = 1400,
+  double height = 1200,
+  int extraRegions = 0,
 }) async {
-  tester.view.physicalSize = Size(width, 1200);
+  tester.view.physicalSize = Size(width, height);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final player = FakePlayerSource()..currentPosition = 10000;
@@ -103,6 +108,14 @@ Future<_App> _pump(
       startMs: 10000,
       endMs: 40000,
     ),
+    for (var i = 0; i < extraRegions; i++)
+      RegionMarker(
+        id: 100 + i,
+        version: 1,
+        title: 'Extra $i',
+        startMs: 10000,
+        endMs: 40000,
+      ),
   ]);
   final container = ProviderContainer(
     overrides: [
@@ -188,7 +201,7 @@ void main() {
   ) async {
     final app = await _pump(tester);
 
-    await tester.tap(find.text('Label hier setzen'));
+    await tester.tap(find.byTooltip('Label hier setzen'));
     await tester.pumpAndSettle();
 
     expect(app.markers.calls, ['addLabel Label 2 10000']);
@@ -253,21 +266,6 @@ void main() {
     expect(region.version, 2);
   });
 
-  testWidgets('a region drawn in the waveform is created and selected', (
-    tester,
-  ) async {
-    final app = await _pump(tester);
-
-    await tester.tap(find.byTooltip('Region aufziehen'));
-    await tester.pump();
-    final origin = tester.getTopLeft(find.byType(WaveformRenderer));
-    await tester.dragFrom(origin + const Offset(300, 60), const Offset(150, 0));
-    await tester.pumpAndSettle();
-
-    expect(app.markers.calls.single, startsWith('addRegion Region 2 '));
-    expect(find.byType(RegionHandle), findsNWidgets(2));
-  });
-
   testWidgets('a marker changed by someone else shows up in the waveform', (
     tester,
   ) async {
@@ -299,6 +297,27 @@ void main() {
       expect(volume.dy, lessThan(play.dy));
     });
 
+    testWidgets('on a wide screen the volume panel reaches down to the pitch '
+        'panel, which reaches the right edge', (tester) async {
+      await _pump(tester);
+      final volume = tester.getRect(
+        find.ancestor(
+          of: find.byKey(volumeSliderKey),
+          matching: find.byType(PanelSurface),
+        ),
+      );
+      final pitch = tester.getRect(
+        find.ancestor(
+          of: find.text('Tonhöhe'),
+          matching: find.byType(SettingsPanel),
+        ),
+      );
+      // The volume ends where the pitch panel begins, which reaches the edge.
+      expect(volume.bottom, lessThanOrEqualTo(pitch.top));
+      expect(pitch.top - volume.bottom, lessThan(24));
+      expect(pitch.right, greaterThanOrEqualTo(volume.right - 0.5));
+    });
+
     testWidgets('on a narrow screen the way to the markers is above the '
         'waveform', (tester) async {
       await _pump(tester, width: 500);
@@ -308,19 +327,74 @@ void main() {
     });
   });
 
-  testWidgets('labels and regions are both created by a button below the '
-      'waveform', (tester) async {
+  testWidgets('a region is created at the playhead from the toolbar', (
+    tester,
+  ) async {
     final app = await _pump(tester);
-    final waveform = tester.getBottomLeft(find.byType(WaveformRenderer));
+    expect(find.text('Label hier setzen'), findsNothing);
+    expect(find.text('Region hier anlegen'), findsNothing);
 
-    for (final name in ['Label hier setzen', 'Region hier anlegen']) {
-      expect(tester.getTopLeft(find.text(name)).dy, greaterThan(waveform.dy));
-    }
-    await tester.tap(find.text('Region hier anlegen'));
+    await tester.tap(find.byTooltip('Region hier anlegen'));
     await tester.pumpAndSettle();
 
     final call = app.markers.calls.single;
     expect(call, startsWith('addRegion Region 2 10000 '));
     expect(find.byType(RegionHandle), findsNWidgets(2));
+  });
+
+  group('on a tall screen', () {
+    testWidgets('the page fits and only the regions scroll', (tester) async {
+      await _pump(tester, height: 800, extraRegions: 12);
+      expect(tester.takeException(), isNull);
+      final lanes = find.byType(RegionLanes);
+      final scrollable = find.ancestor(
+        of: lanes,
+        matching: find.byType(SingleChildScrollView),
+      );
+      final regionScroll = tester.widget<SingleChildScrollView>(
+        scrollable.first,
+      );
+      expect(regionScroll.scrollDirection, Axis.vertical);
+      // The regions overflow their window, the controls below stay on screen.
+      final screen = tester.view.physicalSize.height;
+      expect(tester.getBottomLeft(find.text('Tonhöhe')).dy, lessThan(screen));
+      expect(
+        tester.getSize(scrollable.first).height,
+        lessThan(tester.getSize(lanes).height),
+      );
+    });
+
+    testWidgets('with few regions the waveform grows and the panels sit at '
+        'the bottom', (tester) async {
+      await _pump(tester);
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(WaveformRenderer)).height,
+        greaterThan(200),
+      );
+      final pitch = tester.getRect(
+        find.ancestor(
+          of: find.text('Tonhöhe'),
+          matching: find.byType(SettingsPanel),
+        ),
+      );
+      expect(pitch.bottom, closeTo(tester.view.physicalSize.height - 16, 1));
+    });
+
+    testWidgets('on a low screen the whole page scrolls instead', (
+      tester,
+    ) async {
+      await _pump(tester, height: 700, extraRegions: 12);
+      expect(tester.takeException(), isNull);
+      final lanes = find.byType(RegionLanes);
+      final scrollable = find.ancestor(
+        of: lanes,
+        matching: find.byType(SingleChildScrollView),
+      );
+      expect(
+        tester.getSize(scrollable.first).height,
+        greaterThanOrEqualTo(tester.getSize(lanes).height),
+      );
+    });
   });
 }

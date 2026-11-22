@@ -128,22 +128,15 @@ void main() {
     expect(intents.scrubEnds.single, greaterThan(10000));
   });
 
-  testWidgets('region mode draws an interval in two steps (UI-AC-08)', (
+  testWidgets('the toolbar creates a label or a region at the playhead', (
     tester,
   ) async {
     final intents = await pumpScene(tester);
-    await tester.tap(find.byTooltip('Region aufziehen'));
+    await tester.tap(find.byTooltip('Label hier setzen'));
+    await tester.tap(find.byTooltip('Region hier anlegen'));
     await tester.pump();
-    await tester.dragFrom(
-      waveformOrigin(tester) + const Offset(300, 60),
-      const Offset(200, 0),
-    );
-    await tester.pump();
-    expect(intents.drawn.length, 1);
-    final (start, end) = intents.drawn.single;
-    expect(start, lessThan(end));
-    expect(intents.seeks, isEmpty);
-    expect(viewState(tester).drawingRegion, isFalse);
+    expect(intents.labelsSet, 1);
+    expect(intents.regionsSet, 1);
   });
 
   testWidgets('a narrow screen shows two lanes and "all regions" (UI-AC-09)', (

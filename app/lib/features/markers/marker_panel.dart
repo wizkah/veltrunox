@@ -14,6 +14,8 @@ import 'marker_texts.dart';
 /// The markers of a recording as one chronological list with a filter, a play
 /// button per row, and the forms to add a region and to change or delete a
 /// marker. Playing is done by the caller ([onPlay]); the panel knows no player.
+/// Given a bounded height, the list scrolls inside it and the rest stays in
+/// place.
 class MarkerPanel extends ConsumerWidget {
   const MarkerPanel({
     required this.recordingId,
@@ -41,9 +43,35 @@ class MarkerPanel extends ConsumerWidget {
       controller: ref.read(markerControllerProvider(recordingId)),
       lengthMs: lengthMs,
     );
+    return LayoutBuilder(
+      builder: (context, constraints) => _panel(
+        context,
+        ref,
+        flows,
+        markers,
+        filter,
+        scrolling: constraints.hasBoundedHeight,
+      ),
+    );
+  }
+
+  Widget _panel(
+    BuildContext context,
+    WidgetRef ref,
+    MarkerFlows Function() flows,
+    AsyncValue<List<Marker>> markers,
+    MarkerFilter filter, {
+    required bool scrolling,
+  }) {
+    final content = markers.when(
+      data: (all) => _list(all, filter, flows),
+      loading: _loading,
+      error: (_, _) =>
+          _failure(() => ref.invalidate(markersProvider(recordingId))),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: scrolling ? MainAxisSize.max : MainAxisSize.min,
       children: [
         Text(MarkerTexts.title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: AppSpace.s3),
@@ -63,12 +91,10 @@ class MarkerPanel extends ConsumerWidget {
           onSelected: ref.read(markerFilterProvider.notifier).select,
         ),
         const SizedBox(height: AppSpace.s2),
-        markers.when(
-          data: (all) => _list(all, filter, flows),
-          loading: _loading,
-          error: (_, _) =>
-              _failure(() => ref.invalidate(markersProvider(recordingId))),
-        ),
+        if (scrolling)
+          Expanded(child: SingleChildScrollView(child: content))
+        else
+          content,
       ],
     );
   }

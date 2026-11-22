@@ -10,7 +10,8 @@ const volumeSliderKey = ValueKey('volume-slider');
 
 /// The output volume of the server. Everyone sees the change at once, so the
 /// slider reports while it is dragged, not only when it is let go. It lies
-/// flat in a row or, with [vertical], stands with the maximum at the top.
+/// flat in a row or, with [vertical], stands with the maximum at the top and
+/// takes the height it is given.
 class VolumeControl extends StatefulWidget {
   const VolumeControl({
     required this.percent,
@@ -72,14 +73,15 @@ class _VolumeControlState extends State<VolumeControl> {
     if (widget.vertical) {
       return PanelSurface(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             icon,
             const Text(PlayerTexts.volume),
             const SizedBox(height: AppSpace.s2),
-            SizedBox(
-              height: _sliderLength,
-              child: RotatedBox(quarterTurns: 3, child: _slider(shown)),
+            Expanded(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: _sliderLength),
+                child: RotatedBox(quarterTurns: 3, child: _slider(shown)),
+              ),
             ),
             value,
           ],

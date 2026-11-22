@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -9,7 +11,6 @@ import 'label_group_dialog.dart';
 import 'playhead.dart';
 import 'region_lane_layout.dart';
 import 'region_lanes.dart';
-import 'snap_targets.dart';
 import 'time_viewport.dart';
 import 'timeline_ruler.dart';
 import 'waveform_data.dart';
@@ -22,7 +23,8 @@ import 'waveform_view_controller.dart';
 
 /// The waveform with ruler, labels, playhead and region lanes. It composes the
 /// layers and turns what the user does into intents; it neither knows where
-/// the data comes from nor how an intent is carried out.
+/// the data comes from nor how an intent is carried out. Given a bounded
+/// height, the regions scroll inside what the other layers leave.
 class WaveformPanel extends ConsumerWidget {
   const WaveformPanel({
     required this.recordingId,
@@ -35,7 +37,8 @@ class WaveformPanel extends ConsumerWidget {
     required this.onSeek,
     required this.onScrub,
     required this.onScrubEnd,
-    required this.onRegionDrawn,
+    required this.onSetLabel,
+    required this.onSetRegion,
     required this.onRegionResized,
     required this.onMarkerContext,
     super.key,
@@ -57,7 +60,10 @@ class WaveformPanel extends ConsumerWidget {
   final ValueChanged<int> onSeek;
   final ValueChanged<int> onScrub;
   final ValueChanged<int> onScrubEnd;
-  final void Function(int startMs, int endMs) onRegionDrawn;
+
+  /// Create a label or a region at the playhead.
+  final VoidCallback onSetLabel;
+  final VoidCallback onSetRegion;
   final void Function(RegionMarker region, int startMs, int endMs)
   onRegionResized;
   final ValueChanged<Marker> onMarkerContext;
@@ -66,39 +72,53 @@ class WaveformPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final view = ref.watch(waveformViewProvider(recordingId));
     final controller = ref.read(waveformViewProvider(recordingId).notifier);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        WaveformToolbar(
-          snapEnabled: view.snapEnabled,
-          drawingRegion: view.drawingRegion,
-          onZoomIn: () => controller.zoomByButton(2, playheadMs: positionMs),
-          onZoomOut: () => controller.zoomByButton(0.5, playheadMs: positionMs),
-          onFit: controller.fit,
-          onToggleSnap: controller.toggleSnap,
-          onToggleDrawRegion: controller.toggleDrawingRegion,
-        ),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final width = constraints.maxWidth;
-            WidgetsBinding.instance.addPostFrameCallback(
-              (_) => controller.resize(durationMs: durationMs, widthPx: width),
-            );
-            final viewport =
-                view.viewport ??
-                TimeViewport.fit(durationMs: durationMs, widthPx: width);
-            return _Layers(
-              viewport: viewport,
-              view: view,
-              narrow: width < AppBreakpoint.tabletMin,
-              panel: this,
-              controller: controller,
-            );
-          },
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, bounds) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _toolbar(view, controller),
+          if (bounds.hasBoundedHeight)
+            Flexible(child: _layers(view, controller))
+          else
+            _layers(view, controller),
+        ],
+      ),
     );
   }
+
+  Widget _toolbar(WaveformViewState view, WaveformViewController controller) =>
+      WaveformToolbar(
+        snapEnabled: view.snapEnabled,
+        onZoomIn: () => controller.zoomByButton(2, playheadMs: positionMs),
+        onZoomOut: () => controller.zoomByButton(0.5, playheadMs: positionMs),
+        onFit: controller.fit,
+        onToggleSnap: controller.toggleSnap,
+        onSetLabel: onSetLabel,
+        onSetRegion: onSetRegion,
+      );
+
+  Widget _layers(WaveformViewState view, WaveformViewController controller) =>
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => controller.resize(durationMs: durationMs, widthPx: width),
+          );
+          final viewport =
+              view.viewport ??
+              TimeViewport.fit(durationMs: durationMs, widthPx: width);
+          return _Layers(
+            viewport: viewport,
+            view: view,
+            narrow: width < AppBreakpoint.tabletMin,
+            maxHeight: constraints.hasBoundedHeight
+                ? constraints.maxHeight
+                : null,
+            panel: this,
+            controller: controller,
+          );
+        },
+      );
 }
 
 class _Layers extends StatefulWidget {
@@ -106,6 +126,7 @@ class _Layers extends StatefulWidget {
     required this.viewport,
     required this.view,
     required this.narrow,
+    required this.maxHeight,
     required this.panel,
     required this.controller,
   });
@@ -113,6 +134,9 @@ class _Layers extends StatefulWidget {
   final TimeViewport viewport;
   final WaveformViewState view;
   final bool narrow;
+
+  /// The height the layers may take; `null` lets them take their own.
+  final double? maxHeight;
   final WaveformPanel panel;
   final WaveformViewController controller;
 
@@ -124,6 +148,9 @@ class _LayersState extends State<_Layers> {
   /// Where the playhead is while the user moves it, before the server has
   /// confirmed; `null` while it shows the shared position.
   double? _scrubMs;
+
+  /// Room kept for the button that shows all regions on a narrow screen.
+  static const _collapseButtonHeight = 48.0;
 
   WaveformPanel get _panel => widget.panel;
 
@@ -150,6 +177,14 @@ class _LayersState extends State<_Layers> {
     if (chosen != null) _panel.onPlayFrom(chosen.positionMs);
   }
 
+  /// The regions in a window of [height] that scrolls them, or as they are.
+  Widget _scrollIf(bool scrolling, double height, Widget lanes) => scrolling
+      ? SizedBox(
+          height: height,
+          child: SingleChildScrollView(child: lanes),
+        )
+      : lanes;
+
   @override
   Widget build(BuildContext context) {
     final viewport = widget.viewport;
@@ -169,11 +204,32 @@ class _LayersState extends State<_Layers> {
         WaveformGeometry.timeRowHeight +
         WaveformGeometry.rulerHeight +
         WaveformGeometry.labelBandHeight;
-    final topHeight = waveformTop + WaveformGeometry.waveformHeight;
-    final totalHeight = topHeight + WaveformGeometry.lanesHeight(shownLanes);
-    final snapTargets = view.snapEnabled
-        ? SnapTargets.from(_panel.markers)
-        : null;
+    final lanesHeight = WaveformGeometry.lanesHeight(shownLanes);
+    final room = widget.maxHeight == null
+        ? null
+        : widget.maxHeight! - (collapsible ? _collapseButtonHeight : 0);
+    // In a given height the regions take what they need and the waveform the
+    // rest, so it grows while there are few regions. When that is too little
+    // for the regions they scroll; at least one lane stays in view, even if
+    // the waveform has to shrink for it.
+    final oneLane = math.min(lanesHeight, WaveformGeometry.lanesHeight(1));
+    final shownLanesHeight = room == null
+        ? lanesHeight
+        : math.min(
+            lanesHeight,
+            math.max(
+              room - waveformTop - WaveformGeometry.waveformHeight,
+              oneLane,
+            ),
+          );
+    final waveformHeight = room == null
+        ? WaveformGeometry.waveformHeight
+        : math.max(
+            WaveformGeometry.waveformMinHeight,
+            room - waveformTop - shownLanesHeight,
+          );
+    final totalHeight = waveformTop + waveformHeight + shownLanesHeight;
+    final scrolling = shownLanesHeight < lanesHeight;
     final shownMs = _scrubMs ?? _panel.positionMs.toDouble();
 
     return Column(
@@ -202,37 +258,36 @@ class _LayersState extends State<_Layers> {
                   ),
                   WaveformGestureLayer(
                     viewport: viewport,
-                    drawingRegion: view.drawingRegion,
-                    snapTargets: snapTargets,
                     onTapAt: (ms) {
                       controller.selectRegion(null);
                       _panel.onSeek(ms.clamp(0, _panel.durationMs));
                     },
                     onPan: controller.panByPixels,
                     onZoom: controller.zoomAt,
-                    onRegionDrawn: (start, end) {
-                      controller.endDrawingRegion();
-                      _panel.onRegionDrawn(start, end);
-                    },
                     child: WaveformRenderer(
                       data: _panel.data,
                       viewport: viewport,
+                      height: waveformHeight,
                     ),
                   ),
-                  RegionLanes(
-                    regions: regions,
-                    markers: _panel.markers,
-                    viewport: viewport,
-                    selectedId: view.selectedRegionId,
-                    maxLanes: maxLanes,
-                    snapEnabled: view.snapEnabled,
-                    onPlay: _panel.onPlayRegion,
-                    onSelect: (region) => controller.selectRegion(
-                      region.id == view.selectedRegionId ? null : region.id,
+                  _scrollIf(
+                    scrolling,
+                    shownLanesHeight,
+                    RegionLanes(
+                      regions: regions,
+                      markers: _panel.markers,
+                      viewport: viewport,
+                      selectedId: view.selectedRegionId,
+                      maxLanes: maxLanes,
+                      snapEnabled: view.snapEnabled,
+                      onPlay: _panel.onPlayRegion,
+                      onSelect: (region) => controller.selectRegion(
+                        region.id == view.selectedRegionId ? null : region.id,
+                      ),
+                      onContext: _panel.onMarkerContext,
+                      onResized: _panel.onRegionResized,
+                      onDeselect: () => controller.selectRegion(null),
                     ),
-                    onContext: _panel.onMarkerContext,
-                    onResized: _panel.onRegionResized,
-                    onDeselect: () => controller.selectRegion(null),
                   ),
                 ],
               ),
@@ -241,7 +296,7 @@ class _LayersState extends State<_Layers> {
                 viewport: viewport,
                 height: totalHeight,
                 hitTop: waveformTop,
-                hitHeight: WaveformGeometry.waveformHeight,
+                hitHeight: waveformHeight,
                 dragging: _scrubMs != null,
                 onDragStart: () =>
                     setState(() => _scrubMs = _panel.positionMs.toDouble()),
