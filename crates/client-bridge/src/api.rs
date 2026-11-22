@@ -528,6 +528,10 @@ pub enum SessionUpdate {
     Rights {
         rights: RightsInfo,
     },
+    /// Whether the server has an audio device; without one it plays nothing.
+    AudioOutput {
+        available: bool,
+    },
 }
 
 /// What the user asks the shared player to do.
@@ -642,8 +646,9 @@ fn forward(event: ServerEvent, updates: &StreamSink<SessionUpdate>) {
         ViewChange::Rights(rights) => Some(SessionUpdate::Rights {
             rights: RightsInfo::from(&rights),
         }),
-        // Not shown yet: the interface needs a place for it first (GUI work).
-        ViewChange::AudioOutput => None,
+        ViewChange::AudioOutput => view
+            .audio_output()
+            .map(|available| SessionUpdate::AudioOutput { available }),
     };
     if let Some(update) = update {
         let _ = updates.add(update);

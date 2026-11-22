@@ -179,7 +179,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('speed must be between 0.5 and 2.0'), findsOneWidget);
+    expect(
+      find.text('Die Geschwindigkeit muss zwischen 0,5 und 2,0 liegen.'),
+      findsOneWidget,
+    );
   });
 
   group('with an analysis', () {

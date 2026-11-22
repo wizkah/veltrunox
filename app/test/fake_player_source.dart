@@ -20,6 +20,11 @@ class FakePlayerSource implements PlayerSource {
   @override
   Stream<String> rejections() => refusals.stream;
 
+  final audioOutputs = StreamController<bool>.broadcast();
+
+  @override
+  Stream<bool> audioOutput() => audioOutputs.stream;
+
   @override
   Future<int?> position() async => currentPosition;
 

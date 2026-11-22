@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../shared_ui/server_reason.dart';
 import 'audio_file_picker.dart';
 import 'library_controller.dart';
 import 'recording_source.dart';
@@ -32,7 +33,10 @@ class UploadController extends Notifier<UploadState> {
       state = UploadDone(title: uploaded.title, existing: uploaded.existing);
       await ref.read(libraryProvider.notifier).refresh();
     } on RecordingActionException catch (error) {
-      state = UploadFailed(fileName: picked.name, reason: error.message);
+      state = UploadFailed(
+        fileName: picked.name,
+        reason: serverReasonText(error.message),
+      );
     } on Object catch (error) {
       state = UploadFailed(fileName: picked.name, reason: '$error');
     }

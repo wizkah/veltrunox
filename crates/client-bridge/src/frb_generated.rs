@@ -2033,6 +2033,12 @@ impl SseDecode for crate::api::SessionUpdate {
                 let mut var_rights = <crate::api::RightsInfo>::sse_decode(deserializer);
                 return crate::api::SessionUpdate::Rights { rights: var_rights };
             }
+            6 => {
+                let mut var_available = <bool>::sse_decode(deserializer);
+                return crate::api::SessionUpdate::AudioOutput {
+                    available: var_available,
+                };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -2570,6 +2576,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::SessionUpdate {
             }
             crate::api::SessionUpdate::Rights { rights } => {
                 [5.into_dart(), rights.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::SessionUpdate::AudioOutput { available } => {
+                [6.into_dart(), available.into_into_dart().into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -3163,6 +3172,10 @@ impl SseEncode for crate::api::SessionUpdate {
             crate::api::SessionUpdate::Rights { rights } => {
                 <i32>::sse_encode(5, serializer);
                 <crate::api::RightsInfo>::sse_encode(rights, serializer);
+            }
+            crate::api::SessionUpdate::AudioOutput { available } => {
+                <i32>::sse_encode(6, serializer);
+                <bool>::sse_encode(available, serializer);
             }
             _ => {
                 unimplemented!("");

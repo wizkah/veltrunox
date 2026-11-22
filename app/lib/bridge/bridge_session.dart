@@ -18,6 +18,8 @@ class BridgeSession {
   final _connections = StreamController<ConnectionStatus>.broadcast();
   final _players = StreamController<PlayerState>.broadcast();
   final _rejections = StreamController<String>.broadcast();
+  final _audioOutputs = StreamController<bool>.broadcast();
+  bool? _audioOutput;
   final _analysisChanges = StreamController<int>.broadcast();
   final _bookmarkChanges = StreamController<int>.broadcast();
 
@@ -35,6 +37,13 @@ class BridgeSession {
 
   Stream<String> rejections() => _rejections.stream;
 
+  /// Whether the server has an audio device; nothing until it tells.
+  Stream<bool> audioOutput() async* {
+    final latest = _audioOutput;
+    if (latest != null) yield latest;
+    yield* _audioOutputs.stream;
+  }
+
   /// Ids of recordings whose analysis changed on the server.
   Stream<int> analysisChanges() => _analysisChanges.stream;
 
@@ -51,6 +60,7 @@ class BridgeSession {
     await _subscription?.cancel();
     _connection = null;
     _player = null;
+    _audioOutput = null;
     _subscription = _open();
   }
 
@@ -63,6 +73,7 @@ class BridgeSession {
     if (subscription != null) unawaited(subscription.cancel());
     _connection = null;
     _player = null;
+    _audioOutput = null;
   }
 
   StreamSubscription<rust.SessionUpdate> _open() =>
@@ -82,6 +93,7 @@ class BridgeSession {
     await _connections.close();
     await _players.close();
     await _rejections.close();
+    await _audioOutputs.close();
     await _analysisChanges.close();
     await _bookmarkChanges.close();
   }
@@ -100,8 +112,11 @@ class BridgeSession {
       case rust.SessionUpdate_BookmarksChanged(:final recordingId):
         _bookmarkChanges.add(recordingId.toInt());
       case rust.SessionUpdate_Rights():
-        // The interface shows sign-in and rights in a later step.
+        // Rights come from the sign-in; the channel repeats them.
         break;
+      case rust.SessionUpdate_AudioOutput(:final available):
+        _audioOutput = available;
+        _audioOutputs.add(available);
     }
   }
 

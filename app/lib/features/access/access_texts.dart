@@ -1,3 +1,4 @@
+import '../../shared_ui/server_reason.dart';
 import 'access_models.dart';
 
 /// User-visible texts of the sign-in (German for now).
@@ -45,6 +46,9 @@ abstract final class AccessTexts {
     PasswordProblem.noSpecial => 'Es fehlt ein Sonderzeichen.',
   };
 
+  /// What the server says when a channel has no valid sign-in.
+  static const signInRequiredReason = 'sign-in required';
+
   static String signedInAs(String name) => 'Angemeldet als $name';
 
   /// A short, understandable explanation of a failure.
@@ -53,7 +57,8 @@ abstract final class AccessTexts {
     NotAllowed() => 'Dafür fehlt die Berechtigung.',
     TooManyAttempts(:final retryAfterSeconds) =>
       'Zu viele Fehlversuche. Bitte in $retryAfterSeconds s erneut versuchen.',
-    Refused(:final reason) => reason,
+    Refused(:final reason) => serverReasonText(reason),
+    SessionExpired() => 'Die Anmeldung ist abgelaufen. Bitte erneut anmelden.',
     Unavailable() => 'Der Server ist nicht erreichbar.',
   };
 }

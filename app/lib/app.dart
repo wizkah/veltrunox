@@ -8,7 +8,11 @@ import 'composition/player_page.dart';
 import 'design/theme/app_theme.dart';
 import 'features/connection/connection_banner.dart';
 import 'composition/shell_status.dart';
+import 'features/access/access_controller.dart';
 import 'features/access/access_gate.dart';
+import 'features/access/access_texts.dart';
+import 'features/player/audio_output_banner.dart';
+import 'features/player/player_controller.dart';
 import 'features/player/player_notices.dart';
 
 class VeltrunoxApp extends StatelessWidget {
@@ -29,6 +33,11 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final destination = ref.watch(shellDestinationProvider);
+    ref.listen(playerRejectionProvider, (_, rejection) {
+      if (rejection.value == AccessTexts.signInRequiredReason) {
+        ref.read(accessControllerProvider.notifier).sessionExpired();
+      }
+    });
     return PlayerNotices(
       child: AppShell(
         destination: destination,
@@ -37,6 +46,7 @@ class HomePage extends ConsumerWidget {
         body: Column(
           children: [
             const ConnectionBanner(),
+            const AudioOutputBanner(),
             Expanded(
               child: switch (destination) {
                 ShellDestination.library => const LibraryPage(),

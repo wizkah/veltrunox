@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../shared_ui/server_reason.dart';
 import '../../shared_ui/toast_notice.dart';
 import 'player_controller.dart';
 import 'player_texts.dart';
@@ -19,7 +20,11 @@ class PlayerNotices extends ConsumerWidget {
     ref.listen(playerRejectionProvider, (_, rejection) {
       final reason = rejection.value;
       if (reason != null) {
-        ToastNotice.show(context, kind: ToastKind.error, message: reason);
+        ToastNotice.show(
+          context,
+          kind: ToastKind.error,
+          message: serverReasonText(reason),
+        );
       }
     });
     ref.listen(playerStateProvider, (_, next) {

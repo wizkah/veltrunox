@@ -106,6 +106,19 @@ class AccessController extends Notifier<AccessState> {
     if (ref.mounted) await start();
   }
 
+  /// The server no longer accepts this sign-in: forget it and ask again.
+  Future<void> sessionExpired() async {
+    if (state is! AccessSignedIn) return;
+    await signOut();
+    if (!ref.mounted) return;
+    if (state case AccessSignedOut(:final guestEnabled)) {
+      state = AccessSignedOut(
+        guestEnabled: guestEnabled,
+        failure: const SessionExpired(),
+      );
+    }
+  }
+
   bool get _guestEnabled => switch (state) {
     AccessSignedOut(:final guestEnabled) => guestEnabled,
     _ => false,

@@ -249,7 +249,10 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Anlegen'));
     await tester.pumpAndSettle();
 
-    expect(find.text('a user with this name exists already'), findsOneWidget);
+    expect(
+      find.text('Ein Benutzer mit diesem Namen gibt es schon.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('deleting asks first and names the user', (tester) async {
@@ -274,6 +277,9 @@ void main() {
     await tester.tap(find.byType(Switch).at(1));
     await tester.pumpAndSettle();
 
-    expect(find.text('at least one active admin must remain'), findsOneWidget);
+    expect(
+      find.text('Mindestens ein aktiver Admin muss bleiben.'),
+      findsOneWidget,
+    );
   });
 }

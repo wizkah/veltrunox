@@ -1909,6 +1909,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return SessionUpdate_Rights(
           rights: dco_decode_box_autoadd_rights_info(raw[1]),
         );
+      case 6:
+        return SessionUpdate_AudioOutput(available: dco_decode_bool(raw[1]));
       default:
         throw Exception("unreachable");
     }
@@ -2538,6 +2540,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 5:
         var var_rights = sse_decode_box_autoadd_rights_info(deserializer);
         return SessionUpdate_Rights(rights: var_rights);
+      case 6:
+        var var_available = sse_decode_bool(deserializer);
+        return SessionUpdate_AudioOutput(available: var_available);
       default:
         throw UnimplementedError('');
     }
@@ -3126,6 +3131,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case SessionUpdate_Rights(rights: final rights):
         sse_encode_i_32(5, serializer);
         sse_encode_box_autoadd_rights_info(rights, serializer);
+      case SessionUpdate_AudioOutput(available: final available):
+        sse_encode_i_32(6, serializer);
+        sse_encode_bool(available, serializer);
     }
   }
 

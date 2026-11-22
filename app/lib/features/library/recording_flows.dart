@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../shared_ui/confirm_dialog.dart';
+import '../../shared_ui/server_reason.dart';
 import '../../shared_ui/toast_notice.dart';
 import 'library_controller.dart';
 import 'library_query_controller.dart';
@@ -55,7 +56,7 @@ Future<bool> _guarded(
     await action();
     return true;
   } on RecordingActionException catch (error) {
-    reason = error.message;
+    reason = serverReasonText(error.message);
   } on Object catch (error) {
     reason = '$error';
   }

@@ -117,7 +117,7 @@ mod tests {
         let cache = Mutex::new(WaveformCache::default());
         let fetches = Cell::new(0);
         let id = RecordingId::new(5);
-        let mut fetch = || {
+        let fetch = || {
             let _: Result<_, ()> = block_on(cached_waveform(&cache, id, async || {
                 fetches.set(fetches.get() + 1);
                 Ok(sample())

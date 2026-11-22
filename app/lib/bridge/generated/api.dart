@@ -748,6 +748,10 @@ sealed class SessionUpdate with _$SessionUpdate {
   /// The server accepted the sign-in of the channel; these are the rights of this client.
   const factory SessionUpdate.rights({required RightsInfo rights}) =
       SessionUpdate_Rights;
+
+  /// Whether the server has an audio device; without one it plays nothing.
+  const factory SessionUpdate.audioOutput({required bool available}) =
+      SessionUpdate_AudioOutput;
 }
 
 /// A completed sign-in. Keep `token` (for example in browser storage) to resume it with

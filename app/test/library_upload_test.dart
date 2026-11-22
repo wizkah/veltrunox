@@ -292,7 +292,10 @@ void main() {
     await tester.tap(find.text('Speichern'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Das ist nicht gelungen: not allowed'), findsOneWidget);
+    expect(
+      find.text('Das ist nicht gelungen: Dafür fehlt die Berechtigung.'),
+      findsOneWidget,
+    );
     expect(source.titles[1], 'Soundcheck');
   });
 }

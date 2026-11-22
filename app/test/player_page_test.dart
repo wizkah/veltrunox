@@ -181,6 +181,36 @@ void main() {
     expect(app.player.calls, ['playRegion 10000 67000']);
   });
 
+  testWidgets('without an audio device on the server the page says so', (
+    tester,
+  ) async {
+    final app = await _pump(tester);
+    expect(find.textContaining('kein Audiogerät'), findsNothing);
+
+    app.player.audioOutputs.add(false);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('kein Audiogerät'), findsOneWidget);
+
+    app.player.audioOutputs.add(true);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('kein Audiogerät'), findsNothing);
+  });
+
+  testWidgets('a channel the server no longer lets in asks to sign in again', (
+    tester,
+  ) async {
+    final app = await _pump(tester);
+
+    app.player.refusals.add('sign-in required');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Benutzername'), findsOneWidget);
+    expect(
+      find.text('Die Anmeldung ist abgelaufen. Bitte erneut anmelden.'),
+      findsOneWidget,
+    );
+  });
+
   group('play mode', () {
     testWidgets('shows the shared mode as text and cycles through the three', (
       tester,

@@ -1,5 +1,7 @@
 /// User-visible texts of the player feature (German for now).
 abstract final class PlayerTexts {
+  static const noAudioDevice =
+      'Der Server hat kein Audiogerät. Es ist nichts zu hören.';
   static const nothingSelected = 'Keine Aufnahme gewählt';
   static const play = 'Abspielen';
   static const pause = 'Pause';

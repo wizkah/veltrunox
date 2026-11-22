@@ -8,6 +8,10 @@ abstract interface class PlayerSource {
   /// Reasons why the server refused a command.
   Stream<String> rejections();
 
+  /// Whether the server has an audio device; without one it plays nothing.
+  /// Emits when the server tells, and again when that changes.
+  Stream<bool> audioOutput();
+
   /// The playback position now in milliseconds; `null` before the first state.
   Future<int?> position();
 

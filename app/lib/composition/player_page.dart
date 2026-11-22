@@ -7,6 +7,7 @@ import '../features/markers/marker_panel.dart';
 import '../features/markers/marker_sheet_button.dart';
 import '../features/player/player_controller.dart';
 import '../features/player/player_screen.dart';
+import '../features/waveform/waveform_view_controller.dart';
 import 'loaded_recording.dart';
 import 'player_waveform.dart';
 
@@ -37,12 +38,16 @@ class PlayerPage extends ConsumerWidget {
       recordingId: recordingId!,
       lengthMs: lengthMs,
       readPlayhead: ref.read(playerSourceProvider).position,
-      onPlay: (marker) => switch (marker) {
-        LabelMarker() => player.playFrom(marker.positionMs),
-        RegionMarker() => player.playRegion(
-          startMs: marker.startMs,
-          endMs: marker.endMs,
-        ),
+      onPlay: (marker) {
+        final view = ref.read(waveformViewProvider(recordingId).notifier);
+        switch (marker) {
+          case LabelMarker():
+            view.reveal(marker.positionMs, marker.positionMs);
+            player.playFrom(marker.positionMs);
+          case RegionMarker():
+            view.reveal(marker.startMs, marker.endMs);
+            player.playRegion(startMs: marker.startMs, endMs: marker.endMs);
+        }
       },
     );
     return PlayerScreen(

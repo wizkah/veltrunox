@@ -17,6 +17,9 @@ class BridgePlayerSource implements PlayerSource {
   Stream<String> rejections() => _session.rejections();
 
   @override
+  Stream<bool> audioOutput() => _session.audioOutput();
+
+  @override
   Future<int?> position() async => (await rust.playbackPositionMs())?.toInt();
 
   @override

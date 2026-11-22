@@ -73,6 +73,25 @@ void main() {
     expect(setup.tokens.token, isNull);
   });
 
+  testWidgets('a sign-in that ends during the session asks again', (
+    tester,
+  ) async {
+    final setup = await _pump(tester, savedToken: 'saved');
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('Drinnen')),
+    );
+
+    await container.read(accessControllerProvider.notifier).sessionExpired();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Drinnen'), findsNothing);
+    expect(
+      find.text('Die Anmeldung ist abgelaufen. Bitte erneut anmelden.'),
+      findsOneWidget,
+    );
+    expect(setup.tokens.token, isNull);
+  });
+
   testWidgets('signing in with the right password opens the app and keeps the '
       'token', (tester) async {
     final setup = await _pump(tester);

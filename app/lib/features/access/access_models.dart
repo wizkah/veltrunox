@@ -119,6 +119,12 @@ class Refused extends AccessFailure {
   final String reason;
 }
 
+/// The sign-in ended while the app was open (token revoked or expired, guest
+/// access switched off).
+class SessionExpired extends AccessFailure {
+  const SessionExpired();
+}
+
 /// The server cannot be reached or answered unexpectedly.
 class Unavailable extends AccessFailure {
   const Unavailable();

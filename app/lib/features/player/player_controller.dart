@@ -65,6 +65,11 @@ final playerRejectionProvider = StreamProvider<String>(
   (ref) => ref.watch(playerSourceProvider).rejections(),
 );
 
+/// Whether the server can play sound; `false` shows a notice.
+final audioOutputProvider = StreamProvider<bool>(
+  (ref) => ref.watch(playerSourceProvider).audioOutput(),
+);
+
 /// The length of a recording in milliseconds. It comes from the scan that also
 /// yields the analysis, so it is only asked for once the recording is `scanned`
 /// (no request that is bound to fail); `null` before.
