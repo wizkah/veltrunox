@@ -8,6 +8,7 @@ import 'player_texts.dart';
 import 'position_display.dart';
 import 'settings_controls.dart';
 import 'transport_controls.dart';
+import 'volume_control.dart';
 
 /// The shared player: what is playing, transport and settings.
 class PlayerBar extends ConsumerWidget {
@@ -56,6 +57,10 @@ class _LoadedPlayer extends ConsumerWidget {
           running: state.running,
           onTogglePlay: () => controller.togglePlay(running: state.running),
           onRestart: controller.restart,
+        ),
+        VolumeControl(
+          percent: state.volumePercent,
+          onChanged: controller.setVolume,
         ),
         SettingsControls(
           state: state,

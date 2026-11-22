@@ -47,6 +47,10 @@ class BridgePlayerSource implements PlayerSource {
       _send(rust.PlayerCommand.setKey(keyShiftSemitones: semitones));
 
   @override
+  Future<void> setVolume(int percent) =>
+      _send(rust.PlayerCommand.setVolume(volumePercent: percent));
+
+  @override
   Future<TargetTempo> speedForTargetTempo({
     required double targetBpm,
     required double recordingBpm,

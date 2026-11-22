@@ -2966,6 +2966,7 @@ dependencies = [
 name = "veltrunox-server-adapters"
 version = "0.0.0"
 dependencies = [
+ "alsa",
  "axum",
  "cpal",
  "ewebsock",

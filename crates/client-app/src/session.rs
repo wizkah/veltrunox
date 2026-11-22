@@ -189,7 +189,7 @@ impl ScrubThrottle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use veltrunox_core::{PlaybackSettings, PositionReference};
+    use veltrunox_core::{PlaybackSettings, PositionReference, Volume};
 
     fn ms(value: u64) -> Millis {
         Millis::new(value)
@@ -207,6 +207,7 @@ mod tests {
             settings: PlaybackSettings::default(),
             loop_range: None,
             scrubbing: false,
+            volume: Volume::default(),
         }
     }
 

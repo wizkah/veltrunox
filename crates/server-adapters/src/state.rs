@@ -2,6 +2,7 @@ use crate::analysis_worker::{AnalysisQueue, FileAnalyzer};
 use crate::hooks::{AudioHooks, LengthCache};
 use crate::hub::Hub;
 use std::sync::Arc;
+use veltrunox_core::{PlaybackState, Volume};
 use veltrunox_server_app::{
     AnalysisRepository, AnalysisService, BookmarkRepository, BookmarkService, Clock, MediaCatalog,
     PlaybackBroadcast, PlaybackService, RecordingRepository, WaveformRepository,
@@ -34,15 +35,18 @@ impl AppState {
         Self::build(
             store,
             clock,
+            Volume::default(),
             None::<fn(AudioHooks) -> Arc<dyn PlaybackBroadcast>>,
         )
     }
 
     /// Like `new`, and every published state also goes to the audio playback,
     /// which `start_audio` creates from the hooks it reports back through.
+    /// `volume` is what the audio device has when the server starts.
     pub fn with_audio<S>(
         store: Arc<S>,
         clock: Arc<dyn Clock>,
+        volume: Volume,
         start_audio: impl FnOnce(AudioHooks) -> Arc<dyn PlaybackBroadcast>,
     ) -> Self
     where
@@ -53,12 +57,13 @@ impl AppState {
             + MediaCatalog
             + 'static,
     {
-        Self::build(store, clock, Some(start_audio))
+        Self::build(store, clock, volume, Some(start_audio))
     }
 
     fn build<S>(
         store: Arc<S>,
         clock: Arc<dyn Clock>,
+        volume: Volume,
         start_audio: Option<impl FnOnce(AudioHooks) -> Arc<dyn PlaybackBroadcast>>,
     ) -> Self
     where
@@ -70,9 +75,11 @@ impl AppState {
             + 'static,
     {
         let lengths = Arc::new(LengthCache::new(store.clone()));
-        let hub = Arc::new(Hub::new(veltrunox_core::PlaybackState::initial(
-            clock.now(),
-        )));
+        let initial = PlaybackState {
+            volume,
+            ..PlaybackState::initial(clock.now())
+        };
+        let hub = Arc::new(Hub::new(initial));
         let broadcast: Arc<dyn PlaybackBroadcast> = match start_audio {
             Some(start) => {
                 let audio = start(AudioHooks {
@@ -85,6 +92,7 @@ impl AppState {
         };
         let broadcast_for_analysis = broadcast.clone();
         let playback = Arc::new(PlaybackService::new(
+            initial,
             store.clone(),
             lengths,
             clock.clone(),

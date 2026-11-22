@@ -146,3 +146,44 @@ Limits:
 
 - The waveform was not compared with a real rehearsal recording or drawn; the first consumer is the timeline control. Size and scan time on real files and on the Pi are not measured.
 - The length comes from the decoded sample count, not from the container; for lossy formats it can differ from the player's value by the codec delay.
+
+## Release package and scan on the Raspberry Pi (2026-11-22)
+
+Environment: Raspberry Pi 4 Model B (4 GB), Debian 12, kernel 6.12.47, no throttling before and after (`get_throttled` 0x0), 45 °C. Package from `scripts/build-release.sh pi` (cross-built on the Mac), installed with `install.sh` as the `veltrunox` systemd service; configuration: `0.0.0.0:8080`, headphone device, import directory with the six real bounces (MP3, 73–268 s). Client for the timings below: the Mac over the home network.
+
+| Check | Result |
+|---|---|
+| Fresh install: service starts, imports six files, opens the audio output (48 000 Hz), serves the web app (HTTP 200) | Pass |
+| All six bounces analysed after the first start (within about 40 s of the restart), results equal to the Mac values in kind (e.g. *Message in a Bottle* C♯ minor, 148 bpm; *Stacy's Mom* E major, 122 bpm) | Pass (manual, once) |
+| Repeated scan of two files (268 s MP3 and a similar one), start to "done": 6.6 s and 6.2 s; process memory peaked at about 190 MB (about 35–55 MB otherwise; sampled every 0.25 s) | Measured, two runs |
+| Waveform of the 268 s file: 7 levels, finest 12 550 blocks (25 100 B), coarsest 197 blocks (394 B) | Measured |
+| Web app from the Mac: `main.dart.js` 0.8 MB compressed in 0.74 s, index 0.23 s | Measured, once |
+| Idle load of the service after the scans | about 0 % CPU (`top`) |
+
+Limits:
+
+- Nothing was listened to; sound, scrubbing and loop on the Pi are not judged here. Latency to the audible tone is not measured (needs a loopback).
+- Scan time and memory come from two runs on one file type; a scan next to playback, several clients and a browser on the Pi were not combined. The scan time includes the decode and the analysis, so the two are not separated.
+- Web app timing was taken from a Mac over the network, not from a phone or from the Pi's own browser.
+
+## Output volume and pause alignment (2026-11-22)
+
+Environment: macOS (Apple silicon), debug build, native tests; Raspberry Pi 4 Model B (Debian 12), release build cross-built on the Mac, card `Headphones` (mixer control `PCM`, range −102.39 to +4.00 dB). The Pi checks used a small script as the client (WebSocket on the Pi itself), no browser and no listening.
+
+| Check | Result |
+|---|---|
+| Unit tests: volume limits (0–100, 101 refused), volume changes without a recording and survives selecting, wire format and round trip, a volume command is validated in the client core, the service publishes a volume change without storing it with a recording | Pass |
+| Unit tests of the mapping: percent to millibel and back for 0, 1, 25, 50, 99, 100; a 100 dB range is cut to 60 dB; card name from the device name; engine gain 0 at 0 %, 1 at 100 % | Pass |
+| Unit tests of the player core: a volume change reaches the output also without a recording, also the first one after start-up; an unchanged volume sends nothing; pause puts the engine on the frozen position, play afterwards sends no seek | Pass |
+| Gain ramp of the render thread: steady, moving and unity gain | Pass (unit tests) |
+| Flutter widget tests: the slider shows the shared volume, a drag sends commands; throttle passes the first and the latest value and nothing after dispose; time until the next tenth at speed 1 and 2 | Pass |
+| Pi, real mixer, one client: the state at start-up carries the mixer's value (−19.88 dB shown as 60 %); setting 30 / 100 / 0 / 60 % is broadcast to the client and read back on the mixer as −38.00 dB / +4.00 dB / minimum / −20.00 dB; 101 is refused with a message | Pass (manual, once) |
+| Pi, real browser: two browser windows on the web app; the volume slider works and a change shows in the other window (reported by the user, not measured) | Pass (manual, once) |
+
+Limits:
+
+- The fallback gain on a device without a mixer was tested only as the gain ramp and the mapping; it was not listened to, and no second client watched the Pi's mixer value beyond the two browser windows above.
+- Whether the slider steps feel even to the ear (the 60 dB span, the squared fallback curve) is not judged. Nothing was listened to.
+- The pause alignment is checked at the level of the commands sent to the engine; whether repeated pausing no longer shifts the sound was not measured on the Pi.
+- The evenness of the displayed tenths is derived from the new timing, not measured in a browser. The position is still read through the bridge call, so a slow call would still show.
+- A volume changed outside the server (for example with `alsamixer`) is not noticed until the next change through the server.

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'player_source.dart';
 import 'player_state.dart';
+import 'position_display.dart';
 import 'target_tempo.dart';
 
 /// Supplies the [PlayerSource]; overridden at the application root.
@@ -14,20 +17,46 @@ final playerStateProvider = StreamProvider<PlayerState>(
   (ref) => ref.watch(playerSourceProvider).watchState(),
 );
 
-/// The playback position, refreshed while a recording is loaded.
-final playerPositionProvider = StreamProvider<int?>((ref) async* {
+/// The playback position, read again exactly when the displayed tenth changes
+/// while playing (a fixed poll would show the tenths unevenly); while paused it
+/// is read at intervals to follow a jump.
+final playerPositionProvider = StreamProvider<int?>((ref) {
   final source = ref.watch(playerSourceProvider);
-  final recording = ref.watch(
-    playerStateProvider.select((state) => state.value?.recordingId),
+  // Only what changes the timing; a changed volume must not restart the reading.
+  final (recording, running, speed) = ref.watch(
+    playerStateProvider.select(
+      (state) => (
+        state.value?.recordingId,
+        state.value?.running ?? false,
+        state.value?.speed ?? 1.0,
+      ),
+    ),
   );
+  final controller = StreamController<int?>();
   if (recording == null) {
-    yield null;
-    return;
+    controller.add(null);
+    ref.onDispose(controller.close);
+    return controller.stream;
   }
-  yield await source.position();
-  // `yield*` hands cancellation straight to the timer when the provider is disposed.
-  yield* Stream<void>.periodic(const Duration(milliseconds: 100))
-      .asyncMap((_) => source.position());
+  Timer? timer;
+  var disposed = false;
+  Future<void> read() async {
+    final position = await source.position();
+    if (disposed) return;
+    controller.add(position);
+    final wait = running && position != null
+        ? untilNextTenth(position, speed)
+        : const Duration(milliseconds: 100);
+    timer = Timer(wait, read);
+  }
+
+  unawaited(read());
+  ref.onDispose(() {
+    disposed = true;
+    timer?.cancel();
+    unawaited(controller.close());
+  });
+  return controller.stream;
 });
 
 /// Refusals of the server, for display.
@@ -52,6 +81,7 @@ class PlayerController {
   Future<void> setSpeed(double speed) => _source.setSpeed(speed);
   Future<void> setTuning(double hertz) => _source.setTuning(hertz);
   Future<void> setKey(int semitones) => _source.setKey(semitones);
+  Future<void> setVolume(int percent) => _source.setVolume(percent);
 
   /// Sets the speed that plays the recording at `targetBpm`. `false` if that
   /// speed is outside the supported range or the tempo is not usable.

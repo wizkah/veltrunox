@@ -4,7 +4,7 @@ use crate::ports::{Clock, PlaybackBroadcast, RecordingLengths, RecordingReposito
 use std::sync::{Arc, Mutex, PoisonError};
 use veltrunox_core::{
     Intent, Millis, PlaybackState, TransportError, end_playback, pause, play, seek,
-    select_recording, set_key, set_loop, set_speed, set_tuning,
+    select_recording, set_key, set_loop, set_speed, set_tuning, set_volume,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -30,13 +30,14 @@ pub struct PlaybackService {
 }
 
 impl PlaybackService {
+    /// Starts from `initial`, the state clients already know (see `PlaybackState::initial`).
     pub fn new(
+        initial: PlaybackState,
         recordings: Arc<dyn RecordingRepository>,
         lengths: Arc<dyn RecordingLengths>,
         clock: Arc<dyn Clock>,
         broadcast: Arc<dyn PlaybackBroadcast>,
     ) -> Self {
-        let initial = PlaybackState::initial(clock.now());
         Self {
             state: Mutex::new(initial),
             recordings,
@@ -116,6 +117,7 @@ impl PlaybackService {
                 self.check_position(state, position)?;
                 seek(state, position, scrubbing, now)?
             }
+            Intent::SetVolume(volume) => set_volume(state, volume),
             Intent::SetSpeed(speed) => set_speed(state, speed, now)?,
             Intent::SetTuning(tuning) => set_tuning(state, tuning)?,
             Intent::SetKey(key) => set_key(state, key)?,
@@ -130,6 +132,7 @@ impl PlaybackService {
 }
 
 /// Speed, tuning and key are stored with the recording; selecting one only loads them.
+/// The volume belongs to the room and is not stored here.
 fn changes_settings(intent: Intent) -> bool {
     matches!(
         intent,
@@ -141,7 +144,7 @@ fn changes_settings(intent: Intent) -> bool {
 mod tests {
     use super::*;
     use crate::testing::{FakeBroadcast, FakeClock, FakeLengths, FakeRecordings};
-    use veltrunox_core::{Millis, RecordingId, Speed, TimeRange};
+    use veltrunox_core::{Millis, PlaybackSettings, RecordingId, Speed, TimeRange, Volume};
 
     fn service() -> (
         PlaybackService,
@@ -155,6 +158,7 @@ mod tests {
         let broadcast = Arc::new(FakeBroadcast::default());
         let lengths = Arc::new(FakeLengths::default());
         let service = PlaybackService::new(
+            PlaybackState::initial(clock.now()),
             recordings.clone(),
             lengths.clone(),
             clock.clone(),
@@ -177,6 +181,22 @@ mod tests {
             .collect();
         assert_eq!(revisions, [1, 2]);
         assert_eq!(service.current().revision, 2);
+    }
+
+    #[test]
+    fn volume_is_published_to_everyone_but_not_stored_with_a_recording() {
+        let (service, recordings, broadcast, _, _) = service();
+        let quiet = Volume::new(25).unwrap();
+        let state = service.apply(Intent::SetVolume(quiet)).unwrap();
+        assert_eq!(state.volume, quiet);
+        assert_eq!(
+            broadcast.states().last().map(|state| state.volume),
+            Some(quiet)
+        );
+        assert_eq!(
+            recordings.stored(RecordingId::new(1)),
+            PlaybackSettings::default()
+        );
     }
 
     #[test]

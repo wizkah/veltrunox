@@ -46,6 +46,9 @@ class FakePlayerSource implements PlayerSource {
   Future<void> setKey(int semitones) async => calls.add('key $semitones');
 
   @override
+  Future<void> setVolume(int percent) async => calls.add('volume $percent');
+
+  @override
   Future<TargetTempo> speedForTargetTempo({
     required double targetBpm,
     required double recordingBpm,

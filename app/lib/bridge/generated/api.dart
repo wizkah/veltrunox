@@ -99,6 +99,7 @@ class PlaybackView {
   final double tuningHz;
   final int keyShiftSemitones;
   final bool scrubbing;
+  final int volumePercent;
 
   const PlaybackView({
     required this.revision,
@@ -109,6 +110,7 @@ class PlaybackView {
     required this.tuningHz,
     required this.keyShiftSemitones,
     required this.scrubbing,
+    required this.volumePercent,
   });
 
   @override
@@ -120,7 +122,8 @@ class PlaybackView {
       speed.hashCode ^
       tuningHz.hashCode ^
       keyShiftSemitones.hashCode ^
-      scrubbing.hashCode;
+      scrubbing.hashCode ^
+      volumePercent.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -134,7 +137,8 @@ class PlaybackView {
           speed == other.speed &&
           tuningHz == other.tuningHz &&
           keyShiftSemitones == other.keyShiftSemitones &&
-          scrubbing == other.scrubbing;
+          scrubbing == other.scrubbing &&
+          volumePercent == other.volumePercent;
 }
 
 @freezed
@@ -153,6 +157,8 @@ sealed class PlayerCommand with _$PlayerCommand {
       PlayerCommand_SetTuning;
   const factory PlayerCommand.setKey({required int keyShiftSemitones}) =
       PlayerCommand_SetKey;
+  const factory PlayerCommand.setVolume({required int volumePercent}) =
+      PlayerCommand_SetVolume;
 }
 
 /// A recording as the user interface needs it.

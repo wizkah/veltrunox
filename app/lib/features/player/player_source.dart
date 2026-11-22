@@ -18,6 +18,7 @@ abstract interface class PlayerSource {
   Future<void> setSpeed(double speed);
   Future<void> setTuning(double hertz);
   Future<void> setKey(int semitones);
+  Future<void> setVolume(int percent);
 
   /// The speed that plays a recording of `recordingBpm` at `targetBpm`.
   Future<TargetTempo> speedForTargetTempo({

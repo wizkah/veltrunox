@@ -3,13 +3,14 @@
 use super::decode::decode_file;
 use super::engine::{Engine, Pcm};
 use super::player::{Command, CommandSink, PlayerCore};
+use super::volume::{SystemMixer, engine_gain};
 use crate::hooks::AudioHooks;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SampleFormat, SizedSample, Stream, StreamConfig};
 use std::sync::mpsc::{Receiver, Sender, SyncSender, channel, sync_channel};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
-use veltrunox_core::{Millis, PlaybackState, RecordingId, TuningHz};
+use veltrunox_core::{Millis, PlaybackState, RecordingId, TuningHz, Volume};
 use veltrunox_server_app::{AnalysisRepository, Clock, MediaCatalog, PlaybackBroadcast};
 
 /// Commands waiting for the audio thread; a full queue drops the newest, which
@@ -43,6 +44,8 @@ struct DeviceOutput {
     rate: u32,
     commands: SyncSender<Command>,
     retired: Receiver<Box<Engine>>,
+    /// The sound card's own volume control; without one the render thread scales the audio.
+    mixer: Option<SystemMixer>,
 }
 
 impl DeviceOutput {
@@ -77,7 +80,18 @@ impl DeviceOutput {
             rate,
             commands,
             retired,
+            mixer: SystemMixer::open(name),
         })
+    }
+
+    /// Applies the volume of the room: on the card's mixer if it has one, else as gain.
+    fn set_volume(&mut self, volume: Volume) {
+        if let Some(mixer) = &self.mixer
+            && mixer.set(volume).is_ok()
+        {
+            return;
+        }
+        self.send(Command::Gain(engine_gain(volume)));
     }
 }
 
@@ -87,6 +101,9 @@ impl CommandSink for DeviceOutput {
     }
 
     fn send(&mut self, command: Command) {
+        if let Command::Volume(volume) = command {
+            return self.set_volume(volume);
+        }
         // Engines the audio thread is done with are freed here, not there.
         while self.retired.try_recv().is_ok() {}
         // A full queue only happens when the device stalls; the next state repairs it.
@@ -119,6 +136,9 @@ struct Renderer {
     engine: Option<Box<Engine>>,
     channels: usize,
     stereo: Vec<f32>,
+    /// Amplitude factor applied to everything rendered; changes are ramped over one buffer.
+    gain: f32,
+    target_gain: f32,
 }
 
 impl Renderer {
@@ -129,6 +149,8 @@ impl Renderer {
             engine: None,
             channels: channels.max(1),
             stereo: vec![0.0; RENDER_FRAMES * 2],
+            gain: 1.0,
+            target_gain: 1.0,
         }
     }
 
@@ -145,6 +167,8 @@ impl Renderer {
             Some(engine) => engine.render(stereo),
             None => stereo.fill(0.0),
         }
+        ramp_gain(stereo, self.gain, self.target_gain);
+        self.gain = self.target_gain;
         for (frame, pair) in data.chunks_mut(self.channels).zip(stereo.chunks(2)) {
             for (channel, sample) in frame.iter_mut().enumerate() {
                 *sample = T::from_sample(match (self.channels, channel) {
@@ -169,6 +193,7 @@ impl Renderer {
                     let _ = self.retire.try_send(old);
                 }
             }
+            Command::Gain(gain) => self.target_gain = gain,
             command => {
                 if let Some(engine) = &mut self.engine {
                     match command {
@@ -177,11 +202,27 @@ impl Renderer {
                         Command::Pitch(semitones) => engine.set_pitch_semitones(semitones),
                         Command::Loop(range) => engine.set_loop_ms(range),
                         Command::Seek(position) => engine.seek_ms(position),
-                        Command::Replace(_) | Command::Unload => {}
+                        Command::Replace(_)
+                        | Command::Unload
+                        | Command::Volume(_)
+                        | Command::Gain(_) => {}
                     }
                 }
             }
         }
+    }
+}
+
+/// Scales interleaved stereo frames, moving the factor from `from` to `to` over
+/// the buffer so that a change of volume does not click.
+fn ramp_gain(stereo: &mut [f32], from: f32, to: f32) {
+    if from == 1.0 && to == 1.0 {
+        return;
+    }
+    let frames = (stereo.len() / 2).max(1) as f32;
+    for (index, pair) in stereo.chunks_mut(2).enumerate() {
+        let gain = from + (to - from) * (index as f32 + 1.0) / frames;
+        pair.iter_mut().for_each(|sample| *sample *= gain);
     }
 }
 
@@ -202,6 +243,7 @@ impl AudioPlayback {
     /// Starts the playback thread; it opens the device itself and reports the outcome on stderr.
     pub fn start(
         device: Option<String>,
+        volume: Volume,
         catalog: Arc<dyn MediaCatalog>,
         analyses: Arc<dyn AnalysisRepository>,
         clock: Arc<dyn Clock>,
@@ -211,6 +253,7 @@ impl AudioPlayback {
         thread::spawn(move || {
             run(
                 device.as_deref(),
+                volume,
                 &*catalog,
                 &*analyses,
                 &*clock,
@@ -246,6 +289,7 @@ impl PlaybackBroadcast for AudioPlayback {
 
 fn run(
     device: Option<&str>,
+    volume: Volume,
     catalog: &dyn MediaCatalog,
     analyses: &dyn AnalysisRepository,
     clock: &dyn Clock,
@@ -270,7 +314,7 @@ fn run(
             return follow_silently(incoming, &mut load);
         }
     };
-    let mut core = PlayerCore::default();
+    let mut core = PlayerCore::with_volume(volume);
     while let Ok(input) = incoming.recv() {
         let Some(state) = newest_state(input, incoming, &core) else {
             continue;
@@ -348,5 +392,34 @@ fn load_audio(catalog: &dyn MediaCatalog, id: RecordingId) -> Option<Arc<Pcm>> {
             eprintln!("recording {id} ({}): {error}", path.display());
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ramp_gain;
+
+    #[test]
+    fn a_steady_gain_scales_every_sample() {
+        let mut samples = [1.0; 8];
+        ramp_gain(&mut samples, 0.5, 0.5);
+        assert!(samples.iter().all(|sample| (sample - 0.5).abs() < 1e-6));
+    }
+
+    #[test]
+    fn a_change_of_gain_moves_gradually_and_ends_on_the_target() {
+        let mut samples = [1.0; 8];
+        ramp_gain(&mut samples, 1.0, 0.0);
+        assert!(samples.windows(2).all(|pair| pair[0] >= pair[1]));
+        assert_eq!(samples[6], 0.0);
+        assert_eq!(samples[7], 0.0);
+        assert!(samples[0] > 0.5);
+    }
+
+    #[test]
+    fn unity_gain_leaves_the_audio_untouched() {
+        let mut samples = [0.25, -0.5, 0.75, 1.0];
+        ramp_gain(&mut samples, 1.0, 1.0);
+        assert_eq!(samples, [0.25, -0.5, 0.75, 1.0]);
     }
 }

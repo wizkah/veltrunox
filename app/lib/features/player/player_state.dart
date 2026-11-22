@@ -6,6 +6,7 @@ class PlayerState {
     required this.speed,
     required this.tuningHz,
     required this.keyShiftSemitones,
+    required this.volumePercent,
   });
 
   final int? recordingId;
@@ -13,4 +14,7 @@ class PlayerState {
   final double speed;
   final double tuningHz;
   final int keyShiftSemitones;
+
+  /// Output volume of the server, 0 to 100.
+  final int volumePercent;
 }

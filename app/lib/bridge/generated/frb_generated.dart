@@ -426,8 +426,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlaybackView dco_decode_playback_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return PlaybackView(
       revision: dco_decode_u_64(arr[0]),
       recordingId: dco_decode_opt_box_autoadd_u_64(arr[1]),
@@ -437,6 +437,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tuningHz: dco_decode_f_64(arr[5]),
       keyShiftSemitones: dco_decode_i_8(arr[6]),
       scrubbing: dco_decode_bool(arr[7]),
+      volumePercent: dco_decode_u_8(arr[8]),
     );
   }
 
@@ -460,6 +461,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return PlayerCommand_SetTuning(tuningHz: dco_decode_f_64(raw[1]));
       case 6:
         return PlayerCommand_SetKey(keyShiftSemitones: dco_decode_i_8(raw[1]));
+      case 7:
+        return PlayerCommand_SetVolume(volumePercent: dco_decode_u_8(raw[1]));
       default:
         throw Exception("unreachable");
     }
@@ -707,6 +710,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_tuningHz = sse_decode_f_64(deserializer);
     var var_keyShiftSemitones = sse_decode_i_8(deserializer);
     var var_scrubbing = sse_decode_bool(deserializer);
+    var var_volumePercent = sse_decode_u_8(deserializer);
     return PlaybackView(
       revision: var_revision,
       recordingId: var_recordingId,
@@ -716,6 +720,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tuningHz: var_tuningHz,
       keyShiftSemitones: var_keyShiftSemitones,
       scrubbing: var_scrubbing,
+      volumePercent: var_volumePercent,
     );
   }
 
@@ -744,6 +749,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 6:
         var var_keyShiftSemitones = sse_decode_i_8(deserializer);
         return PlayerCommand_SetKey(keyShiftSemitones: var_keyShiftSemitones);
+      case 7:
+        var var_volumePercent = sse_decode_u_8(deserializer);
+        return PlayerCommand_SetVolume(volumePercent: var_volumePercent);
       default:
         throw UnimplementedError('');
     }
@@ -999,6 +1007,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.tuningHz, serializer);
     sse_encode_i_8(self.keyShiftSemitones, serializer);
     sse_encode_bool(self.scrubbing, serializer);
+    sse_encode_u_8(self.volumePercent, serializer);
   }
 
   @protected
@@ -1024,6 +1033,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case PlayerCommand_SetKey(keyShiftSemitones: final keyShiftSemitones):
         sse_encode_i_32(6, serializer);
         sse_encode_i_8(keyShiftSemitones, serializer);
+      case PlayerCommand_SetVolume(volumePercent: final volumePercent):
+        sse_encode_i_32(7, serializer);
+        sse_encode_u_8(volumePercent, serializer);
     }
   }
 

@@ -1,7 +1,7 @@
 //! The shared playback state and the pure operations that change it.
 
 use crate::recording::RecordingId;
-use crate::units::{KeyShift, Millis, Speed, TimeRange, TuningHz};
+use crate::units::{KeyShift, Millis, Speed, TimeRange, TuningHz, Volume};
 
 /// Settings stored with a recording and restored when it is loaded.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -20,6 +20,12 @@ impl Default for Speed {
 impl Default for TuningHz {
     fn default() -> Self {
         Self::CONCERT_PITCH
+    }
+}
+
+impl Default for Volume {
+    fn default() -> Self {
+        Self::FULL
     }
 }
 
@@ -48,6 +54,8 @@ pub struct PlaybackState {
     pub settings: PlaybackSettings,
     pub loop_range: Option<TimeRange>,
     pub scrubbing: bool,
+    /// Output volume of the server; belongs to the room, not to a recording.
+    pub volume: Volume,
 }
 
 impl PlaybackState {
@@ -64,6 +72,7 @@ impl PlaybackState {
             settings: PlaybackSettings::default(),
             loop_range: None,
             scrubbing: false,
+            volume: Volume::default(),
         }
     }
 
@@ -103,6 +112,7 @@ pub enum Intent {
     SetTuning(TuningHz),
     SetKey(KeyShift),
     SetLoop(Option<TimeRange>),
+    SetVolume(Volume),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -245,6 +255,11 @@ pub fn set_key(state: &PlaybackState, key: KeyShift) -> Result<PlaybackState, Tr
     })
 }
 
+/// Changes the output volume; possible without a selected recording.
+pub fn set_volume(state: &PlaybackState, volume: Volume) -> PlaybackState {
+    PlaybackState { volume, ..*state }
+}
+
 pub fn set_loop(
     state: &PlaybackState,
     loop_range: Option<TimeRange>,
@@ -304,6 +319,15 @@ mod tests {
         let state = pause(&state, ms(2_500)).unwrap();
         assert!(!state.running);
         assert_eq!(state.position_at(ms(60_000)), ms(2_500));
+    }
+
+    #[test]
+    fn volume_changes_without_a_recording_and_survives_selecting() {
+        let quiet = Volume::new(30).unwrap();
+        let state = set_volume(&PlaybackState::initial(ms(0)), quiet);
+        assert_eq!(state.volume, quiet);
+        let selected = select_recording(&state, RecordingId::new(1), Default::default(), ms(5));
+        assert_eq!(selected.volume, quiet);
     }
 
     #[test]

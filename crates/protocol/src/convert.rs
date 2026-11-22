@@ -10,7 +10,7 @@ use veltrunox_core::{
     InvalidRecording, InvalidValue, KeyMode, KeyShift, Label, LibraryEntry, Millis, MusicalKey,
     Peak, PitchClass, PlaybackSettings, PlaybackState, PositionReference, Recording,
     RecordingAnalysis, RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version,
-    Waveform,
+    Volume, Waveform,
 };
 
 /// Describes the levels of a waveform without their peaks.
@@ -156,6 +156,7 @@ pub fn state_to_dto(state: &PlaybackState) -> PlaybackStateDto {
         key_shift_semitones: state.settings.key.semitones(),
         loop_range: state.loop_range.map(range_to_dto),
         scrubbing: state.scrubbing,
+        volume_percent: state.volume.percent(),
     }
 }
 
@@ -175,6 +176,7 @@ pub fn state_from_dto(dto: &PlaybackStateDto) -> Result<PlaybackState, InvalidVa
         },
         loop_range: dto.loop_range.map(range_from_dto).transpose()?,
         scrubbing: dto.scrubbing,
+        volume: Volume::new(dto.volume_percent)?,
     })
 }
 
@@ -204,6 +206,9 @@ pub fn intent_to_message(intent: Intent) -> ClientMessageDto {
         Intent::SetLoop(range) => ClientMessageDto::SetLoop {
             loop_range: range.map(range_to_dto),
         },
+        Intent::SetVolume(volume) => ClientMessageDto::SetVolume {
+            volume_percent: volume.percent(),
+        },
     }
 }
 
@@ -230,6 +235,9 @@ pub fn intent_from_message(message: &ClientMessageDto) -> Result<Option<Intent>,
         } => Intent::SetKey(KeyShift::new(*key_shift_semitones)?),
         ClientMessageDto::SetLoop { loop_range } => {
             Intent::SetLoop(loop_range.map(range_from_dto).transpose()?)
+        }
+        ClientMessageDto::SetVolume { volume_percent } => {
+            Intent::SetVolume(Volume::new(*volume_percent)?)
         }
     }))
 }
@@ -381,6 +389,7 @@ mod tests {
             },
             loop_range: Some(TimeRange::new(Millis::new(1_000), Millis::new(2_000)).unwrap()),
             scrubbing: true,
+            volume: Volume::new(35).unwrap(),
         };
         assert_eq!(state_from_dto(&state_to_dto(&state)), Ok(state));
     }
@@ -399,6 +408,7 @@ mod tests {
             Intent::SetTuning(TuningHz::new(415.0).unwrap()),
             Intent::SetKey(KeyShift::new(-5).unwrap()),
             Intent::SetLoop(None),
+            Intent::SetVolume(Volume::new(80).unwrap()),
         ];
         for intent in intents {
             assert_eq!(
@@ -422,6 +432,13 @@ mod tests {
         assert_eq!(
             intent_from_message(&far_away),
             Err(InvalidValue::PositionOutOfRange)
+        );
+        let too_loud = ClientMessageDto::SetVolume {
+            volume_percent: 101,
+        };
+        assert_eq!(
+            intent_from_message(&too_loud),
+            Err(InvalidValue::VolumeOutOfRange)
         );
         let backwards = ClientMessageDto::SetLoop {
             loop_range: Some(RangeDto {

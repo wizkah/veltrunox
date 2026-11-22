@@ -3,7 +3,7 @@
 
 use super::engine::{Engine, Pcm};
 use std::sync::Arc;
-use veltrunox_core::{Millis, PlaybackState, RecordingId, TuningHz, pitch_shift_semitones};
+use veltrunox_core::{Millis, PlaybackState, RecordingId, TuningHz, Volume, pitch_shift_semitones};
 
 /// A position that differs from the expected one by more than this is a jump
 /// and seeks the engine; smaller differences are timing noise.
@@ -18,6 +18,10 @@ pub enum Command {
     Pitch(f64),
     Loop(Option<(u64, u64)>),
     Seek(u64),
+    /// The output volume of the room; the output decides how it is applied.
+    Volume(Volume),
+    /// Amplitude factor of the render thread (the volume where there is no system mixer).
+    Gain(f32),
 }
 
 /// Where commands go: the audio thread of a device, or a recorder in tests.
@@ -34,9 +38,19 @@ pub struct PlayerCore {
     /// The pitch shift the engine was last told, so a changed tuning reference
     /// (a finished analysis) reaches it although the state did not change.
     pitch: Option<f64>,
+    /// The volume the output has; a state with another one changes it.
+    volume: Volume,
 }
 
 impl PlayerCore {
+    /// A player whose output starts at `volume`, which the first state carries too.
+    pub fn with_volume(volume: Volume) -> Self {
+        Self {
+            volume,
+            ..Self::default()
+        }
+    }
+
     /// The newest state applied, for applying it again after the tuning reference changed.
     pub fn last_state(&self) -> Option<PlaybackState> {
         self.last
@@ -52,6 +66,11 @@ impl PlayerCore {
         load: &mut dyn FnMut(RecordingId) -> Option<Arc<Pcm>>,
         tuning_of: &dyn Fn(RecordingId) -> TuningHz,
     ) {
+        // The volume is the room's, so it follows even without a loaded recording.
+        if self.volume != state.volume {
+            self.volume = state.volume;
+            sink.send(Command::Volume(state.volume));
+        }
         let switched = state.recording != self.loaded;
         if switched {
             self.switch_recording(state.recording, sink, load);
@@ -121,6 +140,12 @@ impl PlayerCore {
         if previous.is_none_or(|last| (last.running && !last.scrubbing) != audible) || jumped {
             sink.send(Command::Running(audible));
         }
+        // The engine stops a little after the shared position froze. Putting it on that
+        // position keeps repeated pauses from moving the sound ahead of the shared state.
+        let paused = previous.is_some_and(|last| last.running && !last.scrubbing) && !audible;
+        if paused && !jumped && !state.scrubbing {
+            sink.send(Command::Seek(target.value()));
+        }
     }
 }
 
@@ -141,6 +166,7 @@ mod tests {
         Pitch(f64),
         Loop(Option<(u64, u64)>),
         Seek(u64),
+        Volume(u8),
     }
 
     #[derive(Default)]
@@ -159,6 +185,8 @@ mod tests {
                 Command::Pitch(pitch) => Seen::Pitch(pitch),
                 Command::Loop(range) => Seen::Loop(range),
                 Command::Seek(position) => Seen::Seek(position),
+                Command::Volume(volume) => Seen::Volume(volume.percent()),
+                Command::Gain(_) => unreachable!("only the output sends a gain"),
             });
         }
     }
@@ -204,14 +232,43 @@ mod tests {
     }
 
     #[test]
-    fn play_and_pause_start_and_stop_without_a_seek() {
+    fn play_starts_without_a_seek_and_pause_aligns_the_engine() {
         let mut core = PlayerCore::default();
         let state = selected();
         apply(&mut core, &state, 0);
         let playing = play(&state, Millis::new(100)).unwrap();
         assert_eq!(apply(&mut core, &playing, 100), [Seen::Running(true)]);
         let paused = pause(&playing, Millis::new(600)).unwrap();
-        assert_eq!(apply(&mut core, &paused, 600), [Seen::Running(false)]);
+        // Playing since 100 ms at speed 1: the frozen position is 500 ms.
+        assert_eq!(
+            apply(&mut core, &paused, 600),
+            [Seen::Running(false), Seen::Seek(500)]
+        );
+        // Playing again continues from there without a further seek.
+        let again = play(&paused, Millis::new(700)).unwrap();
+        assert_eq!(apply(&mut core, &again, 700), [Seen::Running(true)]);
+    }
+
+    #[test]
+    fn a_volume_change_reaches_the_output_even_without_a_recording() {
+        use veltrunox_core::{Volume, set_volume};
+        let mut core = PlayerCore::default();
+        let initial = PlaybackState::initial(Millis::ZERO);
+        assert!(apply(&mut core, &initial, 0).is_empty());
+        let quiet = set_volume(&initial, Volume::new(30).unwrap());
+        assert_eq!(apply(&mut core, &quiet, 10), [Seen::Volume(30)]);
+        assert!(apply(&mut core, &quiet, 20).is_empty());
+    }
+
+    #[test]
+    fn the_first_volume_change_after_the_start_is_applied_too() {
+        use veltrunox_core::{Volume, set_volume};
+        let device_volume = Volume::new(60).unwrap();
+        let mut core = PlayerCore::with_volume(device_volume);
+        let initial = set_volume(&PlaybackState::initial(Millis::ZERO), device_volume);
+        assert!(apply(&mut core, &initial, 0).is_empty());
+        let louder = set_volume(&initial, Volume::new(80).unwrap());
+        assert_eq!(apply(&mut core, &louder, 10), [Seen::Volume(80)]);
     }
 
     #[test]

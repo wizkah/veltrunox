@@ -16,6 +16,7 @@ const _loaded = PlayerState(
   speed: 1,
   tuningHz: 440,
   keyShiftSemitones: 0,
+  volumePercent: 100,
 );
 
 Future<FakePlayerSource> _pumpBar(
@@ -61,6 +62,7 @@ void main() {
         speed: 1,
         tuningHz: 440,
         keyShiftSemitones: 0,
+        volumePercent: 100,
       ),
     );
     await tester.pump();
@@ -95,6 +97,7 @@ void main() {
         speed: 0.75,
         tuningHz: 432,
         keyShiftSemitones: -2,
+        volumePercent: 100,
       ),
     );
 
@@ -121,6 +124,7 @@ void main() {
       speed: 0.75,
       tuningHz: 440,
       keyShiftSemitones: 2,
+      volumePercent: 100,
     );
 
     testWidgets('shows the tempo the recording plays at', (tester) async {
@@ -161,6 +165,7 @@ void main() {
           speed: 1,
           tuningHz: 443,
           keyShiftSemitones: 0,
+          volumePercent: 100,
         ),
         analysis: analysis,
       );
@@ -219,5 +224,35 @@ void main() {
   test('positions are shown as minutes, seconds and tenths', () {
     expect(formatPosition(0), '0:00.0');
     expect(formatPosition(83_456), '1:23.4');
+  });
+
+  testWidgets('the volume slider shows the shared volume and sends changes', (
+    tester,
+  ) async {
+    final player = await _pumpBar(tester, state: _loaded);
+
+    expect(find.text('Lautstärke'), findsOneWidget);
+    expect(find.text('100 %'), findsOneWidget);
+
+    player.states.add(
+      const PlayerState(
+        recordingId: 1,
+        running: false,
+        speed: 1,
+        tuningHz: 440,
+        keyShiftSemitones: 0,
+        volumePercent: 40,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('40 %'), findsOneWidget);
+
+    await tester.drag(find.byType(Slider).first, const Offset(-60, 0));
+    await tester.pump();
+    expect(
+      player.calls.where((call) => call.startsWith('volume ')),
+      isNotEmpty,
+    );
   });
 }

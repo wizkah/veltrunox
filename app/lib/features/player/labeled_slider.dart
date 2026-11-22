@@ -1,7 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
 /// A slider with a label and value text. While dragging it shows the dragged
-/// value; the change is reported once when the drag ends.
+/// value; the change is reported once when the drag ends (and, with
+/// `onChanging`, along the way).
 class LabeledSlider extends StatefulWidget {
   const LabeledSlider({
     required this.label,
@@ -10,6 +11,7 @@ class LabeledSlider extends StatefulWidget {
     required this.max,
     required this.format,
     required this.onChanged,
+    this.onChanging,
     this.trailing,
     super.key,
   });
@@ -20,6 +22,10 @@ class LabeledSlider extends StatefulWidget {
   final double max;
   final String Function(double) format;
   final ValueChanged<double> onChanged;
+
+  /// Reports every value while the slider is dragged; for settings that should
+  /// take effect at once.
+  final ValueChanged<double>? onChanging;
 
   /// Shown after the value, for example a reset button.
   final Widget? trailing;
@@ -42,7 +48,10 @@ class _LabeledSliderState extends State<LabeledSlider> {
             value: shown.clamp(widget.min, widget.max),
             min: widget.min,
             max: widget.max,
-            onChanged: (value) => setState(() => _dragged = value),
+            onChanged: (value) {
+              setState(() => _dragged = value);
+              widget.onChanging?.call(value);
+            },
             onChangeEnd: (value) {
               setState(() => _dragged = null);
               widget.onChanged(value);

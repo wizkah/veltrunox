@@ -52,6 +52,8 @@ pub struct PlaybackStateDto {
     pub key_shift_semitones: i8,
     pub loop_range: Option<RangeDto>,
     pub scrubbing: bool,
+    /// Output volume of the server in percent.
+    pub volume_percent: u8,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -97,6 +99,7 @@ pub enum ClientMessageDto {
     SetTuning { tuning_hz: f64 },
     SetKey { key_shift_semitones: i8 },
     SetLoop { loop_range: Option<RangeDto> },
+    SetVolume { volume_percent: u8 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -268,6 +271,7 @@ mod tests {
                 end_ms: 2000,
             }),
             scrubbing: false,
+            volume_percent: 70,
         });
         let json = serde_json::to_string(&event).unwrap();
         assert_eq!(
@@ -276,7 +280,7 @@ mod tests {
                 r#"{"type":"state","revision":3,"recording_id":2,"position_ms":1500,"#,
                 r#""position_server_time_ms":90000,"running":true,"speed":0.5,"#,
                 r#""tuning_hz":440.0,"key_shift_semitones":-2,"#,
-                r#""loop_range":{"start_ms":1000,"end_ms":2000},"scrubbing":false}"#
+                r#""loop_range":{"start_ms":1000,"end_ms":2000},"scrubbing":false,"volume_percent":70}"#
             )
         );
         assert_eq!(

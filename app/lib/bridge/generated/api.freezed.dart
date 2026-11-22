@@ -56,7 +56,7 @@ extension PlayerCommandPatterns on PlayerCommand {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PlayerCommand_SelectRecording value)?  selectRecording,TResult Function( PlayerCommand_Play value)?  play,TResult Function( PlayerCommand_Pause value)?  pause,TResult Function( PlayerCommand_Seek value)?  seek,TResult Function( PlayerCommand_SetSpeed value)?  setSpeed,TResult Function( PlayerCommand_SetTuning value)?  setTuning,TResult Function( PlayerCommand_SetKey value)?  setKey,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PlayerCommand_SelectRecording value)?  selectRecording,TResult Function( PlayerCommand_Play value)?  play,TResult Function( PlayerCommand_Pause value)?  pause,TResult Function( PlayerCommand_Seek value)?  seek,TResult Function( PlayerCommand_SetSpeed value)?  setSpeed,TResult Function( PlayerCommand_SetTuning value)?  setTuning,TResult Function( PlayerCommand_SetKey value)?  setKey,TResult Function( PlayerCommand_SetVolume value)?  setVolume,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording() when selectRecording != null:
@@ -66,7 +66,8 @@ return pause(_that);case PlayerCommand_Seek() when seek != null:
 return seek(_that);case PlayerCommand_SetSpeed() when setSpeed != null:
 return setSpeed(_that);case PlayerCommand_SetTuning() when setTuning != null:
 return setTuning(_that);case PlayerCommand_SetKey() when setKey != null:
-return setKey(_that);case _:
+return setKey(_that);case PlayerCommand_SetVolume() when setVolume != null:
+return setVolume(_that);case _:
   return orElse();
 
 }
@@ -84,7 +85,7 @@ return setKey(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PlayerCommand_SelectRecording value)  selectRecording,required TResult Function( PlayerCommand_Play value)  play,required TResult Function( PlayerCommand_Pause value)  pause,required TResult Function( PlayerCommand_Seek value)  seek,required TResult Function( PlayerCommand_SetSpeed value)  setSpeed,required TResult Function( PlayerCommand_SetTuning value)  setTuning,required TResult Function( PlayerCommand_SetKey value)  setKey,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PlayerCommand_SelectRecording value)  selectRecording,required TResult Function( PlayerCommand_Play value)  play,required TResult Function( PlayerCommand_Pause value)  pause,required TResult Function( PlayerCommand_Seek value)  seek,required TResult Function( PlayerCommand_SetSpeed value)  setSpeed,required TResult Function( PlayerCommand_SetTuning value)  setTuning,required TResult Function( PlayerCommand_SetKey value)  setKey,required TResult Function( PlayerCommand_SetVolume value)  setVolume,}){
 final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording():
@@ -94,7 +95,8 @@ return pause(_that);case PlayerCommand_Seek():
 return seek(_that);case PlayerCommand_SetSpeed():
 return setSpeed(_that);case PlayerCommand_SetTuning():
 return setTuning(_that);case PlayerCommand_SetKey():
-return setKey(_that);}
+return setKey(_that);case PlayerCommand_SetVolume():
+return setVolume(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -108,7 +110,7 @@ return setKey(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PlayerCommand_SelectRecording value)?  selectRecording,TResult? Function( PlayerCommand_Play value)?  play,TResult? Function( PlayerCommand_Pause value)?  pause,TResult? Function( PlayerCommand_Seek value)?  seek,TResult? Function( PlayerCommand_SetSpeed value)?  setSpeed,TResult? Function( PlayerCommand_SetTuning value)?  setTuning,TResult? Function( PlayerCommand_SetKey value)?  setKey,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PlayerCommand_SelectRecording value)?  selectRecording,TResult? Function( PlayerCommand_Play value)?  play,TResult? Function( PlayerCommand_Pause value)?  pause,TResult? Function( PlayerCommand_Seek value)?  seek,TResult? Function( PlayerCommand_SetSpeed value)?  setSpeed,TResult? Function( PlayerCommand_SetTuning value)?  setTuning,TResult? Function( PlayerCommand_SetKey value)?  setKey,TResult? Function( PlayerCommand_SetVolume value)?  setVolume,}){
 final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording() when selectRecording != null:
@@ -118,7 +120,8 @@ return pause(_that);case PlayerCommand_Seek() when seek != null:
 return seek(_that);case PlayerCommand_SetSpeed() when setSpeed != null:
 return setSpeed(_that);case PlayerCommand_SetTuning() when setTuning != null:
 return setTuning(_that);case PlayerCommand_SetKey() when setKey != null:
-return setKey(_that);case _:
+return setKey(_that);case PlayerCommand_SetVolume() when setVolume != null:
+return setVolume(_that);case _:
   return null;
 
 }
@@ -135,7 +138,7 @@ return setKey(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( BigInt recordingId)?  selectRecording,TResult Function()?  play,TResult Function()?  pause,TResult Function( BigInt positionMs)?  seek,TResult Function( double speed)?  setSpeed,TResult Function( double tuningHz)?  setTuning,TResult Function( int keyShiftSemitones)?  setKey,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( BigInt recordingId)?  selectRecording,TResult Function()?  play,TResult Function()?  pause,TResult Function( BigInt positionMs)?  seek,TResult Function( double speed)?  setSpeed,TResult Function( double tuningHz)?  setTuning,TResult Function( int keyShiftSemitones)?  setKey,TResult Function( int volumePercent)?  setVolume,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording() when selectRecording != null:
 return selectRecording(_that.recordingId);case PlayerCommand_Play() when play != null:
@@ -144,7 +147,8 @@ return pause();case PlayerCommand_Seek() when seek != null:
 return seek(_that.positionMs);case PlayerCommand_SetSpeed() when setSpeed != null:
 return setSpeed(_that.speed);case PlayerCommand_SetTuning() when setTuning != null:
 return setTuning(_that.tuningHz);case PlayerCommand_SetKey() when setKey != null:
-return setKey(_that.keyShiftSemitones);case _:
+return setKey(_that.keyShiftSemitones);case PlayerCommand_SetVolume() when setVolume != null:
+return setVolume(_that.volumePercent);case _:
   return orElse();
 
 }
@@ -162,7 +166,7 @@ return setKey(_that.keyShiftSemitones);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( BigInt recordingId)  selectRecording,required TResult Function()  play,required TResult Function()  pause,required TResult Function( BigInt positionMs)  seek,required TResult Function( double speed)  setSpeed,required TResult Function( double tuningHz)  setTuning,required TResult Function( int keyShiftSemitones)  setKey,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( BigInt recordingId)  selectRecording,required TResult Function()  play,required TResult Function()  pause,required TResult Function( BigInt positionMs)  seek,required TResult Function( double speed)  setSpeed,required TResult Function( double tuningHz)  setTuning,required TResult Function( int keyShiftSemitones)  setKey,required TResult Function( int volumePercent)  setVolume,}) {final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording():
 return selectRecording(_that.recordingId);case PlayerCommand_Play():
@@ -171,7 +175,8 @@ return pause();case PlayerCommand_Seek():
 return seek(_that.positionMs);case PlayerCommand_SetSpeed():
 return setSpeed(_that.speed);case PlayerCommand_SetTuning():
 return setTuning(_that.tuningHz);case PlayerCommand_SetKey():
-return setKey(_that.keyShiftSemitones);}
+return setKey(_that.keyShiftSemitones);case PlayerCommand_SetVolume():
+return setVolume(_that.volumePercent);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -185,7 +190,7 @@ return setKey(_that.keyShiftSemitones);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( BigInt recordingId)?  selectRecording,TResult? Function()?  play,TResult? Function()?  pause,TResult? Function( BigInt positionMs)?  seek,TResult? Function( double speed)?  setSpeed,TResult? Function( double tuningHz)?  setTuning,TResult? Function( int keyShiftSemitones)?  setKey,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( BigInt recordingId)?  selectRecording,TResult? Function()?  play,TResult? Function()?  pause,TResult? Function( BigInt positionMs)?  seek,TResult? Function( double speed)?  setSpeed,TResult? Function( double tuningHz)?  setTuning,TResult? Function( int keyShiftSemitones)?  setKey,TResult? Function( int volumePercent)?  setVolume,}) {final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording() when selectRecording != null:
 return selectRecording(_that.recordingId);case PlayerCommand_Play() when play != null:
@@ -194,7 +199,8 @@ return pause();case PlayerCommand_Seek() when seek != null:
 return seek(_that.positionMs);case PlayerCommand_SetSpeed() when setSpeed != null:
 return setSpeed(_that.speed);case PlayerCommand_SetTuning() when setTuning != null:
 return setTuning(_that.tuningHz);case PlayerCommand_SetKey() when setKey != null:
-return setKey(_that.keyShiftSemitones);case _:
+return setKey(_that.keyShiftSemitones);case PlayerCommand_SetVolume() when setVolume != null:
+return setVolume(_that.volumePercent);case _:
   return null;
 
 }
@@ -599,6 +605,74 @@ class _$PlayerCommand_SetKeyCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? keyShiftSemitones = null,}) {
   return _then(PlayerCommand_SetKey(
 keyShiftSemitones: null == keyShiftSemitones ? _self.keyShiftSemitones : keyShiftSemitones // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PlayerCommand_SetVolume extends PlayerCommand {
+  const PlayerCommand_SetVolume({required this.volumePercent}): super._();
+  
+
+ final  int volumePercent;
+
+/// Create a copy of PlayerCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PlayerCommand_SetVolumeCopyWith<PlayerCommand_SetVolume> get copyWith => _$PlayerCommand_SetVolumeCopyWithImpl<PlayerCommand_SetVolume>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PlayerCommand_SetVolume&&(identical(other.volumePercent, volumePercent) || other.volumePercent == volumePercent));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,volumePercent);
+}
+
+@override
+String toString() {
+    return 'PlayerCommand.setVolume(volumePercent: $volumePercent)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PlayerCommand_SetVolumeCopyWith<$Res> implements $PlayerCommandCopyWith<$Res> {
+  factory $PlayerCommand_SetVolumeCopyWith(PlayerCommand_SetVolume value, $Res Function(PlayerCommand_SetVolume) _then) = _$PlayerCommand_SetVolumeCopyWithImpl;
+@useResult
+$Res call({
+ int volumePercent
+});
+
+
+
+
+}
+/// @nodoc
+class _$PlayerCommand_SetVolumeCopyWithImpl<$Res>
+    implements $PlayerCommand_SetVolumeCopyWith<$Res> {
+  _$PlayerCommand_SetVolumeCopyWithImpl(this._self, this._then);
+
+  final PlayerCommand_SetVolume _self;
+  final $Res Function(PlayerCommand_SetVolume) _then;
+
+/// Create a copy of PlayerCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? volumePercent = null,}) {
+  return _then(PlayerCommand_SetVolume(
+volumePercent: null == volumePercent ? _self.volumePercent : volumePercent // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }

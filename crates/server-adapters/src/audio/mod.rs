@@ -4,7 +4,9 @@ mod decode;
 mod engine;
 mod output;
 mod player;
+mod volume;
 
 pub use decode::{DecodeError, decode_file};
 pub use engine::{Engine, Pcm};
 pub use output::{AudioPlayback, list_output_devices};
+pub use volume::system_volume;

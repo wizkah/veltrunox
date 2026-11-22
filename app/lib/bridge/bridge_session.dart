@@ -87,5 +87,6 @@ class BridgeSession {
     speed: view.speed,
     tuningHz: view.tuningHz,
     keyShiftSemitones: view.keyShiftSemitones,
+    volumePercent: view.volumePercent,
   );
 }

@@ -13,7 +13,7 @@ use veltrunox_client_app::{
 };
 use veltrunox_core::{
     AnalysisProgress, Bpm, Intent, KeyMode, KeyShift, LibraryEntry, Millis, RecordingId, Speed,
-    TargetSpeed, TuningHz, speed_for_target_tempo,
+    TargetSpeed, TuningHz, Volume, speed_for_target_tempo,
 };
 
 /// A recording as the user interface needs it.
@@ -135,6 +135,7 @@ pub struct PlaybackView {
     pub tuning_hz: f64,
     pub key_shift_semitones: i8,
     pub scrubbing: bool,
+    pub volume_percent: u8,
 }
 
 /// Everything the real-time channel tells the user interface.
@@ -163,6 +164,7 @@ pub enum PlayerCommand {
     SetSpeed { speed: f64 },
     SetTuning { tuning_hz: f64 },
     SetKey { key_shift_semitones: i8 },
+    SetVolume { volume_percent: u8 },
 }
 
 /// The latest server state and clock estimate of this client; shared between the
@@ -253,6 +255,7 @@ impl PlaybackView {
             tuning_hz: state.settings.tuning.hertz(),
             key_shift_semitones: state.settings.key.semitones(),
             scrubbing: state.scrubbing,
+            volume_percent: state.volume.percent(),
         }
     }
 }
@@ -291,6 +294,7 @@ impl PlayerCommand {
             Self::SetKey {
                 key_shift_semitones,
             } => Intent::SetKey(KeyShift::new(key_shift_semitones)?),
+            Self::SetVolume { volume_percent } => Intent::SetVolume(Volume::new(volume_percent)?),
         })
     }
 }
@@ -317,6 +321,21 @@ mod tests {
                 position: Millis::new(1_500),
                 scrubbing: false
             })
+        );
+    }
+
+    #[test]
+    fn a_volume_command_is_checked_and_becomes_an_intent() {
+        assert_eq!(
+            PlayerCommand::SetVolume { volume_percent: 40 }.into_intent(),
+            Ok(Intent::SetVolume(Volume::new(40).unwrap()))
+        );
+        assert!(
+            PlayerCommand::SetVolume {
+                volume_percent: 101
+            }
+            .into_intent()
+            .is_err()
         );
     }
 

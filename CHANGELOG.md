@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Output volume (ADR-009): a slider in the player sets the volume of the server for everyone, and every client shows the current value. The server sets the sound card's mixer where there is one (ALSA, for example the Pi's headphone output) and scales the audio itself otherwise; at start-up it reads the mixer.
+- Pausing puts the audio engine on the frozen position, so repeated pauses no longer move the sound ahead of the shared position.
+- The position display reads the position when the displayed tenth changes while playing, so the tenths advance evenly.
 - Release build of the server: settings come from a TOML configuration file (`--config <file>`), which replaces the `VELTRUNOX_*` environment variables (`address`, `data_dir`, `media_dir`, `audio_device`, `allowed_origin`, `web_dir`). The `embedded-web` feature bakes the web app into the binary; `scripts/build-release.sh` builds both, and `dist/install.sh` installs the Pi build as a systemd service. The web app bundles CanvasKit and fonts instead of loading them from Google's CDN (works without internet) and keeps only the CanvasKit variants it uses; the server compresses responses (gzip, Brotli).
 - Analysis of tuning, key and tempo (ADR-007): runs in the background after start-up for every recording without a result and can be started again per recording; results are stored with the recording, clients are told when one changes, and the library shows key, tempo and tuning or the state of the analysis.
 - Waveform overview and recording length: the background scan decodes each recording once and stores the length and min/max peaks in levels from coarse to fine; `GET /api/v1/recordings/{id}/waveform` describes the levels, `.../waveform/{level}` returns the peaks as bytes. Recordings stored without them are scanned again at start-up. Seeks and loop ends beyond the length are refused, also after a restart.

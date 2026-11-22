@@ -441,6 +441,7 @@ impl SseDecode for crate::api::PlaybackView {
         let mut var_tuningHz = <f64>::sse_decode(deserializer);
         let mut var_keyShiftSemitones = <i8>::sse_decode(deserializer);
         let mut var_scrubbing = <bool>::sse_decode(deserializer);
+        let mut var_volumePercent = <u8>::sse_decode(deserializer);
         return crate::api::PlaybackView {
             revision: var_revision,
             recording_id: var_recordingId,
@@ -450,6 +451,7 @@ impl SseDecode for crate::api::PlaybackView {
             tuning_hz: var_tuningHz,
             key_shift_semitones: var_keyShiftSemitones,
             scrubbing: var_scrubbing,
+            volume_percent: var_volumePercent,
         };
     }
 }
@@ -491,6 +493,12 @@ impl SseDecode for crate::api::PlayerCommand {
                 let mut var_keyShiftSemitones = <i8>::sse_decode(deserializer);
                 return crate::api::PlayerCommand::SetKey {
                     key_shift_semitones: var_keyShiftSemitones,
+                };
+            }
+            7 => {
+                let mut var_volumePercent = <u8>::sse_decode(deserializer);
+                return crate::api::PlayerCommand::SetVolume {
+                    volume_percent: var_volumePercent,
                 };
             }
             _ => {
@@ -685,6 +693,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::PlaybackView {
             self.tuning_hz.into_into_dart().into_dart(),
             self.key_shift_semitones.into_into_dart().into_dart(),
             self.scrubbing.into_into_dart().into_dart(),
+            self.volume_percent.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -720,6 +729,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::PlayerCommand {
                 key_shift_semitones.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::PlayerCommand::SetVolume { volume_percent } => {
+                [7.into_dart(), volume_percent.into_into_dart().into_dart()].into_dart()
+            }
             _ => {
                 unimplemented!("");
             }
@@ -956,6 +968,7 @@ impl SseEncode for crate::api::PlaybackView {
         <f64>::sse_encode(self.tuning_hz, serializer);
         <i8>::sse_encode(self.key_shift_semitones, serializer);
         <bool>::sse_encode(self.scrubbing, serializer);
+        <u8>::sse_encode(self.volume_percent, serializer);
     }
 }
 
@@ -990,6 +1003,10 @@ impl SseEncode for crate::api::PlayerCommand {
             } => {
                 <i32>::sse_encode(6, serializer);
                 <i8>::sse_encode(key_shift_semitones, serializer);
+            }
+            crate::api::PlayerCommand::SetVolume { volume_percent } => {
+                <i32>::sse_encode(7, serializer);
+                <u8>::sse_encode(volume_percent, serializer);
             }
             _ => {
                 unimplemented!("");

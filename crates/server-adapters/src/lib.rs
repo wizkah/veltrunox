@@ -15,7 +15,9 @@ mod state;
 
 pub use analysis::{AnalysisError, analyse};
 pub use analysis_worker::{AnalysisQueue, FileAnalyzer};
-pub use audio::{AudioPlayback, DecodeError, Engine, Pcm, decode_file, list_output_devices};
+pub use audio::{
+    AudioPlayback, DecodeError, Engine, Pcm, decode_file, list_output_devices, system_volume,
+};
 pub use clock::SystemClock;
 pub use end_watch::watch_end;
 pub use hooks::AudioHooks;

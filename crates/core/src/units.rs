@@ -44,6 +44,8 @@ pub enum InvalidValue {
     TuningOutOfRange,
     #[error("key shift must be between -12 and 12 semitones")]
     KeyShiftOutOfRange,
+    #[error("volume must be between 0 and 100 percent")]
+    VolumeOutOfRange,
     #[error("position is out of range")]
     PositionOutOfRange,
     #[error("a time range must end after it starts")]
@@ -119,6 +121,27 @@ impl KeyShift {
     }
 }
 
+/// Output volume of the server in percent; 0 is silent, 100 is the loudest setting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Volume(u8);
+
+impl Volume {
+    pub const SILENT: Self = Self(0);
+    pub const FULL: Self = Self(100);
+
+    pub fn new(percent: u8) -> Result<Self, InvalidValue> {
+        if percent <= Self::FULL.0 {
+            Ok(Self(percent))
+        } else {
+            Err(InvalidValue::VolumeOutOfRange)
+        }
+    }
+
+    pub fn percent(self) -> u8 {
+        self.0
+    }
+}
+
 /// A span of time with `start < end`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TimeRange {
@@ -177,6 +200,13 @@ mod tests {
         assert!(KeyShift::new(-12).is_ok());
         assert!(KeyShift::new(12).is_ok());
         assert_eq!(KeyShift::new(13), Err(InvalidValue::KeyShiftOutOfRange));
+    }
+
+    #[test]
+    fn volume_is_a_percentage() {
+        assert_eq!(Volume::new(0), Ok(Volume::SILENT));
+        assert_eq!(Volume::new(100), Ok(Volume::FULL));
+        assert_eq!(Volume::new(101), Err(InvalidValue::VolumeOutOfRange));
     }
 
     #[test]

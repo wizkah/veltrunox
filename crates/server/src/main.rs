@@ -9,7 +9,8 @@ use std::{error::Error, path::PathBuf, sync::Arc};
 use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 use veltrunox_core::RecordingTitle;
 use veltrunox_server_adapters::{
-    AppState, AudioPlayback, SqliteStore, SystemClock, import_directory, router, watch_end,
+    AppState, AudioPlayback, SqliteStore, SystemClock, import_directory, router, system_volume,
+    watch_end,
 };
 use veltrunox_server_app::RecordingRepository;
 use web::with_web_app;
@@ -34,9 +35,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let catalog = store.clone();
     let analyses = store.clone();
     let audio_clock = clock.clone();
-    let app = AppState::with_audio(store, clock, |hooks| {
+    let volume = system_volume(config.audio_device.as_deref());
+    let app = AppState::with_audio(store, clock, volume, |hooks| {
         Arc::new(AudioPlayback::start(
             config.audio_device.clone(),
+            volume,
             catalog,
             analyses,
             audio_clock,
