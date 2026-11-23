@@ -10,9 +10,10 @@ use axum::{
 };
 use std::time::Duration;
 use tokio::{sync::broadcast::error::RecvError, time::Instant};
-use veltrunox_core::Capability;
+use veltrunox_core::{Capability, Reason, Refusal};
 use veltrunox_protocol::{
-    ClientMessageDto, PROTOCOL_VERSION, ServerEventDto, intent_from_message, state_to_dto,
+    ClientMessageDto, PROTOCOL_VERSION, ReasonDto, ServerEventDto, intent_from_message,
+    state_to_dto,
 };
 use veltrunox_server_app::Identity;
 
@@ -163,12 +164,24 @@ async fn handle_incoming(
     match message {
         Message::Text(text) => match serde_json::from_str::<ClientMessageDto>(&text) {
             Ok(client_message) => handle_message(app, identity, socket, client_message).await,
-            Err(_) => reject(socket, "unrecognised message").await,
+            Err(_) => {
+                reject(
+                    socket,
+                    Reason::coded("message_unrecognised", "unrecognised message"),
+                )
+                .await
+            }
         },
         Message::Close(_) => Outcome::Stop,
         // Pongs and pings only prove the client is alive.
         Message::Ping(_) | Message::Pong(_) => Outcome::Continue,
-        Message::Binary(_) => reject(socket, "binary messages are not supported").await,
+        Message::Binary(_) => {
+            reject(
+                socket,
+                Reason::coded("binary_unsupported", "binary messages are not supported"),
+            )
+            .await
+        }
     }
 }
 
@@ -188,25 +201,25 @@ async fn handle_message(
     let intent = match intent_from_message(&message) {
         Ok(Some(intent)) => intent,
         Ok(None) => return Outcome::Continue,
-        Err(error) => return reject(socket, &error.to_string()).await,
+        Err(error) => return reject(socket, error.reason()).await,
     };
     if !identity.allows(Capability::PlayControl) {
-        return reject(socket, "not allowed").await;
+        return reject(socket, Reason::coded("not_allowed", "not allowed")).await;
     }
     let playback = app.playback.clone();
     // Applying an intent may write to the database, which blocks.
     match tokio::task::spawn_blocking(move || playback.apply(intent)).await {
         Ok(Ok(_)) => Outcome::Continue,
-        Ok(Err(error)) => reject(socket, &error.to_string()).await,
+        Ok(Err(error)) => reject(socket, error.reason()).await,
         Err(_) => Outcome::Stop,
     }
 }
 
-async fn reject(socket: &mut WebSocket, reason: &str) -> Outcome {
+async fn reject(socket: &mut WebSocket, reason: Reason) -> Outcome {
     forward(
         socket,
         ServerEventDto::Rejected {
-            reason: reason.to_owned(),
+            reason: ReasonDto::from(&reason),
         },
     )
     .await
@@ -240,9 +253,12 @@ async fn authenticate(app: &AppState, socket: &mut WebSocket) -> Option<Identity
             .await
             .ok()
             .flatten();
-            resolved.ok_or("sign-in required")
+            resolved.ok_or(Reason::coded("sign_in_required", "sign-in required"))
         }
-        _ => Err("the first message must be auth"),
+        _ => Err(Reason::coded(
+            "auth_expected",
+            "the first message must be auth",
+        )),
     };
     match found {
         Ok(identity) => Some(identity),
@@ -250,7 +266,7 @@ async fn authenticate(app: &AppState, socket: &mut WebSocket) -> Option<Identity
             let _ = send(
                 socket,
                 &ServerEventDto::Rejected {
-                    reason: reason.to_owned(),
+                    reason: ReasonDto::from(&reason),
                 },
             )
             .await;

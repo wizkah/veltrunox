@@ -7,6 +7,7 @@ import 'package:veltrunox_app/features/users/user_models.dart';
 import 'package:veltrunox_app/features/users/user_source.dart';
 import 'package:veltrunox_app/features/users/users_controller.dart';
 import 'package:veltrunox_app/features/users/users_dialog.dart';
+import 'package:veltrunox_app/shared_ui/server_reason.dart';
 
 class _FakeUsers implements UserSource {
   final users = [
@@ -235,7 +236,7 @@ void main() {
     tester,
   ) async {
     final source = await _open(tester);
-    source.failure = const Refused('a user with this name exists already');
+    source.failure = const Refused(ServerReason('user_name_taken'));
 
     await _toForm(tester);
     await tester.enterText(
@@ -272,7 +273,7 @@ void main() {
 
   testWidgets('a refused change says so in the dialog', (tester) async {
     final source = await _open(tester);
-    source.failure = const Refused('at least one active admin must remain');
+    source.failure = const Refused(ServerReason('last_admin'));
 
     await tester.tap(find.byType(Switch).at(1));
     await tester.pumpAndSettle();

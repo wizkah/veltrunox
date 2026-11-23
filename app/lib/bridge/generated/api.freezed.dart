@@ -129,7 +129,7 @@ return unavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  notSignedIn,TResult Function()?  notAllowed,TResult Function( BigInt retryAfterSeconds)?  tooManyAttempts,TResult Function( String reason)?  refused,TResult Function( String detail)?  unavailable,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  notSignedIn,TResult Function()?  notAllowed,TResult Function( BigInt retryAfterSeconds)?  tooManyAttempts,TResult Function( ReasonInfo reason)?  refused,TResult Function( String detail)?  unavailable,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AccessError_NotSignedIn() when notSignedIn != null:
 return notSignedIn();case AccessError_NotAllowed() when notAllowed != null:
@@ -154,7 +154,7 @@ return unavailable(_that.detail);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  notSignedIn,required TResult Function()  notAllowed,required TResult Function( BigInt retryAfterSeconds)  tooManyAttempts,required TResult Function( String reason)  refused,required TResult Function( String detail)  unavailable,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  notSignedIn,required TResult Function()  notAllowed,required TResult Function( BigInt retryAfterSeconds)  tooManyAttempts,required TResult Function( ReasonInfo reason)  refused,required TResult Function( String detail)  unavailable,}) {final _that = this;
 switch (_that) {
 case AccessError_NotSignedIn():
 return notSignedIn();case AccessError_NotAllowed():
@@ -175,7 +175,7 @@ return unavailable(_that.detail);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  notSignedIn,TResult? Function()?  notAllowed,TResult? Function( BigInt retryAfterSeconds)?  tooManyAttempts,TResult? Function( String reason)?  refused,TResult? Function( String detail)?  unavailable,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  notSignedIn,TResult? Function()?  notAllowed,TResult? Function( BigInt retryAfterSeconds)?  tooManyAttempts,TResult? Function( ReasonInfo reason)?  refused,TResult? Function( String detail)?  unavailable,}) {final _that = this;
 switch (_that) {
 case AccessError_NotSignedIn() when notSignedIn != null:
 return notSignedIn();case AccessError_NotAllowed() when notAllowed != null:
@@ -329,7 +329,7 @@ class AccessError_Refused extends AccessError {
   const AccessError_Refused({required this.reason}): super._();
   
 
- final  String reason;
+ final  ReasonInfo reason;
 
 /// Create a copy of AccessError
 /// with the given fields replaced by the non-null parameter values.
@@ -363,7 +363,7 @@ abstract mixin class $AccessError_RefusedCopyWith<$Res> implements $AccessErrorC
   factory $AccessError_RefusedCopyWith(AccessError_Refused value, $Res Function(AccessError_Refused) _then) = _$AccessError_RefusedCopyWithImpl;
 @useResult
 $Res call({
- String reason
+ ReasonInfo reason
 });
 
 
@@ -383,7 +383,7 @@ class _$AccessError_RefusedCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? reason = null,}) {
   return _then(AccessError_Refused(
 reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
-as String,
+as ReasonInfo,
   ));
 }
 
@@ -1277,6 +1277,302 @@ as int,
 }
 
 /// @nodoc
+mixin _$RecordingActionError {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is RecordingActionError);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'RecordingActionError()';
+}
+
+
+}
+
+/// @nodoc
+class $RecordingActionErrorCopyWith<$Res>  {
+$RecordingActionErrorCopyWith(RecordingActionError _, $Res Function(RecordingActionError) __);
+}
+
+
+/// Adds pattern-matching-related methods to [RecordingActionError].
+extension RecordingActionErrorPatterns on RecordingActionError {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( RecordingActionError_Refused value)?  refused,TResult Function( RecordingActionError_Failed value)?  failed,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case RecordingActionError_Refused() when refused != null:
+return refused(_that);case RecordingActionError_Failed() when failed != null:
+return failed(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( RecordingActionError_Refused value)  refused,required TResult Function( RecordingActionError_Failed value)  failed,}){
+final _that = this;
+switch (_that) {
+case RecordingActionError_Refused():
+return refused(_that);case RecordingActionError_Failed():
+return failed(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( RecordingActionError_Refused value)?  refused,TResult? Function( RecordingActionError_Failed value)?  failed,}){
+final _that = this;
+switch (_that) {
+case RecordingActionError_Refused() when refused != null:
+return refused(_that);case RecordingActionError_Failed() when failed != null:
+return failed(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ReasonInfo reason)?  refused,TResult Function( String detail)?  failed,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case RecordingActionError_Refused() when refused != null:
+return refused(_that.reason);case RecordingActionError_Failed() when failed != null:
+return failed(_that.detail);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ReasonInfo reason)  refused,required TResult Function( String detail)  failed,}) {final _that = this;
+switch (_that) {
+case RecordingActionError_Refused():
+return refused(_that.reason);case RecordingActionError_Failed():
+return failed(_that.detail);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ReasonInfo reason)?  refused,TResult? Function( String detail)?  failed,}) {final _that = this;
+switch (_that) {
+case RecordingActionError_Refused() when refused != null:
+return refused(_that.reason);case RecordingActionError_Failed() when failed != null:
+return failed(_that.detail);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class RecordingActionError_Refused extends RecordingActionError {
+  const RecordingActionError_Refused({required this.reason}): super._();
+  
+
+ final  ReasonInfo reason;
+
+/// Create a copy of RecordingActionError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$RecordingActionError_RefusedCopyWith<RecordingActionError_Refused> get copyWith => _$RecordingActionError_RefusedCopyWithImpl<RecordingActionError_Refused>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is RecordingActionError_Refused&&(identical(other.reason, reason) || other.reason == reason));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,reason);
+}
+
+@override
+String toString() {
+    return 'RecordingActionError.refused(reason: $reason)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $RecordingActionError_RefusedCopyWith<$Res> implements $RecordingActionErrorCopyWith<$Res> {
+  factory $RecordingActionError_RefusedCopyWith(RecordingActionError_Refused value, $Res Function(RecordingActionError_Refused) _then) = _$RecordingActionError_RefusedCopyWithImpl;
+@useResult
+$Res call({
+ ReasonInfo reason
+});
+
+
+
+
+}
+/// @nodoc
+class _$RecordingActionError_RefusedCopyWithImpl<$Res>
+    implements $RecordingActionError_RefusedCopyWith<$Res> {
+  _$RecordingActionError_RefusedCopyWithImpl(this._self, this._then);
+
+  final RecordingActionError_Refused _self;
+  final $Res Function(RecordingActionError_Refused) _then;
+
+/// Create a copy of RecordingActionError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? reason = null,}) {
+  return _then(RecordingActionError_Refused(
+reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as ReasonInfo,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class RecordingActionError_Failed extends RecordingActionError {
+  const RecordingActionError_Failed({required this.detail}): super._();
+  
+
+ final  String detail;
+
+/// Create a copy of RecordingActionError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$RecordingActionError_FailedCopyWith<RecordingActionError_Failed> get copyWith => _$RecordingActionError_FailedCopyWithImpl<RecordingActionError_Failed>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is RecordingActionError_Failed&&(identical(other.detail, detail) || other.detail == detail));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,detail);
+}
+
+@override
+String toString() {
+    return 'RecordingActionError.failed(detail: $detail)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $RecordingActionError_FailedCopyWith<$Res> implements $RecordingActionErrorCopyWith<$Res> {
+  factory $RecordingActionError_FailedCopyWith(RecordingActionError_Failed value, $Res Function(RecordingActionError_Failed) _then) = _$RecordingActionError_FailedCopyWithImpl;
+@useResult
+$Res call({
+ String detail
+});
+
+
+
+
+}
+/// @nodoc
+class _$RecordingActionError_FailedCopyWithImpl<$Res>
+    implements $RecordingActionError_FailedCopyWith<$Res> {
+  _$RecordingActionError_FailedCopyWithImpl(this._self, this._then);
+
+  final RecordingActionError_Failed _self;
+  final $Res Function(RecordingActionError_Failed) _then;
+
+/// Create a copy of RecordingActionError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? detail = null,}) {
+  return _then(RecordingActionError_Failed(
+detail: null == detail ? _self.detail : detail // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$SessionUpdate {
 
 
@@ -1402,7 +1698,7 @@ return audioOutput(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ConnectionState field0)?  connection,TResult Function( PlaybackView field0)?  playback,TResult Function( BigInt recordingId)?  bookmarksChanged,TResult Function( BigInt recordingId)?  analysisChanged,TResult Function()?  libraryChanged,TResult Function( String reason)?  rejected,TResult Function( RightsInfo rights)?  rights,TResult Function( bool available)?  audioOutput,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ConnectionState field0)?  connection,TResult Function( PlaybackView field0)?  playback,TResult Function( BigInt recordingId)?  bookmarksChanged,TResult Function( BigInt recordingId)?  analysisChanged,TResult Function()?  libraryChanged,TResult Function( ReasonInfo reason)?  rejected,TResult Function( RightsInfo rights)?  rights,TResult Function( bool available)?  audioOutput,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that.field0);case SessionUpdate_Playback() when playback != null:
@@ -1430,7 +1726,7 @@ return audioOutput(_that.available);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ConnectionState field0)  connection,required TResult Function( PlaybackView field0)  playback,required TResult Function( BigInt recordingId)  bookmarksChanged,required TResult Function( BigInt recordingId)  analysisChanged,required TResult Function()  libraryChanged,required TResult Function( String reason)  rejected,required TResult Function( RightsInfo rights)  rights,required TResult Function( bool available)  audioOutput,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ConnectionState field0)  connection,required TResult Function( PlaybackView field0)  playback,required TResult Function( BigInt recordingId)  bookmarksChanged,required TResult Function( BigInt recordingId)  analysisChanged,required TResult Function()  libraryChanged,required TResult Function( ReasonInfo reason)  rejected,required TResult Function( RightsInfo rights)  rights,required TResult Function( bool available)  audioOutput,}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection():
 return connection(_that.field0);case SessionUpdate_Playback():
@@ -1454,7 +1750,7 @@ return audioOutput(_that.available);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ConnectionState field0)?  connection,TResult? Function( PlaybackView field0)?  playback,TResult? Function( BigInt recordingId)?  bookmarksChanged,TResult? Function( BigInt recordingId)?  analysisChanged,TResult? Function()?  libraryChanged,TResult? Function( String reason)?  rejected,TResult? Function( RightsInfo rights)?  rights,TResult? Function( bool available)?  audioOutput,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ConnectionState field0)?  connection,TResult? Function( PlaybackView field0)?  playback,TResult? Function( BigInt recordingId)?  bookmarksChanged,TResult? Function( BigInt recordingId)?  analysisChanged,TResult? Function()?  libraryChanged,TResult? Function( ReasonInfo reason)?  rejected,TResult? Function( RightsInfo rights)?  rights,TResult? Function( bool available)?  audioOutput,}) {final _that = this;
 switch (_that) {
 case SessionUpdate_Connection() when connection != null:
 return connection(_that.field0);case SessionUpdate_Playback() when playback != null:
@@ -1783,7 +2079,7 @@ class SessionUpdate_Rejected extends SessionUpdate {
   const SessionUpdate_Rejected({required this.reason}): super._();
   
 
- final  String reason;
+ final  ReasonInfo reason;
 
 /// Create a copy of SessionUpdate
 /// with the given fields replaced by the non-null parameter values.
@@ -1817,7 +2113,7 @@ abstract mixin class $SessionUpdate_RejectedCopyWith<$Res> implements $SessionUp
   factory $SessionUpdate_RejectedCopyWith(SessionUpdate_Rejected value, $Res Function(SessionUpdate_Rejected) _then) = _$SessionUpdate_RejectedCopyWithImpl;
 @useResult
 $Res call({
- String reason
+ ReasonInfo reason
 });
 
 
@@ -1837,7 +2133,7 @@ class _$SessionUpdate_RejectedCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? reason = null,}) {
   return _then(SessionUpdate_Rejected(
 reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
-as String,
+as ReasonInfo,
   ));
 }
 

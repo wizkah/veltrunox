@@ -610,7 +610,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
+          decodeErrorData: sse_decode_recording_action_error,
         ),
         constMeta: kCrateApiDeleteRecordingForGoodConstMeta,
         argValues: [serverUrl, recordingId],
@@ -1059,7 +1059,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
+          decodeErrorData: sse_decode_recording_action_error,
         ),
         constMeta: kCrateApiRenameRecordingToConstMeta,
         argValues: [serverUrl, recordingId, title],
@@ -1418,7 +1418,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_uploaded_recording_item,
-          decodeErrorData: sse_decode_String,
+          decodeErrorData: sse_decode_recording_action_error,
         ),
         constMeta: kCrateApiUploadRecordingConstMeta,
         argValues: [serverUrl, fileName, content],
@@ -1500,7 +1500,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           retryAfterSeconds: dco_decode_u_64(raw[1]),
         );
       case 3:
-        return AccessError_Refused(reason: dco_decode_String(raw[1]));
+        return AccessError_Refused(
+          reason: dco_decode_box_autoadd_reason_info(raw[1]),
+        );
       case 4:
         return AccessError_Unavailable(detail: dco_decode_String(raw[1]));
       default:
@@ -1584,6 +1586,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ReasonInfo dco_decode_box_autoadd_reason_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_reason_info(raw);
+  }
+
+  @protected
   RightsInfo dco_decode_box_autoadd_rights_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_rights_info(raw);
@@ -1649,6 +1657,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<LabelItem> dco_decode_list_label_item(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_label_item).toList();
+  }
+
+  @protected
+  Uint64List dco_decode_list_prim_u_64_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeUint64List(raw);
   }
 
   @protected
@@ -1793,6 +1807,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ReasonInfo dco_decode_reason_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return ReasonInfo(
+      code: dco_decode_String(arr[0]),
+      args: dco_decode_list_prim_u_64_strict(arr[1]),
+      message: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  RecordingActionError dco_decode_recording_action_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return RecordingActionError_Refused(
+          reason: dco_decode_box_autoadd_reason_info(raw[1]),
+        );
+      case 1:
+        return RecordingActionError_Failed(detail: dco_decode_String(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   RecordingItem dco_decode_recording_item(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1869,7 +1911,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 4:
         return SessionUpdate_LibraryChanged();
       case 5:
-        return SessionUpdate_Rejected(reason: dco_decode_String(raw[1]));
+        return SessionUpdate_Rejected(
+          reason: dco_decode_box_autoadd_reason_info(raw[1]),
+        );
       case 6:
         return SessionUpdate_Rights(
           rights: dco_decode_box_autoadd_rights_info(raw[1]),
@@ -2031,7 +2075,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           retryAfterSeconds: var_retryAfterSeconds,
         );
       case 3:
-        var var_reason = sse_decode_String(deserializer);
+        var var_reason = sse_decode_box_autoadd_reason_info(deserializer);
         return AccessError_Refused(reason: var_reason);
       case 4:
         var var_detail = sse_decode_String(deserializer);
@@ -2121,6 +2165,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ReasonInfo sse_decode_box_autoadd_reason_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_reason_info(deserializer));
+  }
+
+  @protected
   RightsInfo sse_decode_box_autoadd_rights_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_rights_info(deserializer));
@@ -2194,6 +2244,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ans_.add(sse_decode_label_item(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  Uint64List sse_decode_list_prim_u_64_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getUint64List(len_);
   }
 
   @protected
@@ -2418,6 +2475,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ReasonInfo sse_decode_reason_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_code = sse_decode_String(deserializer);
+    var var_args = sse_decode_list_prim_u_64_strict(deserializer);
+    var var_message = sse_decode_String(deserializer);
+    return ReasonInfo(code: var_code, args: var_args, message: var_message);
+  }
+
+  @protected
+  RecordingActionError sse_decode_recording_action_error(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_reason = sse_decode_box_autoadd_reason_info(deserializer);
+        return RecordingActionError_Refused(reason: var_reason);
+      case 1:
+        var var_detail = sse_decode_String(deserializer);
+        return RecordingActionError_Failed(detail: var_detail);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   RecordingItem sse_decode_recording_item(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_u_64(deserializer);
@@ -2506,7 +2591,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 4:
         return SessionUpdate_LibraryChanged();
       case 5:
-        var var_reason = sse_decode_String(deserializer);
+        var var_reason = sse_decode_box_autoadd_reason_info(deserializer);
         return SessionUpdate_Rejected(reason: var_reason);
       case 6:
         var var_rights = sse_decode_box_autoadd_rights_info(deserializer);
@@ -2669,7 +2754,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_64(retryAfterSeconds, serializer);
       case AccessError_Refused(reason: final reason):
         sse_encode_i_32(3, serializer);
-        sse_encode_String(reason, serializer);
+        sse_encode_box_autoadd_reason_info(reason, serializer);
       case AccessError_Unavailable(detail: final detail):
         sse_encode_i_32(4, serializer);
         sse_encode_String(detail, serializer);
@@ -2752,6 +2837,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_reason_info(
+    ReasonInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_reason_info(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_rights_info(
     RightsInfo self,
     SseSerializer serializer,
@@ -2830,6 +2924,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     for (final item in self) {
       sse_encode_label_item(item, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_list_prim_u_64_strict(
+    Uint64List self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putUint64List(self);
   }
 
   @protected
@@ -3042,6 +3146,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_reason_info(ReasonInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.code, serializer);
+    sse_encode_list_prim_u_64_strict(self.args, serializer);
+    sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_recording_action_error(
+    RecordingActionError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case RecordingActionError_Refused(reason: final reason):
+        sse_encode_i_32(0, serializer);
+        sse_encode_box_autoadd_reason_info(reason, serializer);
+      case RecordingActionError_Failed(detail: final detail):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(detail, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_recording_item(RecordingItem self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(self.id, serializer);
@@ -3102,7 +3230,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(4, serializer);
       case SessionUpdate_Rejected(reason: final reason):
         sse_encode_i_32(5, serializer);
-        sse_encode_String(reason, serializer);
+        sse_encode_box_autoadd_reason_info(reason, serializer);
       case SessionUpdate_Rights(rights: final rights):
         sse_encode_i_32(6, serializer);
         sse_encode_box_autoadd_rights_info(rights, serializer);

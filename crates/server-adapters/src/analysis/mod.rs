@@ -18,6 +18,19 @@ pub enum AnalysisError {
     NoRhythm,
 }
 
+impl veltrunox_core::Refusal for AnalysisError {
+    fn reason(&self) -> veltrunox_core::Reason {
+        veltrunox_core::Reason::new(
+            self,
+            match self {
+                Self::TooShort => "analysis_too_short",
+                Self::NoTonalContent => "analysis_no_tonal_content",
+                Self::NoRhythm => "analysis_no_rhythm",
+            },
+        )
+    }
+}
+
 /// Analyses a decoded recording. CPU-bound: run it off the real-time paths.
 pub fn analyse(pcm: &Pcm) -> Result<RecordingAnalysis, AnalysisError> {
     analyse_reporting(pcm, &|_| {})

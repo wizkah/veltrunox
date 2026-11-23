@@ -63,6 +63,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlayerCommand dco_decode_box_autoadd_player_command(dynamic raw);
 
   @protected
+  ReasonInfo dco_decode_box_autoadd_reason_info(dynamic raw);
+
+  @protected
   RightsInfo dco_decode_box_autoadd_rights_info(dynamic raw);
 
   @protected
@@ -91,6 +94,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<LabelItem> dco_decode_list_label_item(dynamic raw);
+
+  @protected
+  Uint64List dco_decode_list_prim_u_64_strict(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
@@ -139,6 +145,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlayerCommand dco_decode_player_command(dynamic raw);
+
+  @protected
+  ReasonInfo dco_decode_reason_info(dynamic raw);
+
+  @protected
+  RecordingActionError dco_decode_recording_action_error(dynamic raw);
 
   @protected
   RecordingItem dco_decode_recording_item(dynamic raw);
@@ -236,6 +248,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ReasonInfo sse_decode_box_autoadd_reason_info(SseDeserializer deserializer);
+
+  @protected
   RightsInfo sse_decode_box_autoadd_rights_info(SseDeserializer deserializer);
 
   @protected
@@ -264,6 +279,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<LabelItem> sse_decode_list_label_item(SseDeserializer deserializer);
+
+  @protected
+  Uint64List sse_decode_list_prim_u_64_strict(SseDeserializer deserializer);
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
@@ -322,6 +340,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlayerCommand sse_decode_player_command(SseDeserializer deserializer);
+
+  @protected
+  ReasonInfo sse_decode_reason_info(SseDeserializer deserializer);
+
+  @protected
+  RecordingActionError sse_decode_recording_action_error(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RecordingItem sse_decode_recording_item(SseDeserializer deserializer);
@@ -436,6 +462,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_reason_info(
+    ReasonInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_rights_info(
     RightsInfo self,
     SseSerializer serializer,
@@ -477,6 +509,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_label_item(
     List<LabelItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_64_strict(
+    Uint64List self,
     SseSerializer serializer,
   );
 
@@ -554,6 +592,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_player_command(PlayerCommand self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_reason_info(ReasonInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_recording_action_error(
+    RecordingActionError self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_recording_item(RecordingItem self, SseSerializer serializer);

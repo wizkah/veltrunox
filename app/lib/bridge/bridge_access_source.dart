@@ -2,6 +2,7 @@ import '../features/access/access_models.dart';
 import '../features/access/access_source.dart';
 import 'bridge_session.dart';
 import 'generated/api.dart' as rust;
+import 'server_reason_of.dart';
 
 /// Adapter: signs in through the Rust client core.
 class BridgeAccessSource implements AccessSource {
@@ -118,6 +119,6 @@ AccessFailure _failure(rust.AccessError error) => switch (error) {
   rust.AccessError_TooManyAttempts(:final retryAfterSeconds) => TooManyAttempts(
     retryAfterSeconds.toInt(),
   ),
-  rust.AccessError_Refused(:final reason) => Refused(reason),
+  rust.AccessError_Refused(:final reason) => Refused(serverReasonOf(reason)),
   rust.AccessError_Unavailable() => const Unavailable(),
 };

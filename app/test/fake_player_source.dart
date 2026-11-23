@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:veltrunox_app/features/player/player_source.dart';
 import 'package:veltrunox_app/features/player/player_state.dart';
 import 'package:veltrunox_app/features/player/target_tempo.dart';
+import 'package:veltrunox_app/shared_ui/server_reason.dart';
 
 /// Records the commands and lets a test publish player states.
 class FakePlayerSource implements PlayerSource {
   final states = StreamController<PlayerState>.broadcast();
-  final refusals = StreamController<String>.broadcast();
+  final refusals = StreamController<ServerReason>.broadcast();
   final calls = <String>[];
   int? currentPosition = 0;
 
@@ -18,7 +19,7 @@ class FakePlayerSource implements PlayerSource {
   Stream<PlayerState> watchState() => states.stream;
 
   @override
-  Stream<String> rejections() => refusals.stream;
+  Stream<ServerReason> rejections() => refusals.stream;
 
   final audioOutputs = StreamController<bool>.broadcast();
 

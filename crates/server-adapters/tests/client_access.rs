@@ -63,7 +63,7 @@ async fn setup_sign_in_and_sign_out_follow_the_server_rules() {
     assert!(admin.rights.allows(Capability::ManageUsers));
     assert!(matches!(
         set_up_first_admin(&anonymous, &credentials("again", PASSWORD)).await,
-        Err(LinkError::Refused(_))
+        Err(LinkError::Refused(reason)) if reason.code == "setup_done"
     ));
 
     assert!(matches!(

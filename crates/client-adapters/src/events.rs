@@ -121,7 +121,7 @@ fn channel_event_from(text: &str) -> Option<ChannelEvent> {
             ServerEvent::Authenticated(rights_from_dto(&identity)),
         )),
         ServerEventDto::Rejected { reason } => {
-            Some(ChannelEvent::Server(ServerEvent::Rejected(reason)))
+            Some(ChannelEvent::Server(ServerEvent::Rejected(reason.into())))
         }
         ServerEventDto::BookmarksChanged { recording_id } => Some(ChannelEvent::Server(
             ServerEvent::BookmarksChanged(RecordingId::new(recording_id)),
@@ -139,6 +139,7 @@ fn channel_event_from(text: &str) -> Option<ChannelEvent> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use veltrunox_core::Reason;
 
     #[test]
     fn analysis_notices_become_server_events() {
@@ -194,8 +195,10 @@ mod tests {
             )))
         );
         assert_eq!(
-            channel_event_from(r#"{"type":"rejected","reason":"nope"}"#),
-            Some(ChannelEvent::Server(ServerEvent::Rejected("nope".into())))
+            channel_event_from(r#"{"type":"rejected","reason":{"code":"nope","message":"nope"}}"#),
+            Some(ChannelEvent::Server(ServerEvent::Rejected(Reason::coded(
+                "nope", "nope"
+            ))))
         );
     }
 

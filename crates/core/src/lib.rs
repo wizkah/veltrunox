@@ -4,6 +4,7 @@ mod analysis;
 mod auth;
 mod bookmark;
 mod playback;
+mod reason;
 mod recording;
 mod tempo_pitch;
 mod units;
@@ -22,6 +23,7 @@ pub use playback::{
     end_playback, end_region, pause, play, play_region, seek, select_recording, set_key,
     set_play_mode, set_speed, set_tuning, set_volume,
 };
+pub use reason::{Reason, Refusal};
 pub use recording::{InvalidRecording, Recording, RecordingId, RecordingTitle};
 pub use tempo_pitch::{Bpm, TargetSpeed, pitch_shift_semitones, speed_for_target_tempo};
 pub use units::{InvalidValue, KeyShift, Millis, Speed, TimeRange, TuningHz, Volume};

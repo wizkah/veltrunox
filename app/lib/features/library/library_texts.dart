@@ -105,9 +105,9 @@ abstract final class LibraryTexts {
 
   static String playRecording(String title) =>
       tr('Abspielen: $title', 'Play: $title');
-  static String analysisFailed(String? reason) {
-    if (reason == null) return tr('Analyse fehlgeschlagen', 'Analysis failed');
-    final shown = serverReasonText(reason);
+  static String analysisFailed(String? code) {
+    final shown = code == null ? null : knownReasonText(ServerReason(code));
+    if (shown == null) return tr('Analyse fehlgeschlagen', 'Analysis failed');
     return tr('Analyse fehlgeschlagen: $shown', 'Analysis failed: $shown');
   }
 }

@@ -1,12 +1,13 @@
 import 'player_state.dart';
 import 'target_tempo.dart';
+import '../../shared_ui/server_reason.dart';
 
 /// Port: the shared player. The server plays; this only controls and shows it.
 abstract interface class PlayerSource {
   Stream<PlayerState> watchState();
 
   /// Reasons why the server refused a command.
-  Stream<String> rejections();
+  Stream<ServerReason> rejections();
 
   /// Whether the server has an audio device; without one it plays nothing.
   /// Emits when the server tells, and again when that changes.

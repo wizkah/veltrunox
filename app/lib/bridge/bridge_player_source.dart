@@ -3,6 +3,7 @@ import '../features/player/player_state.dart';
 import '../features/player/target_tempo.dart';
 import 'bridge_session.dart';
 import 'generated/api.dart' as rust;
+import '../shared_ui/server_reason.dart';
 
 /// Adapter: the shared player of the Rust client core.
 class BridgePlayerSource implements PlayerSource {
@@ -14,7 +15,7 @@ class BridgePlayerSource implements PlayerSource {
   Stream<PlayerState> watchState() => _session.player();
 
   @override
-  Stream<String> rejections() => _session.rejections();
+  Stream<ServerReason> rejections() => _session.rejections();
 
   @override
   Stream<bool> audioOutput() => _session.audioOutput();

@@ -18,20 +18,20 @@ use veltrunox_client_app::{
     ServerLink, SignedIn, UploadedRecording, UserChange,
 };
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, PasswordPolicy, RecordingId,
-    RecordingTitle, Region, TimeRange, UserId, Version, Waveform, WaveformLevel,
+    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, PasswordPolicy, Reason,
+    RecordingId, RecordingTitle, Region, TimeRange, UserId, Version, Waveform, WaveformLevel,
 };
 use veltrunox_protocol::{
     ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, CredentialsDto, FILE_NAME_HEADER,
     GUEST_ACCESS_PATH, GuestAccessDto, IdentityDto, LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH,
     LOGIN_PATH, LOGOUT_PATH, LabelDto, ME_PATH, NewLabelDto, NewRegionDto, NewUserDto,
     PASSWORD_POLICY_PATH, RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH,
-    REGIONS_PATH, RecordingListDto, RegionDto, RenameRecordingDto, SETUP_PATH, STATUS_PATH,
-    SessionDto, SetPasswordPolicyDto, StatusDto, USER_PATH, USERS_PATH, UpdateLabelDto,
-    UpdateRegionDto, UpdateUserDto, UploadedRecordingDto, UserDto, WAVEFORM_LEVEL_PATH,
-    WAVEFORM_PATH, WaveformInfoDto, bookmarks_from_dto, label_from_dto, library_entry_from_dto,
-    password_policy_from_dto, password_policy_to_dto, peaks_from_bytes, range_to_dto,
-    region_from_dto, role_to_dto,
+    REGIONS_PATH, ReasonDto, RecordingListDto, RegionDto, RenameRecordingDto, SETUP_PATH,
+    STATUS_PATH, SessionDto, SetPasswordPolicyDto, StatusDto, USER_PATH, USERS_PATH,
+    UpdateLabelDto, UpdateRegionDto, UpdateUserDto, UploadedRecordingDto, UserDto,
+    WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_from_dto, label_from_dto,
+    library_entry_from_dto, password_policy_from_dto, password_policy_to_dto, peaks_from_bytes,
+    range_to_dto, region_from_dto, role_to_dto,
 };
 
 pub struct HttpServerLink {
@@ -167,9 +167,7 @@ impl HttpServerLink {
             StatusCode::BAD_REQUEST
             | StatusCode::UNPROCESSABLE_ENTITY
             | StatusCode::PAYLOAD_TOO_LARGE
-            | StatusCode::UNSUPPORTED_MEDIA_TYPE => Err(LinkError::Refused(
-                response.text().await.unwrap_or_default(),
-            )),
+            | StatusCode::UNSUPPORTED_MEDIA_TYPE => Err(refusal_of(response).await),
             status => Err(LinkError::Unreachable(format!("server answered {status}"))),
         }
     }
@@ -196,10 +194,9 @@ impl HttpServerLink {
                     retry_after_seconds: seconds,
                 })
             }
-            StatusCode::BAD_REQUEST | StatusCode::CONFLICT => Err(LinkError::Refused(
-                response.text().await.unwrap_or_default(),
-            )),
-            StatusCode::NOT_FOUND => Err(LinkError::Refused("not found".to_owned())),
+            StatusCode::BAD_REQUEST | StatusCode::CONFLICT | StatusCode::NOT_FOUND => {
+                Err(refusal_of(response).await)
+            }
             status => Err(LinkError::Unreachable(format!("server answered {status}"))),
         }
     }
@@ -219,6 +216,17 @@ impl HttpServerLink {
             .await
             .map_err(|error| LinkError::InvalidResponse(error.to_string()))
     }
+}
+
+/// The reason in the body of a refusal; a body that is no reason still says something.
+async fn refusal_of(response: Response) -> LinkError {
+    let status = response.status();
+    let text = response.text().await.unwrap_or_default();
+    let reason = match serde_json::from_str::<ReasonDto>(&text) {
+        Ok(dto) => dto.into(),
+        Err(_) => Reason::coded("refused", &format!("the server answered {status}: {text}")),
+    };
+    LinkError::Refused(reason)
 }
 
 impl ServerLink for HttpServerLink {

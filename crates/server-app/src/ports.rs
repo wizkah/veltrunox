@@ -77,6 +77,7 @@ pub trait WaveformRepository: Send + Sync {
     fn stored_length(&self, id: RecordingId) -> Result<Option<Millis>, StorageError>;
 }
 
+/// Why an analysis failed: the code of its reason (see `veltrunox_core::Reason`).
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{0}")]
 pub struct AnalysisFailure(pub String);
@@ -105,6 +106,19 @@ pub enum BookmarkError {
     Conflict(Version),
     #[error(transparent)]
     Storage(#[from] StorageError),
+}
+
+impl veltrunox_core::Refusal for BookmarkError {
+    fn reason(&self) -> veltrunox_core::Reason {
+        use veltrunox_core::Reason;
+        match self {
+            Self::NotFound => Reason::new(self, "bookmark_not_found"),
+            Self::Conflict(version) => {
+                Reason::with_args(self, "bookmark_conflict", vec![version.value()])
+            }
+            Self::Storage(_) => Reason::new(self, "storage_failed"),
+        }
+    }
 }
 
 /// A stored item together with the recording it belongs to.

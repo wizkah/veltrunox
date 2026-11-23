@@ -217,7 +217,7 @@ async fn a_recording_without_audio_reports_why_it_cannot_be_analysed() {
     };
     assert_eq!(
         progress,
-        AnalysisProgress::Failed("the recording has no audio file".into())
+        AnalysisProgress::Failed("audio_file_missing".into())
     );
 }
 

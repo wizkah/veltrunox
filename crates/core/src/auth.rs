@@ -42,6 +42,27 @@ pub enum InvalidUser {
     PasswordNeedsSpecial,
 }
 
+impl crate::Refusal for InvalidUser {
+    fn reason(&self) -> crate::Reason {
+        match self {
+            Self::EmptyName => crate::Reason::new(self, "user_name_empty"),
+            Self::NameTooLong => crate::Reason::with_args(
+                self,
+                "user_name_too_long",
+                vec![MAX_USER_NAME_CHARS as u64],
+            ),
+            Self::ControlCharacter => crate::Reason::new(self, "user_name_control_character"),
+            Self::PasswordTooShort { min } => {
+                crate::Reason::with_args(self, "password_too_short", vec![*min as u64])
+            }
+            Self::PasswordNeedsLowercase => crate::Reason::new(self, "password_needs_lowercase"),
+            Self::PasswordNeedsUppercase => crate::Reason::new(self, "password_needs_uppercase"),
+            Self::PasswordNeedsDigit => crate::Reason::new(self, "password_needs_digit"),
+            Self::PasswordNeedsSpecial => crate::Reason::new(self, "password_needs_special"),
+        }
+    }
+}
+
 /// A trimmed, non-empty user name. Names are compared without regard to case.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UserName(String);

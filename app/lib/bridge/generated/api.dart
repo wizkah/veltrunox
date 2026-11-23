@@ -9,9 +9,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `access`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `user_reason`, `view`, `with_channel`, `with_scrub`, `write_failure`
+// These functions are ignored because they are not marked as `pub`: `access`, `action_failure`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`, `write_failure`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Access`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Loads the recording list from the server at `server_url`.
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
@@ -27,7 +27,7 @@ Future<void> reanalyseRecording({
 );
 
 /// Sends an audio file to the server. The refusal reason (not audio, too large, not allowed)
-/// comes back as text for the user; the analysis result arrives as a session update.
+/// comes back as a code for the interface; the analysis result arrives as a session update.
 Future<UploadedRecordingItem> uploadRecording({
   required String serverUrl,
   required String fileName,
@@ -348,7 +348,7 @@ sealed class AccessError with _$AccessError implements FrbException {
   }) = AccessError_TooManyAttempts;
 
   /// The server refused the values; its reason is meant for the person.
-  const factory AccessError.refused({required String reason}) =
+  const factory AccessError.refused({required ReasonInfo reason}) =
       AccessError_Refused;
 
   /// The server cannot be reached or answered unexpectedly.
@@ -589,6 +589,48 @@ sealed class PlayerCommand with _$PlayerCommand {
       PlayerCommand_SetVolume;
 }
 
+/// Why the server refused something. The `code` is stable and the interface
+/// words it (`args` are the numbers its text needs); `message` is English, for
+/// codes the interface does not know.
+class ReasonInfo {
+  final String code;
+  final Uint64List args;
+  final String message;
+
+  const ReasonInfo({
+    required this.code,
+    required this.args,
+    required this.message,
+  });
+
+  @override
+  int get hashCode => code.hashCode ^ args.hashCode ^ message.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReasonInfo &&
+          runtimeType == other.runtimeType &&
+          code == other.code &&
+          args == other.args &&
+          message == other.message;
+}
+
+@freezed
+sealed class RecordingActionError
+    with _$RecordingActionError
+    implements FrbException {
+  const RecordingActionError._();
+
+  /// The server refused it.
+  const factory RecordingActionError.refused({required ReasonInfo reason}) =
+      RecordingActionError_Refused;
+
+  /// Anything else (no connection, an invalid title, ...), described in English.
+  const factory RecordingActionError.failed({required String detail}) =
+      RecordingActionError_Failed;
+}
+
 /// A recording as the user interface needs it.
 class RecordingItem {
   final BigInt id;
@@ -747,7 +789,7 @@ sealed class SessionUpdate with _$SessionUpdate {
 
   /// Recordings were added, renamed or removed; load the library again.
   const factory SessionUpdate.libraryChanged() = SessionUpdate_LibraryChanged;
-  const factory SessionUpdate.rejected({required String reason}) =
+  const factory SessionUpdate.rejected({required ReasonInfo reason}) =
       SessionUpdate_Rejected;
 
   /// The server accepted the sign-in of the channel; these are the rights of this client.

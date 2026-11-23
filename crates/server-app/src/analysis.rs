@@ -78,19 +78,19 @@ impl AnalysisService {
         let path = self
             .media
             .media_path(id)
-            .map_err(|error| error.to_string())?
-            .ok_or("the recording has no audio file")?;
+            .map_err(|_| "storage_failed".to_owned())?
+            .ok_or("audio_file_missing".to_owned())?;
         let scan = self
             .analyzer
             .scan(&path, &|percent| self.report(id, percent))
             .map_err(|error| error.to_string())?;
         self.waveforms
             .save_waveform(id, scan.length, &scan.waveform)
-            .map_err(|error| error.to_string())?;
+            .map_err(|_| "storage_failed".to_owned())?;
         let found = scan.analysis.map_err(|error| error.to_string())?;
         self.results
             .save_analysis(id, found)
-            .map_err(|error| error.to_string())
+            .map_err(|_| "storage_failed".to_owned())
     }
 
     pub fn status(&self, id: RecordingId) -> Result<AnalysisProgress, StorageError> {

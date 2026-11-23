@@ -2,7 +2,9 @@ import 'dart:async';
 
 import '../features/connection/connection_status.dart';
 import '../features/player/player_state.dart';
+import '../shared_ui/server_reason.dart';
 import 'generated/api.dart' as rust;
+import 'server_reason_of.dart';
 
 /// Adapter: the one real-time session of the Rust client core, shared by the
 /// connection and player sources. Keeps the latest values so a feature that
@@ -17,7 +19,7 @@ class BridgeSession {
   PlayerState? _player;
   final _connections = StreamController<ConnectionStatus>.broadcast();
   final _players = StreamController<PlayerState>.broadcast();
-  final _rejections = StreamController<String>.broadcast();
+  final _rejections = StreamController<ServerReason>.broadcast();
   final _audioOutputs = StreamController<bool>.broadcast();
   bool? _audioOutput;
   final _analysisChanges = StreamController<int>.broadcast();
@@ -36,7 +38,7 @@ class BridgeSession {
     yield* _players.stream;
   }
 
-  Stream<String> rejections() => _rejections.stream;
+  Stream<ServerReason> rejections() => _rejections.stream;
 
   /// Whether the server has an audio device; nothing until it tells.
   Stream<bool> audioOutput() async* {
@@ -88,7 +90,7 @@ class BridgeSession {
     try {
       await rust.sendCommand(command: command);
     } on Object catch (error) {
-      _rejections.add(error.toString());
+      _rejections.add(ServerReason.plain(error.toString()));
     }
   }
 
@@ -111,7 +113,7 @@ class BridgeSession {
         _player = _playerState(field0);
         _players.add(_player!);
       case rust.SessionUpdate_Rejected(:final reason):
-        _rejections.add(reason);
+        _rejections.add(serverReasonOf(reason));
       case rust.SessionUpdate_AnalysisChanged(:final recordingId):
         _analysisChanges.add(recordingId.toInt());
       case rust.SessionUpdate_LibraryChanged():

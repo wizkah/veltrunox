@@ -2,7 +2,7 @@
 
 use crate::{
     access::{AccessError, Caller, bearer_token},
-    http::{ApiError, blocking},
+    http::{ApiError, blocking, refusal},
     state::AppState,
 };
 use axum::{
@@ -13,7 +13,7 @@ use axum::{
     routing::{get, post, put},
 };
 use std::sync::Arc;
-use veltrunox_core::UserId;
+use veltrunox_core::{Refusal, UserId};
 use veltrunox_protocol::{
     CredentialsDto, GUEST_ACCESS_PATH, GuestAccessDto, IdentityDto, LOGIN_PATH, LOGOUT_PATH,
     ME_PATH, NewUserDto, PASSWORD_POLICY_PATH, PROTOCOL_VERSION, SETUP_PATH, STATUS_PATH,
@@ -70,27 +70,27 @@ fn user_to_dto(record: &UserRecord) -> UserDto {
 }
 
 pub fn account_error_response(error: AccountError) -> Response {
-    let message = error.to_string();
+    let reason = error.reason();
     match error {
         AccountError::Invalid(_) | AccountError::GuestAccount => {
-            (StatusCode::BAD_REQUEST, message).into_response()
+            refusal(StatusCode::BAD_REQUEST, &reason)
         }
         AccountError::NameTaken | AccountError::SetupDone | AccountError::LastAdmin => {
-            (StatusCode::CONFLICT, message).into_response()
+            refusal(StatusCode::CONFLICT, &reason)
         }
-        AccountError::NotFound => StatusCode::NOT_FOUND.into_response(),
-        AccountError::BadCredentials => (StatusCode::UNAUTHORIZED, message).into_response(),
+        AccountError::NotFound => refusal(StatusCode::NOT_FOUND, &reason),
+        AccountError::BadCredentials => refusal(StatusCode::UNAUTHORIZED, &reason),
         AccountError::TooManyAttempts {
             retry_after_seconds,
         } => {
-            let mut response = (StatusCode::TOO_MANY_REQUESTS, message).into_response();
+            let mut response = refusal(StatusCode::TOO_MANY_REQUESTS, &reason);
             if let Ok(value) = HeaderValue::from_str(&retry_after_seconds.to_string()) {
                 response.headers_mut().insert(header::RETRY_AFTER, value);
             }
             response
         }
         AccountError::Forbidden | AccountError::GuestAccessOff => {
-            (StatusCode::FORBIDDEN, message).into_response()
+            refusal(StatusCode::FORBIDDEN, &reason)
         }
         AccountError::Storage(_) | AccountError::Hash(_) => {
             StatusCode::INTERNAL_SERVER_ERROR.into_response()

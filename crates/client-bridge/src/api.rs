@@ -21,8 +21,9 @@ use veltrunox_client_app::{
 };
 use veltrunox_core::{
     AnalysisProgress, BookmarkId, BookmarkName, Bpm, Capability, Intent, InvalidValue, KeyMode,
-    KeyShift, LibraryEntry, Millis, PasswordPolicy, PlayMode, RecordingId, RecordingTitle, Role,
-    Speed, TargetSpeed, TimeRange, TuningHz, UserId, Version, Volume, speed_for_target_tempo,
+    KeyShift, LibraryEntry, Millis, PasswordPolicy, PlayMode, Reason, RecordingId, RecordingTitle,
+    Refusal, Role, Speed, TargetSpeed, TimeRange, TuningHz, UserId, Version, Volume,
+    speed_for_target_tempo,
 };
 
 /// A recording as the user interface needs it.
@@ -105,6 +106,35 @@ pub async fn reanalyse_recording(server_url: String, recording_id: u64) -> Resul
         .map_err(|error| error.to_string())
 }
 
+/// Why the server refused something. The `code` is stable and the interface
+/// words it (`args` are the numbers its text needs); `message` is English, for
+/// codes the interface does not know.
+#[derive(Debug, Clone)]
+pub struct ReasonInfo {
+    pub code: String,
+    pub args: Vec<u64>,
+    pub message: String,
+}
+
+impl From<Reason> for ReasonInfo {
+    fn from(reason: Reason) -> Self {
+        Self {
+            code: reason.code,
+            args: reason.args,
+            message: reason.message,
+        }
+    }
+}
+
+/// Why uploading, renaming or deleting a recording failed.
+#[derive(Debug)]
+pub enum RecordingActionError {
+    /// The server refused it.
+    Refused { reason: ReasonInfo },
+    /// Anything else (no connection, an invalid title, ...), described in English.
+    Failed { detail: String },
+}
+
 /// What became of an uploaded file.
 pub struct UploadedRecordingItem {
     pub id: u64,
@@ -114,16 +144,16 @@ pub struct UploadedRecordingItem {
 }
 
 /// Sends an audio file to the server. The refusal reason (not audio, too large, not allowed)
-/// comes back as text for the user; the analysis result arrives as a session update.
+/// comes back as a code for the interface; the analysis result arrives as a session update.
 pub async fn upload_recording(
     server_url: String,
     file_name: String,
     content: Vec<u8>,
-) -> Result<UploadedRecordingItem, String> {
+) -> Result<UploadedRecordingItem, RecordingActionError> {
     let link = link(&server_url);
     let uploaded = add_recording(&link, &file_name, content)
         .await
-        .map_err(|error| user_reason(&error))?;
+        .map_err(action_failure)?;
     Ok(UploadedRecordingItem {
         id: uploaded.id.value(),
         title: uploaded.title.as_str().to_owned(),
@@ -136,28 +166,34 @@ pub async fn rename_recording_to(
     server_url: String,
     recording_id: u64,
     title: String,
-) -> Result<(), String> {
-    let title = RecordingTitle::new(&title).map_err(|error| error.to_string())?;
+) -> Result<(), RecordingActionError> {
+    let title = RecordingTitle::new(&title).map_err(|error| RecordingActionError::Refused {
+        reason: error.reason().into(),
+    })?;
     rename_recording(&link(&server_url), RecordingId::new(recording_id), &title)
         .await
-        .map_err(|error| user_reason(&error))
+        .map_err(action_failure)
 }
 
 /// Deletes a recording with its bookmarks and analysis (admin only).
 pub async fn delete_recording_for_good(
     server_url: String,
     recording_id: u64,
-) -> Result<(), String> {
+) -> Result<(), RecordingActionError> {
     delete_recording(&link(&server_url), RecordingId::new(recording_id))
         .await
-        .map_err(|error| user_reason(&error))
+        .map_err(action_failure)
 }
 
-/// The server's own reason when it refused, else the error's description.
-fn user_reason(error: &LinkError) -> String {
+/// The server's reason when it refused, else the error's description.
+fn action_failure(error: LinkError) -> RecordingActionError {
     match error {
-        LinkError::Refused(reason) => reason.clone(),
-        other => other.to_string(),
+        LinkError::Refused(reason) => RecordingActionError::Refused {
+            reason: reason.into(),
+        },
+        other => RecordingActionError::Failed {
+            detail: other.to_string(),
+        },
     }
 }
 
@@ -535,7 +571,7 @@ pub enum SessionUpdate {
     /// Recordings were added, renamed or removed; load the library again.
     LibraryChanged,
     Rejected {
-        reason: String,
+        reason: ReasonInfo,
     },
     /// The server accepted the sign-in of the channel; these are the rights of this client.
     Rights {
@@ -656,7 +692,9 @@ fn forward(event: ServerEvent, updates: &StreamSink<SessionUpdate>) {
             })
         }
         ViewChange::LibraryChanged => Some(SessionUpdate::LibraryChanged),
-        ViewChange::Rejected(reason) => Some(SessionUpdate::Rejected { reason }),
+        ViewChange::Rejected(reason) => Some(SessionUpdate::Rejected {
+            reason: reason.into(),
+        }),
         ViewChange::Rights(rights) => Some(SessionUpdate::Rights {
             rights: RightsInfo::from(&rights),
         }),
@@ -916,7 +954,7 @@ pub enum AccessError {
     /// Too many failed sign-ins; try again after this many seconds.
     TooManyAttempts { retry_after_seconds: u64 },
     /// The server refused the values; its reason is meant for the person.
-    Refused { reason: String },
+    Refused { reason: ReasonInfo },
     /// The server cannot be reached or answered unexpectedly.
     Unavailable { detail: String },
 }
@@ -931,7 +969,9 @@ impl From<LinkError> for AccessError {
             } => Self::TooManyAttempts {
                 retry_after_seconds,
             },
-            LinkError::Refused(reason) => Self::Refused { reason },
+            LinkError::Refused(reason) => Self::Refused {
+                reason: reason.into(),
+            },
             other => Self::Unavailable {
                 detail: other.to_string(),
             },

@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
-use veltrunox_core::{Millis, RecordingId, Waveform};
+use veltrunox_core::{Millis, RecordingId, Refusal, Waveform};
 use veltrunox_server_app::{AnalysisFailure, AnalysisService, RecordingAnalyzer, RecordingScan};
 
 /// Decodes a file once and derives length, waveform and analysis from it.
@@ -17,7 +17,7 @@ impl RecordingAnalyzer for FileAnalyzer {
     /// Decoding counts for the first 40 percent, the waveform up to 45, the analysis the rest.
     fn scan(&self, path: &Path, report: &dyn Fn(u8)) -> Result<RecordingScan, AnalysisFailure> {
         let pcm = decode_file_reporting(path, &|percent| report(scaled(percent, 0, 40)))
-            .map_err(|error| AnalysisFailure(error.to_string()))?;
+            .map_err(|error| AnalysisFailure(error.reason().code))?;
         report(40);
         let waveform = Waveform::from_mono(&pcm.mono(), pcm.sample_rate());
         report(45);
@@ -25,7 +25,7 @@ impl RecordingAnalyzer for FileAnalyzer {
             length: Millis::new(pcm.duration_ms()),
             waveform,
             analysis: analyse_reporting(&pcm, &|percent| report(scaled(percent, 45, 55)))
-                .map_err(|error| AnalysisFailure(error.to_string())),
+                .map_err(|error| AnalysisFailure(error.reason().code)),
         })
     }
 }

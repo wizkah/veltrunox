@@ -6,7 +6,9 @@ use crate::ports::{
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
-use veltrunox_core::{Capability, InvalidUser, PasswordPolicy, Role, UserId, UserName};
+use veltrunox_core::{
+    Capability, InvalidUser, PasswordPolicy, Reason, Refusal, Role, UserId, UserName,
+};
 
 /// A session unused for this long is gone (30 days).
 const SESSION_MAX_IDLE_SECONDS: u64 = 30 * 24 * 60 * 60;
@@ -82,6 +84,26 @@ pub enum AccountError {
     Storage(#[from] StorageError),
     #[error(transparent)]
     Hash(#[from] HashFailure),
+}
+
+impl Refusal for AccountError {
+    fn reason(&self) -> Reason {
+        match self {
+            Self::Invalid(error) => error.reason(),
+            Self::NameTaken => Reason::new(self, "user_name_taken"),
+            Self::NotFound => Reason::new(self, "user_not_found"),
+            Self::SetupDone => Reason::new(self, "setup_done"),
+            Self::BadCredentials => Reason::new(self, "bad_credentials"),
+            Self::TooManyAttempts {
+                retry_after_seconds,
+            } => Reason::with_args(self, "too_many_attempts", vec![*retry_after_seconds]),
+            Self::LastAdmin => Reason::new(self, "last_admin"),
+            Self::GuestAccount => Reason::new(self, "guest_account"),
+            Self::Forbidden => Reason::new(self, "not_allowed"),
+            Self::GuestAccessOff => Reason::new(self, "guest_access_off"),
+            Self::Storage(_) | Self::Hash(_) => Reason::new(self, "internal_error"),
+        }
+    }
 }
 
 impl From<UserStoreError> for AccountError {

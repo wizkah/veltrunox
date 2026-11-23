@@ -3,7 +3,7 @@
 //! with time passed in, so it runs the same natively and in the browser.
 
 use crate::access::Rights;
-use veltrunox_core::{Intent, Millis, PlaybackState, RecordingId};
+use veltrunox_core::{Intent, Millis, PlaybackState, Reason, RecordingId};
 
 /// What the server tells a client over the real-time channel.
 #[derive(Debug, Clone, PartialEq)]
@@ -13,7 +13,7 @@ pub enum ServerEvent {
         client_time: Millis,
         server_time: Millis,
     },
-    Rejected(String),
+    Rejected(Reason),
     BookmarksChanged(RecordingId),
     /// The analysis status or result of this recording changed.
     AnalysisChanged(RecordingId),
@@ -34,7 +34,7 @@ pub enum ViewChange {
     AnalysisChanged(RecordingId),
     LibraryChanged,
     AudioOutput,
-    Rejected(String),
+    Rejected(Reason),
     /// The rights of the signed-in person, for the interface.
     Rights(Rights),
 }
@@ -312,8 +312,8 @@ mod tests {
             ViewChange::BookmarksChanged(RecordingId::new(2))
         );
         assert_eq!(
-            view.handle(ServerEvent::Rejected("no".into()), ms(0)),
-            ViewChange::Rejected("no".into())
+            view.handle(ServerEvent::Rejected(Reason::coded("no", "no")), ms(0)),
+            ViewChange::Rejected(Reason::coded("no", "no"))
         );
     }
 

@@ -1,12 +1,13 @@
 //! Who is calling: the bearer token of a request, and the rights check.
 
+use crate::http::refusal;
 use crate::state::AppState;
 use axum::{
     extract::FromRequestParts,
     http::{HeaderMap, StatusCode, header, request::Parts},
     response::{IntoResponse, Response},
 };
-use veltrunox_core::{Capability, Role};
+use veltrunox_core::{Capability, Reason, Role};
 use veltrunox_server_app::{AccountError, Identity};
 
 /// The caller of a request. Without accounts the server is open and everybody is an admin.
@@ -52,8 +53,14 @@ pub enum AccessError {
 impl IntoResponse for AccessError {
     fn into_response(self) -> Response {
         match self {
-            Self::Unauthorized => StatusCode::UNAUTHORIZED.into_response(),
-            Self::Forbidden => StatusCode::FORBIDDEN.into_response(),
+            Self::Unauthorized => refusal(
+                StatusCode::UNAUTHORIZED,
+                &Reason::coded("sign_in_required", "sign-in required"),
+            ),
+            Self::Forbidden => refusal(
+                StatusCode::FORBIDDEN,
+                &Reason::coded("not_allowed", "not allowed"),
+            ),
             Self::Failed => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
         }
     }

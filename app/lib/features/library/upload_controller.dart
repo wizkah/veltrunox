@@ -66,7 +66,7 @@ class UploadController extends Notifier<UploadState> {
     } on RecordingActionException catch (error) {
       return UploadFailed(
         fileName: file.name,
-        reason: serverReasonText(error.message),
+        reason: serverReasonText(error.reason),
       );
     } on Object catch (error) {
       return UploadFailed(fileName: file.name, reason: '$error');

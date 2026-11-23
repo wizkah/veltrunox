@@ -80,9 +80,6 @@ abstract final class AccessTexts {
     ),
   };
 
-  /// What the server says when a channel has no valid sign-in.
-  static const signInRequiredReason = 'sign-in required';
-
   static String signedInAs(String name) =>
       tr('Angemeldet als $name', 'Signed in as $name');
 

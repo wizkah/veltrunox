@@ -96,9 +96,7 @@ pub fn library_entry_to_dto(entry: &LibraryEntry) -> RecordingSummaryDto {
             AnalysisProgress::Running(percent) => {
                 AnalysisProgressDto::Running { percent: *percent }
             }
-            AnalysisProgress::Failed(reason) => AnalysisProgressDto::Failed {
-                reason: reason.clone(),
-            },
+            AnalysisProgress::Failed(code) => AnalysisProgressDto::Failed { code: code.clone() },
             AnalysisProgress::Done => AnalysisProgressDto::Done,
         },
         analysis: entry.analysis.result.as_ref().map(analysis_to_dto),
@@ -127,7 +125,7 @@ pub fn library_entry_from_dto(dto: &RecordingSummaryDto) -> Result<LibraryEntry,
                 AnalysisProgressDto::Running { percent } => {
                     AnalysisProgress::Running((*percent).min(100))
                 }
-                AnalysisProgressDto::Failed { reason } => AnalysisProgress::Failed(reason.clone()),
+                AnalysisProgressDto::Failed { code } => AnalysisProgress::Failed(code.clone()),
                 AnalysisProgressDto::Done => AnalysisProgress::Done,
             },
             result: dto.analysis.as_ref().map(analysis_from_dto).transpose()?,

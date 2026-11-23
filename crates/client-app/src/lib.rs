@@ -23,8 +23,8 @@ pub enum ChannelEvent {
 
 use std::future::Future;
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, PasswordPolicy, RecordingId,
-    RecordingTitle, Region, TimeRange, UserId, Version,
+    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, PasswordPolicy, Reason,
+    RecordingId, RecordingTitle, Region, TimeRange, UserId, Version,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -38,9 +38,9 @@ pub enum LinkError {
     /// The bookmark was changed by someone else; `current` is its stored version.
     #[error("the bookmark changed meanwhile (now at version {})", .current.value())]
     Conflict { current: Version },
-    /// The server refused the values or the file; the reason is meant for the user.
-    #[error("the server refused it: {0}")]
-    Refused(String),
+    /// The server refused the values or the file; the reason has a code the interface words.
+    #[error("the server refused it: {}", .0.message)]
+    Refused(Reason),
     /// Not signed in, or the token is no longer valid.
     #[error("sign-in required")]
     Unauthorized,

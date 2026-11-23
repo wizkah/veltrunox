@@ -14,6 +14,8 @@ import 'package:veltrunox_app/features/player/position_display.dart';
 
 import 'fake_player_source.dart';
 
+import 'package:veltrunox_app/shared_ui/server_reason.dart';
+
 const _loaded = PlayerState(
   recordingId: 1,
   running: false,
@@ -179,7 +181,7 @@ void main() {
   testWidgets('shows why the server refused a command', (tester) async {
     final player = await _pumpBar(tester, state: _loaded);
 
-    player.refusals.add('speed must be between 0.5 and 2.0');
+    player.refusals.add(const ServerReason('speed_out_of_range'));
     await tester.pump();
     await tester.pump();
 

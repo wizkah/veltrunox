@@ -17,6 +17,18 @@ pub enum DecodeError {
     Audio(String),
 }
 
+impl veltrunox_core::Refusal for DecodeError {
+    fn reason(&self) -> veltrunox_core::Reason {
+        veltrunox_core::Reason::new(
+            self,
+            match self {
+                Self::Io(_) => "file_unreadable",
+                Self::Audio(_) => "audio_unsupported",
+            },
+        )
+    }
+}
+
 impl From<Error> for DecodeError {
     fn from(error: Error) -> Self {
         Self::Audio(error.to_string())

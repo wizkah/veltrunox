@@ -16,12 +16,13 @@ use axum::{
 };
 use veltrunox_core::RecordingTitle;
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Capability, InvalidValue, Millis, RecordingId, Version,
+    BookmarkId, BookmarkName, Capability, InvalidValue, Millis, Reason, RecordingId, Refusal,
+    Version,
 };
 use veltrunox_protocol::{
     ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, EVENTS_PATH, ExpectedVersionQuery,
     LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto,
-    RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH, REGIONS_PATH,
+    RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH, REGIONS_PATH, ReasonDto,
     RecordingListDto, RegionDto, RenameRecordingDto, UpdateLabelDto, UpdateRegionDto,
     WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_to_dto, label_to_dto,
     library_entry_to_dto, peaks_to_bytes, range_from_dto, region_to_dto, waveform_info_to_dto,
@@ -57,8 +58,8 @@ pub(crate) enum ApiError {
     Access(AccessError),
     Account(AccountError),
     Bookmark(BookmarkError),
-    /// Refused with a message the client can show.
-    Refused(StatusCode, String),
+    /// Refused with a reason the client can word.
+    Refused(StatusCode, Reason),
     NotFound,
     Internal,
 }
@@ -66,10 +67,10 @@ pub(crate) enum ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         match self {
-            Self::Invalid(error) => (StatusCode::BAD_REQUEST, error.to_string()).into_response(),
+            Self::Invalid(error) => refusal(StatusCode::BAD_REQUEST, &error.reason()),
             Self::Access(error) => error.into_response(),
             Self::Account(error) => accounts_http::account_error_response(error),
-            Self::Refused(status, message) => (status, message).into_response(),
+            Self::Refused(status, reason) => refusal(status, &reason),
             Self::Bookmark(BookmarkError::NotFound) | Self::NotFound => {
                 StatusCode::NOT_FOUND.into_response()
             }
@@ -85,6 +86,11 @@ impl IntoResponse for ApiError {
             }
         }
     }
+}
+
+/// An error answer: the status with the reason as JSON.
+pub(crate) fn refusal(status: StatusCode, reason: &Reason) -> Response {
+    (status, Json(ReasonDto::from(reason))).into_response()
 }
 
 impl From<InvalidValue> for ApiError {
@@ -143,7 +149,7 @@ async fn rename_recording(
 ) -> Result<StatusCode, ApiError> {
     caller.require(Capability::ManageRecordings)?;
     let title = RecordingTitle::new(&body.title)
-        .map_err(|error| ApiError::Refused(StatusCode::BAD_REQUEST, error.to_string()))?;
+        .map_err(|error| ApiError::Refused(StatusCode::BAD_REQUEST, error.reason()))?;
     let id = RecordingId::new(recording);
     let hub = app.hub.clone();
     blocking(move || match app.recordings.rename(id, title) {

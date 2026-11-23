@@ -461,7 +461,7 @@ fn wire__crate__api__delete_recording_for_good_impl(
             let api_recording_id = <u64>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
-                transform_result_sse::<_, String>(
+                transform_result_sse::<_, crate::api::RecordingActionError>(
                     (move || async move {
                         let output_ok =
                             crate::api::delete_recording_for_good(api_server_url, api_recording_id)
@@ -974,7 +974,7 @@ fn wire__crate__api__rename_recording_to_impl(
             let api_title = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
-                transform_result_sse::<_, String>(
+                transform_result_sse::<_, crate::api::RecordingActionError>(
                     (move || async move {
                         let output_ok = crate::api::rename_recording_to(
                             api_server_url,
@@ -1398,7 +1398,7 @@ fn wire__crate__api__upload_recording_impl(
             let api_content = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
-                transform_result_sse::<_, String>(
+                transform_result_sse::<_, crate::api::RecordingActionError>(
                     (move || async move {
                         let output_ok = crate::api::upload_recording(
                             api_server_url,
@@ -1502,7 +1502,7 @@ impl SseDecode for crate::api::AccessError {
                 };
             }
             3 => {
-                let mut var_reason = <String>::sse_decode(deserializer);
+                let mut var_reason = <crate::api::ReasonInfo>::sse_decode(deserializer);
                 return crate::api::AccessError::Refused { reason: var_reason };
             }
             4 => {
@@ -1636,6 +1636,18 @@ impl SseDecode for Vec<crate::api::LabelItem> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::LabelItem>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<u64>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -1888,6 +1900,40 @@ impl SseDecode for crate::api::PlayerCommand {
     }
 }
 
+impl SseDecode for crate::api::ReasonInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_code = <String>::sse_decode(deserializer);
+        let mut var_args = <Vec<u64>>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
+        return crate::api::ReasonInfo {
+            code: var_code,
+            args: var_args,
+            message: var_message,
+        };
+    }
+}
+
+impl SseDecode for crate::api::RecordingActionError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_reason = <crate::api::ReasonInfo>::sse_decode(deserializer);
+                return crate::api::RecordingActionError::Refused { reason: var_reason };
+            }
+            1 => {
+                let mut var_detail = <String>::sse_decode(deserializer);
+                return crate::api::RecordingActionError::Failed { detail: var_detail };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::api::RecordingItem {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1994,7 +2040,7 @@ impl SseDecode for crate::api::SessionUpdate {
                 return crate::api::SessionUpdate::LibraryChanged;
             }
             5 => {
-                let mut var_reason = <String>::sse_decode(deserializer);
+                let mut var_reason = <crate::api::ReasonInfo>::sse_decode(deserializer);
                 return crate::api::SessionUpdate::Rejected { reason: var_reason };
             }
             6 => {
@@ -2446,6 +2492,50 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::PlayerCommand> for crate::api
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ReasonInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.code.into_into_dart().into_dart(),
+            self.args.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ReasonInfo {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ReasonInfo> for crate::api::ReasonInfo {
+    fn into_into_dart(self) -> crate::api::ReasonInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::RecordingActionError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::RecordingActionError::Refused { reason } => {
+                [0.into_dart(), reason.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::RecordingActionError::Failed { detail } => {
+                [1.into_dart(), detail.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::RecordingActionError
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::RecordingActionError>
+    for crate::api::RecordingActionError
+{
+    fn into_into_dart(self) -> crate::api::RecordingActionError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::RecordingItem {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2727,7 +2817,7 @@ impl SseEncode for crate::api::AccessError {
             }
             crate::api::AccessError::Refused { reason } => {
                 <i32>::sse_encode(3, serializer);
-                <String>::sse_encode(reason, serializer);
+                <crate::api::ReasonInfo>::sse_encode(reason, serializer);
             }
             crate::api::AccessError::Unavailable { detail } => {
                 <i32>::sse_encode(4, serializer);
@@ -2846,6 +2936,16 @@ impl SseEncode for Vec<crate::api::LabelItem> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::LabelItem>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <u64>::sse_encode(item, serializer);
         }
     }
 }
@@ -3062,6 +3162,34 @@ impl SseEncode for crate::api::PlayerCommand {
     }
 }
 
+impl SseEncode for crate::api::ReasonInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.code, serializer);
+        <Vec<u64>>::sse_encode(self.args, serializer);
+        <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::api::RecordingActionError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::RecordingActionError::Refused { reason } => {
+                <i32>::sse_encode(0, serializer);
+                <crate::api::ReasonInfo>::sse_encode(reason, serializer);
+            }
+            crate::api::RecordingActionError::Failed { detail } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(detail, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for crate::api::RecordingItem {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3142,7 +3270,7 @@ impl SseEncode for crate::api::SessionUpdate {
             }
             crate::api::SessionUpdate::Rejected { reason } => {
                 <i32>::sse_encode(5, serializer);
-                <String>::sse_encode(reason, serializer);
+                <crate::api::ReasonInfo>::sse_encode(reason, serializer);
             }
             crate::api::SessionUpdate::Rights { rights } => {
                 <i32>::sse_encode(6, serializer);

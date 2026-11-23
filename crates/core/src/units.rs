@@ -58,6 +58,23 @@ pub enum InvalidValue {
     EmptyName,
 }
 
+impl crate::Refusal for InvalidValue {
+    fn reason(&self) -> crate::Reason {
+        let code = match self {
+            Self::SpeedOutOfRange => "speed_out_of_range",
+            Self::TuningOutOfRange => "tuning_out_of_range",
+            Self::KeyShiftOutOfRange => "key_shift_out_of_range",
+            Self::VolumeOutOfRange => "volume_out_of_range",
+            Self::PositionOutOfRange => "position_out_of_range",
+            Self::EmptyRange => "empty_range",
+            Self::TempoNotPositive => "tempo_not_positive",
+            Self::KeyTonicOutOfRange => "key_tonic_out_of_range",
+            Self::EmptyName => "empty_name",
+        };
+        crate::Reason::new(self, code)
+    }
+}
+
 /// Playback speed as a factor of the original; pitch is not affected.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Speed(f64);

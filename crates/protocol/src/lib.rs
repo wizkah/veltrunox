@@ -21,6 +21,38 @@ pub use convert::{
 
 use serde::{Deserialize, Serialize};
 
+/// Why a request or an intent was refused. The `code` is stable and meant for
+/// the interface to translate; `args` are the numbers its text needs, in a
+/// fixed order per code; `message` is English, for logs and for codes the
+/// interface does not know.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReasonDto {
+    pub code: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub args: Vec<u64>,
+    pub message: String,
+}
+
+impl From<&veltrunox_core::Reason> for ReasonDto {
+    fn from(reason: &veltrunox_core::Reason) -> Self {
+        Self {
+            code: reason.code.clone(),
+            args: reason.args.clone(),
+            message: reason.message.clone(),
+        }
+    }
+}
+
+impl From<ReasonDto> for veltrunox_core::Reason {
+    fn from(dto: ReasonDto) -> Self {
+        Self {
+            code: dto.code,
+            args: dto.args,
+            message: dto.message,
+        }
+    }
+}
+
 /// Path of the recording list endpoint.
 pub const RECORDINGS_PATH: &str = "/api/v1/recordings";
 
@@ -109,7 +141,7 @@ pub enum ServerEventDto {
         server_time_ms: u64,
     },
     /// The intent of this client was refused; sent to the sender only.
-    Rejected { reason: String },
+    Rejected { reason: ReasonDto },
     /// Bookmarks of this recording changed; reload them.
     BookmarksChanged { recording_id: u64 },
     /// The analysis status or result of this recording changed; reload the library.
@@ -249,7 +281,8 @@ pub enum AnalysisProgressDto {
         percent: u8,
     },
     Failed {
-        reason: String,
+        /// Code of the reason (see `ReasonDto`); the interface words it.
+        code: String,
     },
     Done,
 }
@@ -320,7 +353,7 @@ mod tests {
                 title: "Intro".into(),
                 length_ms: Some(61_000),
                 analysis_progress: AnalysisProgressDto::Failed {
-                    reason: "too short".into(),
+                    code: "too_short".into(),
                 },
                 analysis: None,
             }],
@@ -330,7 +363,7 @@ mod tests {
             json,
             concat!(
                 r#"{"recordings":[{"id":1,"title":"Intro","length_ms":61000,"#,
-                r#""analysis_progress":{"state":"failed","reason":"too short"},"analysis":null}]}"#
+                r#""analysis_progress":{"state":"failed","code":"too_short"},"analysis":null}]}"#
             )
         );
         assert_eq!(
@@ -439,5 +472,19 @@ mod tests {
     #[test]
     fn unknown_message_types_are_rejected() {
         assert!(serde_json::from_str::<ClientMessageDto>(r#"{"type":"explode"}"#).is_err());
+    }
+
+    #[test]
+    fn a_reason_carries_code_numbers_and_message() {
+        let reason = veltrunox_core::Reason::with_args(&"too long", "file_too_large", vec![200]);
+        let dto = ReasonDto::from(&reason);
+        assert_eq!(
+            serde_json::to_string(&dto).unwrap(),
+            r#"{"code":"file_too_large","args":[200],"message":"too long"}"#
+        );
+        let without_numbers: ReasonDto =
+            serde_json::from_str(r#"{"code":"not_allowed","message":"not allowed"}"#).unwrap();
+        assert!(without_numbers.args.is_empty());
+        assert_eq!(veltrunox_core::Reason::from(dto), reason);
     }
 }

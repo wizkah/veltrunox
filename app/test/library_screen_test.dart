@@ -268,7 +268,7 @@ void main() {
               title: 'B',
               analysis: AnalysisInfo(
                 status: AnalysisStatus.failed,
-                failure: 'zu kurz',
+                failure: 'analysis_too_short',
               ),
             ),
           ],
@@ -278,7 +278,7 @@ void main() {
     await _pumpFrames(tester);
 
     expect(find.text('Analyse läuft … 0 %'), findsOneWidget);
-    expect(find.text('Analyse fehlgeschlagen: zu kurz'), findsOneWidget);
+    expect(find.text('Analyse fehlgeschlagen: Die Aufnahme ist zu kurz für die Analyse.'), findsOneWidget);
   });
 
   testWidgets('a finished analysis shows up without reloading by hand', (

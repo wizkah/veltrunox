@@ -165,6 +165,15 @@ pub enum TransportError {
     NoRecording,
 }
 
+impl crate::Refusal for TransportError {
+    fn reason(&self) -> crate::Reason {
+        let code = match self {
+            Self::NoRecording => "no_recording_selected",
+        };
+        crate::Reason::new(self, code)
+    }
+}
+
 /// The state with its reference moved to `now`, so a change of speed or play
 /// mode applies from this moment on.
 fn rebased(state: &PlaybackState, now: Millis) -> PlaybackState {

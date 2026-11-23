@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'recording_summary.dart';
+import '../../shared_ui/server_reason.dart';
 
 /// What the server made of an uploaded file.
 class UploadedRecording {
@@ -17,14 +18,14 @@ class UploadedRecording {
   final bool existing;
 }
 
-/// An action on a recording failed; [message] is the reason for the person.
+/// An action on a recording failed; [reason] is worded by the interface.
 class RecordingActionException implements Exception {
-  const RecordingActionException(this.message);
+  const RecordingActionException(this.reason);
 
-  final String message;
+  final ServerReason reason;
 
   @override
-  String toString() => message;
+  String toString() => reason.toString();
 }
 
 /// Port: where the library gets its recordings from, and what it may do to them.

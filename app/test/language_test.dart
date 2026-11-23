@@ -113,15 +113,18 @@ void main() {
   test('reasons of the server come in the language of the interface', () {
     AppLanguage.current = AppLanguage.de;
     expect(
-      serverReasonText('wrong user name or password'),
+      serverReasonText(const ServerReason('bad_credentials')),
       'Benutzername oder Passwort stimmt nicht.',
     );
     AppLanguage.current = AppLanguage.en;
     expect(
-      serverReasonText('wrong user name or password'),
+      serverReasonText(const ServerReason('bad_credentials')),
       'Wrong user name or password.',
     );
-    expect(serverReasonText('The file is empty.'), 'The file is empty.');
+    expect(
+      serverReasonText(const ServerReason('new_code', message: 'It broke')),
+      'It broke.',
+    );
   });
 
   test('numbers use the decimal separator of the language', () {

@@ -3,8 +3,10 @@ import 'dart:typed_data';
 import '../features/library/analysis_info.dart';
 import '../features/library/recording_source.dart';
 import '../features/library/recording_summary.dart';
+import '../shared_ui/server_reason.dart';
 import 'bridge_session.dart';
 import 'generated/api.dart' as rust;
+import 'server_reason_of.dart';
 
 /// Adapter: reads the recording list through the Rust client core.
 class BridgeRecordingSource implements RecordingSource {
@@ -64,12 +66,22 @@ class BridgeRecordingSource implements RecordingSource {
     ),
   );
 
-  /// The bridge reports a failure as text; it becomes the reason shown.
+  /// The bridge reports a refusal with a code and any other failure as text;
+  /// both become the reason shown.
   static Future<T> _reasoned<T>(Future<T> Function() call) async {
     try {
       return await call();
+    } on rust.RecordingActionError catch (error) {
+      throw RecordingActionException(switch (error) {
+        rust.RecordingActionError_Refused(:final reason) => serverReasonOf(
+          reason,
+        ),
+        rust.RecordingActionError_Failed(:final detail) => ServerReason.plain(
+          detail,
+        ),
+      });
     } on Object catch (error) {
-      throw RecordingActionException(error is String ? error : '$error');
+      throw RecordingActionException(ServerReason.plain('$error'));
     }
   }
 

@@ -1,3 +1,5 @@
+import '../../shared_ui/server_reason.dart';
+
 /// What a person is on the server.
 enum UserRole { admin, user, guest }
 
@@ -112,11 +114,11 @@ class TooManyAttempts extends AccessFailure {
   final int retryAfterSeconds;
 }
 
-/// The server refused the values; [reason] is meant for the person.
+/// The server refused the values; [reason] is worded by the interface.
 class Refused extends AccessFailure {
   const Refused(this.reason);
 
-  final String reason;
+  final ServerReason reason;
 }
 
 /// The sign-in ended while the app was open (token revoked or expired, guest

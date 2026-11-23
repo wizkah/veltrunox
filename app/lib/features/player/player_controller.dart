@@ -7,6 +7,7 @@ import 'remote_change_detector.dart';
 import 'player_state.dart';
 import 'position_display.dart';
 import 'target_tempo.dart';
+import '../../shared_ui/server_reason.dart';
 
 /// Supplies the [PlayerSource]; overridden at the application root.
 final playerSourceProvider = Provider<PlayerSource>(
@@ -61,7 +62,7 @@ final playerPositionProvider = StreamProvider<int?>((ref) {
 });
 
 /// Refusals of the server, for display.
-final playerRejectionProvider = StreamProvider<String>(
+final playerRejectionProvider = StreamProvider<ServerReason>(
   (ref) => ref.watch(playerSourceProvider).rejections(),
 );
 

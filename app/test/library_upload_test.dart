@@ -18,6 +18,8 @@ import 'package:veltrunox_app/features/player/player_controller.dart';
 import 'fake_access_source.dart';
 import 'fake_player_source.dart';
 
+import 'package:veltrunox_app/shared_ui/server_reason.dart';
+
 class _Recordings implements RecordingSource {
   final titles = <int, String>{1: 'Soundcheck'};
   final calls = <String>[];
@@ -49,7 +51,9 @@ class _Recordings implements RecordingSource {
     if (error != null) return Future.error(error);
     if (failFirst) {
       failFirst = false;
-      return Future.error(const RecordingActionException('this is not audio'));
+      return Future.error(
+        const RecordingActionException(ServerReason('audio_unsupported')),
+      );
     }
     final pending = pendingUpload;
     if (pending != null) return pending.future;
@@ -163,17 +167,19 @@ void main() {
     tester.view.physicalSize = const Size(1400, 900);
     addTearDown(tester.view.reset);
     final source = _Recordings()
-      ..failure = const RecordingActionException('this is not audio');
+      ..failure = const RecordingActionException(
+        ServerReason('audio_unsupported'),
+      );
     await tester.pumpWidget(_app(source, _Picker(), _user));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Aufnahmen hochladen'));
     await tester.pumpAndSettle();
 
-    expect(find.text('New song.wav: this is not audio'), findsOneWidget);
+    expect(find.text('New song.wav: Das Audioformat wird nicht unterstützt oder die Datei ist beschädigt.'), findsOneWidget);
     await tester.tap(find.byTooltip('Meldung schließen'));
     await tester.pump();
-    expect(find.text('New song.wav: this is not audio'), findsNothing);
+    expect(find.text('New song.wav: Das Audioformat wird nicht unterstützt oder die Datei ist beschädigt.'), findsNothing);
   });
 
   testWidgets('several files are sent one after the other and summed up', (
@@ -213,7 +219,7 @@ void main() {
       find.textContaining('1 hochgeladen, 1 fehlgeschlagen'),
       findsOneWidget,
     );
-    expect(find.textContaining('New song.wav: this is not audio'), findsOne);
+    expect(find.textContaining('New song.wav: Das Audioformat wird nicht unterstützt oder die Datei ist beschädigt.'), findsOne);
   });
 
   testWidgets('cancelling the file dialog sends nothing', (tester) async {
@@ -337,7 +343,9 @@ void main() {
     await tester.pumpWidget(_app(source, _Picker(), _admin));
     await tester.pumpAndSettle();
     await _openDetails(tester);
-    source.failure = const RecordingActionException('not allowed');
+    source.failure = const RecordingActionException(
+      ServerReason('not_allowed'),
+    );
 
     await tester.tap(find.text('Umbenennen'));
     await tester.pumpAndSettle();

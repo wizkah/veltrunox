@@ -30,6 +30,15 @@ pub enum InvalidRecording {
     EmptyTitle,
 }
 
+impl crate::Refusal for InvalidRecording {
+    fn reason(&self) -> crate::Reason {
+        let code = match self {
+            Self::EmptyTitle => "empty_title",
+        };
+        crate::Reason::new(self, code)
+    }
+}
+
 impl RecordingTitle {
     pub fn new(text: &str) -> Result<Self, InvalidRecording> {
         let trimmed = text.trim();

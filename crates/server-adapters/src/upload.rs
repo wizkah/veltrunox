@@ -21,7 +21,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tokio::io::AsyncWriteExt;
-use veltrunox_core::{Capability, RecordingTitle};
+use veltrunox_core::{Capability, Reason, RecordingTitle};
 use veltrunox_protocol::{FILE_NAME_HEADER, UploadedRecordingDto};
 use veltrunox_server_app::{MediaCatalog, PlaybackBroadcast, StorageError};
 
@@ -120,8 +120,8 @@ impl Drop for TemporaryFile {
     }
 }
 
-fn refused(status: StatusCode, message: &str) -> ApiError {
-    ApiError::Refused(status, message.to_owned())
+fn refused(status: StatusCode, code: &str, message: &str) -> ApiError {
+    ApiError::Refused(status, Reason::coded(code, message))
 }
 
 /// Receives one audio file as the raw request body.
@@ -135,6 +135,7 @@ pub(crate) async fn upload(
     let store = app.uploads.clone().ok_or_else(|| {
         refused(
             StatusCode::SERVICE_UNAVAILABLE,
+            "upload_unavailable",
             "uploading is not set up on this server",
         )
     })?;
@@ -155,6 +156,7 @@ pub(crate) async fn upload(
         probe_file(&probed).map_err(|error| {
             refused(
                 StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                "audio_unsupported",
                 &format!("this is not audio the server can read: {error}"),
             )
         })
@@ -209,9 +211,14 @@ pub(crate) async fn upload(
 }
 
 fn too_large(limit: u64) -> ApiError {
-    refused(
+    let megabytes = limit >> 20;
+    ApiError::Refused(
         StatusCode::PAYLOAD_TOO_LARGE,
-        &format!("the file is larger than the limit of {} MB", limit >> 20),
+        Reason::with_args(
+            &format!("the file is larger than the limit of {megabytes} MB"),
+            "file_too_large",
+            vec![megabytes],
+        ),
     )
 }
 
@@ -224,8 +231,13 @@ async fn receive(body: Body, store: &UploadStore, path: &Path) -> Result<String,
     let mut received = 0u64;
     let mut chunks = body.into_data_stream();
     while let Some(chunk) = chunks.next().await {
-        let chunk =
-            chunk.map_err(|_| refused(StatusCode::BAD_REQUEST, "the upload was interrupted"))?;
+        let chunk = chunk.map_err(|_| {
+            refused(
+                StatusCode::BAD_REQUEST,
+                "upload_interrupted",
+                "the upload was interrupted",
+            )
+        })?;
         received += chunk.len() as u64;
         if received > store.max_bytes {
             return Err(too_large(store.max_bytes));
@@ -237,7 +249,11 @@ async fn receive(body: Body, store: &UploadStore, path: &Path) -> Result<String,
     }
     file.flush().await.map_err(|_| ApiError::Internal)?;
     if received == 0 {
-        return Err(refused(StatusCode::BAD_REQUEST, "the file is empty"));
+        return Err(refused(
+            StatusCode::BAD_REQUEST,
+            "file_empty",
+            "the file is empty",
+        ));
     }
     Ok(hasher
         .finalize()
@@ -251,9 +267,20 @@ fn file_name_of(headers: &HeaderMap) -> Result<(RecordingTitle, Option<String>),
     let encoded = headers
         .get(FILE_NAME_HEADER)
         .and_then(|value| value.to_str().ok())
-        .ok_or_else(|| refused(StatusCode::BAD_REQUEST, "the file name is missing"))?;
-    let decoded = percent_decode(encoded)
-        .ok_or_else(|| refused(StatusCode::BAD_REQUEST, "the file name is not valid"))?;
+        .ok_or_else(|| {
+            refused(
+                StatusCode::BAD_REQUEST,
+                "file_name_missing",
+                "the file name is missing",
+            )
+        })?;
+    let decoded = percent_decode(encoded).ok_or_else(|| {
+        refused(
+            StatusCode::BAD_REQUEST,
+            "file_name_invalid",
+            "the file name is not valid",
+        )
+    })?;
     let name = decoded
         .rsplit(['/', '\\'])
         .next()
@@ -263,8 +290,13 @@ fn file_name_of(headers: &HeaderMap) -> Result<(RecordingTitle, Option<String>),
         Some((stem, extension)) if !stem.is_empty() => (stem, Some(extension)),
         _ => (name.as_str(), None),
     };
-    let title = RecordingTitle::new(stem)
-        .map_err(|_| refused(StatusCode::BAD_REQUEST, "the file name is empty"))?;
+    let title = RecordingTitle::new(stem).map_err(|_| {
+        refused(
+            StatusCode::BAD_REQUEST,
+            "file_name_empty",
+            "the file name is empty",
+        )
+    })?;
     // Only a plain extension is kept: it names the file in the store and hints the decoder.
     let extension = extension
         .filter(|extension| {

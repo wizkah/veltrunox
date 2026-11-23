@@ -56,7 +56,7 @@ Future<bool> _guarded(
     await action();
     return true;
   } on RecordingActionException catch (error) {
-    reason = serverReasonText(error.message);
+    reason = serverReasonText(error.reason);
   } on Object catch (error) {
     reason = '$error';
   }

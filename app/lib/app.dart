@@ -11,7 +11,6 @@ import 'features/language/language_controller.dart';
 import 'composition/shell_status.dart';
 import 'features/access/access_controller.dart';
 import 'features/access/access_gate.dart';
-import 'features/access/access_texts.dart';
 import 'features/player/audio_output_banner.dart';
 import 'features/player/player_controller.dart';
 import 'features/player/player_notices.dart';
@@ -42,7 +41,7 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final destination = ref.watch(shellDestinationProvider);
     ref.listen(playerRejectionProvider, (_, rejection) {
-      if (rejection.value == AccessTexts.signInRequiredReason) {
+      if (rejection.value?.isSignInRequired ?? false) {
         ref.read(accessControllerProvider.notifier).sessionExpired();
       }
     });

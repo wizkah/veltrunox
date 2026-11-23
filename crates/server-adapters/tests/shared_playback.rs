@@ -92,7 +92,11 @@ async fn a_rejected_intent_reaches_only_its_sender() {
 
     sender.connection.send_intent(Intent::Play); // nothing selected yet
     sender.next_matching(|event| {
-        matches!(event, ChannelEvent::Server(ServerEvent::Rejected(_))).then_some(())
+        matches!(
+            event,
+            ChannelEvent::Server(ServerEvent::Rejected(reason)) if reason.code == "no_recording_selected"
+        )
+        .then_some(())
     });
 
     // The bystander sees no rejection; its next event is the following state.

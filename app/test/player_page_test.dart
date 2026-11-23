@@ -19,6 +19,8 @@ import 'fake_marker_source.dart';
 import 'fake_access_source.dart';
 import 'fake_player_source.dart';
 
+import 'package:veltrunox_app/shared_ui/server_reason.dart';
+
 class _Recordings with NoRecordingActions implements RecordingSource {
   @override
   Future<List<RecordingSummary>> listRecordings() async => const [
@@ -201,7 +203,7 @@ void main() {
   ) async {
     final app = await _pump(tester);
 
-    app.player.refusals.add('sign-in required');
+    app.player.refusals.add(const ServerReason('sign_in_required'));
     await tester.pumpAndSettle();
 
     expect(find.text('Benutzername'), findsOneWidget);

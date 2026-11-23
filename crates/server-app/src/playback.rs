@@ -3,9 +3,9 @@
 use crate::ports::{Clock, PlaybackBroadcast, RecordingLengths, RecordingRepository, StorageError};
 use std::sync::{Arc, Mutex, PoisonError};
 use veltrunox_core::{
-    Intent, Millis, PlaybackState, RecordingId, TransportError, end_playback, end_region, pause,
-    play, play_region, seek, select_recording, set_key, set_play_mode, set_speed, set_tuning,
-    set_volume,
+    Intent, Millis, PlaybackState, Reason, RecordingId, Refusal, TransportError, end_playback,
+    end_region, pause, play, play_region, seek, select_recording, set_key, set_play_mode,
+    set_speed, set_tuning, set_volume,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -18,6 +18,19 @@ pub enum IntentError {
     Transport(#[from] TransportError),
     #[error(transparent)]
     Storage(#[from] StorageError),
+}
+
+impl Refusal for IntentError {
+    fn reason(&self) -> Reason {
+        match self {
+            Self::UnknownRecording => Reason::new(self, "recording_unknown"),
+            Self::BeyondEnd { position, length } => {
+                Reason::with_args(self, "position_beyond_end", vec![*position, *length])
+            }
+            Self::Transport(error) => error.reason(),
+            Self::Storage(_) => Reason::new(self, "storage_failed"),
+        }
+    }
 }
 
 /// Holds the one playback state. Intents are applied one at a time in arrival
