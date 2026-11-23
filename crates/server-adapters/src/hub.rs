@@ -4,6 +4,13 @@ use tokio::sync::{broadcast, watch};
 use veltrunox_core::{PlaybackState, RecordingId};
 use veltrunox_server_app::PlaybackBroadcast;
 
+/// How much of an upload the server has received so far.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UploadProgress {
+    pub upload_id: String,
+    pub received_bytes: u64,
+}
+
 /// Holds the latest state, so a joining client reads it directly. Clients that
 /// are slow skip intermediate states; each one is complete anyway.
 pub struct Hub {
@@ -11,6 +18,7 @@ pub struct Hub {
     bookmarks: broadcast::Sender<RecordingId>,
     analysis: broadcast::Sender<RecordingId>,
     library: broadcast::Sender<()>,
+    uploads: broadcast::Sender<UploadProgress>,
     audio_output: watch::Sender<bool>,
 }
 
@@ -21,6 +29,7 @@ impl Hub {
             bookmarks: broadcast::channel(64).0,
             analysis: broadcast::channel(64).0,
             library: broadcast::channel(16).0,
+            uploads: broadcast::channel(64).0,
             // Until a device is opened there is no sound.
             audio_output: watch::channel(false).0,
         }
@@ -44,6 +53,18 @@ impl Hub {
 
     pub fn subscribe_library(&self) -> broadcast::Receiver<()> {
         self.library.subscribe()
+    }
+
+    pub fn subscribe_uploads(&self) -> broadcast::Receiver<UploadProgress> {
+        self.uploads.subscribe()
+    }
+
+    /// Tells the clients how far an upload has come; nobody listening is fine.
+    pub fn upload_progress(&self, upload_id: &str, received_bytes: u64) {
+        let _ = self.uploads.send(UploadProgress {
+            upload_id: upload_id.to_owned(),
+            received_bytes,
+        });
     }
 
     pub fn subscribe_bookmarks(&self) -> broadcast::Receiver<RecordingId> {

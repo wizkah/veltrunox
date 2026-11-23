@@ -19,6 +19,11 @@ pub enum ServerEvent {
     AnalysisChanged(RecordingId),
     /// Recordings were added, renamed or removed.
     LibraryChanged,
+    /// The server has received this many bytes of the upload with this id.
+    UploadProgress {
+        upload_id: String,
+        received_bytes: u64,
+    },
     /// Whether the server can play sound.
     AudioOutput(bool),
     /// The server accepted the sign-in of the channel.
@@ -33,6 +38,10 @@ pub enum ViewChange {
     BookmarksChanged(RecordingId),
     AnalysisChanged(RecordingId),
     LibraryChanged,
+    UploadProgress {
+        upload_id: String,
+        received_bytes: u64,
+    },
     AudioOutput,
     Rejected(Reason),
     /// The rights of the signed-in person, for the interface.
@@ -107,6 +116,13 @@ impl SessionView {
             ServerEvent::BookmarksChanged(recording) => ViewChange::BookmarksChanged(recording),
             ServerEvent::AnalysisChanged(recording) => ViewChange::AnalysisChanged(recording),
             ServerEvent::LibraryChanged => ViewChange::LibraryChanged,
+            ServerEvent::UploadProgress {
+                upload_id,
+                received_bytes,
+            } => ViewChange::UploadProgress {
+                upload_id,
+                received_bytes,
+            },
             ServerEvent::Authenticated(rights) => ViewChange::Rights(rights),
             ServerEvent::AudioOutput(available) => {
                 if self.audio_output.replace(available) == Some(available) {

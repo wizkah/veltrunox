@@ -6,6 +6,14 @@ import '../shared_ui/server_reason.dart';
 import 'generated/api.dart' as rust;
 import 'server_reason_of.dart';
 
+/// How many bytes the server has received of the upload with this id.
+class UploadProgress {
+  const UploadProgress({required this.uploadId, required this.receivedBytes});
+
+  final String uploadId;
+  final int receivedBytes;
+}
+
 /// Adapter: the one real-time session of the Rust client core, shared by the
 /// connection and player sources. Keeps the latest values so a feature that
 /// starts listening late still sees the current state.
@@ -24,6 +32,7 @@ class BridgeSession {
   bool? _audioOutput;
   final _analysisChanges = StreamController<int>.broadcast();
   final _libraryChanges = StreamController<void>.broadcast();
+  final _uploadProgress = StreamController<UploadProgress>.broadcast();
   final _bookmarkChanges = StreamController<int>.broadcast();
 
   Stream<ConnectionStatus> connection() async* {
@@ -52,6 +61,9 @@ class BridgeSession {
 
   /// Fires when recordings were added, renamed or removed on the server.
   Stream<void> libraryChanges() => _libraryChanges.stream;
+
+  /// How many bytes the server has received of each upload, by upload id.
+  Stream<UploadProgress> uploadProgress() => _uploadProgress.stream;
 
   /// Ids of recordings whose markers changed on the server.
   Stream<int> bookmarkChanges() => _bookmarkChanges.stream;
@@ -102,6 +114,7 @@ class BridgeSession {
     await _audioOutputs.close();
     await _analysisChanges.close();
     await _libraryChanges.close();
+    await _uploadProgress.close();
     await _bookmarkChanges.close();
   }
 
@@ -118,6 +131,16 @@ class BridgeSession {
         _analysisChanges.add(recordingId.toInt());
       case rust.SessionUpdate_LibraryChanged():
         _libraryChanges.add(null);
+      case rust.SessionUpdate_UploadProgress(
+        :final uploadId,
+        :final receivedBytes,
+      ):
+        _uploadProgress.add(
+          UploadProgress(
+            uploadId: uploadId,
+            receivedBytes: receivedBytes.toInt(),
+          ),
+        );
       case rust.SessionUpdate_BookmarksChanged(:final recordingId):
         _bookmarkChanges.add(recordingId.toInt());
       case rust.SessionUpdate_Rights():

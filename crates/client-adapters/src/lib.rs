@@ -27,8 +27,8 @@ use veltrunox_protocol::{
     LOGIN_PATH, LOGOUT_PATH, LabelDto, ME_PATH, NewLabelDto, NewRegionDto, NewUserDto,
     PASSWORD_POLICY_PATH, RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH,
     REGIONS_PATH, ReasonDto, RecordingListDto, RegionDto, RenameRecordingDto, SETUP_PATH,
-    STATUS_PATH, SessionDto, SetPasswordPolicyDto, StatusDto, USER_PATH, USERS_PATH,
-    UpdateLabelDto, UpdateRegionDto, UpdateUserDto, UploadedRecordingDto, UserDto,
+    STATUS_PATH, SessionDto, SetPasswordPolicyDto, StatusDto, UPLOAD_ID_HEADER, USER_PATH,
+    USERS_PATH, UpdateLabelDto, UpdateRegionDto, UpdateUserDto, UploadedRecordingDto, UserDto,
     WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_from_dto, label_from_dto,
     library_entry_from_dto, password_policy_from_dto, password_policy_to_dto, peaks_from_bytes,
     range_to_dto, region_from_dto, role_to_dto,
@@ -279,11 +279,13 @@ impl ServerLink for HttpServerLink {
     async fn upload_recording(
         &self,
         file_name: &str,
+        upload_id: &str,
         content: Vec<u8>,
     ) -> Result<UploadedRecording, LinkError> {
         let request = self
             .post(format!("{}{}", self.base_url, RECORDINGS_PATH))
             .header(FILE_NAME_HEADER, percent_encode(file_name))
+            .header(UPLOAD_ID_HEADER, upload_id)
             .body(content);
         let dto: UploadedRecordingDto = Self::send_write(request)
             .await?

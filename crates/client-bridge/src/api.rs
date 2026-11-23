@@ -143,15 +143,18 @@ pub struct UploadedRecordingItem {
     pub existing: bool,
 }
 
-/// Sends an audio file to the server. The refusal reason (not audio, too large, not allowed)
+/// Sends an audio file to the server. `upload_id` is a fresh id of 1 to 64 letters, digits, `-`
+/// or `_`; the bytes the server has received arrive as `SessionUpdate::UploadProgress` under it.
+/// The refusal reason (not audio, too large, not allowed)
 /// comes back as a code for the interface; the analysis result arrives as a session update.
 pub async fn upload_recording(
     server_url: String,
     file_name: String,
+    upload_id: String,
     content: Vec<u8>,
 ) -> Result<UploadedRecordingItem, RecordingActionError> {
     let link = link(&server_url);
-    let uploaded = add_recording(&link, &file_name, content)
+    let uploaded = add_recording(&link, &file_name, &upload_id, content)
         .await
         .map_err(action_failure)?;
     Ok(UploadedRecordingItem {
@@ -570,6 +573,11 @@ pub enum SessionUpdate {
     },
     /// Recordings were added, renamed or removed; load the library again.
     LibraryChanged,
+    /// The server has received this many bytes of the upload with this id.
+    UploadProgress {
+        upload_id: String,
+        received_bytes: u64,
+    },
     Rejected {
         reason: ReasonInfo,
     },
@@ -692,6 +700,13 @@ fn forward(event: ServerEvent, updates: &StreamSink<SessionUpdate>) {
             })
         }
         ViewChange::LibraryChanged => Some(SessionUpdate::LibraryChanged),
+        ViewChange::UploadProgress {
+            upload_id,
+            received_bytes,
+        } => Some(SessionUpdate::UploadProgress {
+            upload_id,
+            received_bytes,
+        }),
         ViewChange::Rejected(reason) => Some(SessionUpdate::Rejected {
             reason: reason.into(),
         }),

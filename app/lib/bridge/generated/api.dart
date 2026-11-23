@@ -26,15 +26,19 @@ Future<void> reanalyseRecording({
   recordingId: recordingId,
 );
 
-/// Sends an audio file to the server. The refusal reason (not audio, too large, not allowed)
+/// Sends an audio file to the server. `upload_id` is a fresh id of 1 to 64 letters, digits, `-`
+/// or `_`; the bytes the server has received arrive as `SessionUpdate::UploadProgress` under it.
+/// The refusal reason (not audio, too large, not allowed)
 /// comes back as a code for the interface; the analysis result arrives as a session update.
 Future<UploadedRecordingItem> uploadRecording({
   required String serverUrl,
   required String fileName,
+  required String uploadId,
   required List<int> content,
 }) => RustLib.instance.api.crateApiUploadRecording(
   serverUrl: serverUrl,
   fileName: fileName,
+  uploadId: uploadId,
   content: content,
 );
 
@@ -789,6 +793,12 @@ sealed class SessionUpdate with _$SessionUpdate {
 
   /// Recordings were added, renamed or removed; load the library again.
   const factory SessionUpdate.libraryChanged() = SessionUpdate_LibraryChanged;
+
+  /// The server has received this many bytes of the upload with this id.
+  const factory SessionUpdate.uploadProgress({
+    required String uploadId,
+    required BigInt receivedBytes,
+  }) = SessionUpdate_UploadProgress;
   const factory SessionUpdate.rejected({required ReasonInfo reason}) =
       SessionUpdate_Rejected;
 

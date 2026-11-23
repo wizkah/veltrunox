@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import '../features/library/analysis_info.dart';
@@ -7,6 +8,16 @@ import '../shared_ui/server_reason.dart';
 import 'bridge_session.dart';
 import 'generated/api.dart' as rust;
 import 'server_reason_of.dart';
+
+/// A random id for one upload; the server reports its progress under it, and only the
+/// uploading client knows it.
+String _newUploadId() {
+  final random = Random.secure();
+  return [
+    for (var i = 0; i < 16; i++)
+      random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ].join();
+}
 
 /// Adapter: reads the recording list through the Rust client core.
 class BridgeRecordingSource implements RecordingSource {
@@ -34,14 +45,29 @@ class BridgeRecordingSource implements RecordingSource {
   );
 
   @override
-  Future<UploadedRecording> upload(String fileName, Uint8List content) async {
-    final uploaded = await _reasoned(
-      () => rust.uploadRecording(
-        serverUrl: serverUrl,
-        fileName: fileName,
-        content: content,
-      ),
-    );
+  Future<UploadedRecording> upload(
+    String fileName,
+    Uint8List content, {
+    void Function(int receivedBytes)? onProgress,
+  }) async {
+    final uploadId = _newUploadId();
+    final progress = session
+        .uploadProgress()
+        .where((event) => event.uploadId == uploadId)
+        .listen((event) => onProgress?.call(event.receivedBytes));
+    final rust.UploadedRecordingItem uploaded;
+    try {
+      uploaded = await _reasoned(
+        () => rust.uploadRecording(
+          serverUrl: serverUrl,
+          fileName: fileName,
+          uploadId: uploadId,
+          content: content,
+        ),
+      );
+    } finally {
+      await progress.cancel();
+    }
     return UploadedRecording(
       id: uploaded.id.toInt(),
       title: uploaded.title,

@@ -1395,6 +1395,7 @@ fn wire__crate__api__upload_recording_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_server_url = <String>::sse_decode(&mut deserializer);
             let api_file_name = <String>::sse_decode(&mut deserializer);
+            let api_upload_id = <String>::sse_decode(&mut deserializer);
             let api_content = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
@@ -1403,6 +1404,7 @@ fn wire__crate__api__upload_recording_impl(
                         let output_ok = crate::api::upload_recording(
                             api_server_url,
                             api_file_name,
+                            api_upload_id,
                             api_content,
                         )
                         .await?;
@@ -2040,14 +2042,22 @@ impl SseDecode for crate::api::SessionUpdate {
                 return crate::api::SessionUpdate::LibraryChanged;
             }
             5 => {
+                let mut var_uploadId = <String>::sse_decode(deserializer);
+                let mut var_receivedBytes = <u64>::sse_decode(deserializer);
+                return crate::api::SessionUpdate::UploadProgress {
+                    upload_id: var_uploadId,
+                    received_bytes: var_receivedBytes,
+                };
+            }
+            6 => {
                 let mut var_reason = <crate::api::ReasonInfo>::sse_decode(deserializer);
                 return crate::api::SessionUpdate::Rejected { reason: var_reason };
             }
-            6 => {
+            7 => {
                 let mut var_rights = <crate::api::RightsInfo>::sse_decode(deserializer);
                 return crate::api::SessionUpdate::Rights { rights: var_rights };
             }
-            7 => {
+            8 => {
                 let mut var_available = <bool>::sse_decode(deserializer);
                 return crate::api::SessionUpdate::AudioOutput {
                     available: var_available,
@@ -2631,14 +2641,23 @@ impl flutter_rust_bridge::IntoDart for crate::api::SessionUpdate {
                 [3.into_dart(), recording_id.into_into_dart().into_dart()].into_dart()
             }
             crate::api::SessionUpdate::LibraryChanged => [4.into_dart()].into_dart(),
+            crate::api::SessionUpdate::UploadProgress {
+                upload_id,
+                received_bytes,
+            } => [
+                5.into_dart(),
+                upload_id.into_into_dart().into_dart(),
+                received_bytes.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::api::SessionUpdate::Rejected { reason } => {
-                [5.into_dart(), reason.into_into_dart().into_dart()].into_dart()
+                [6.into_dart(), reason.into_into_dart().into_dart()].into_dart()
             }
             crate::api::SessionUpdate::Rights { rights } => {
-                [6.into_dart(), rights.into_into_dart().into_dart()].into_dart()
+                [7.into_dart(), rights.into_into_dart().into_dart()].into_dart()
             }
             crate::api::SessionUpdate::AudioOutput { available } => {
-                [7.into_dart(), available.into_into_dart().into_dart()].into_dart()
+                [8.into_dart(), available.into_into_dart().into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -3268,16 +3287,24 @@ impl SseEncode for crate::api::SessionUpdate {
             crate::api::SessionUpdate::LibraryChanged => {
                 <i32>::sse_encode(4, serializer);
             }
-            crate::api::SessionUpdate::Rejected { reason } => {
+            crate::api::SessionUpdate::UploadProgress {
+                upload_id,
+                received_bytes,
+            } => {
                 <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(upload_id, serializer);
+                <u64>::sse_encode(received_bytes, serializer);
+            }
+            crate::api::SessionUpdate::Rejected { reason } => {
+                <i32>::sse_encode(6, serializer);
                 <crate::api::ReasonInfo>::sse_encode(reason, serializer);
             }
             crate::api::SessionUpdate::Rights { rights } => {
-                <i32>::sse_encode(6, serializer);
+                <i32>::sse_encode(7, serializer);
                 <crate::api::RightsInfo>::sse_encode(rights, serializer);
             }
             crate::api::SessionUpdate::AudioOutput { available } => {
-                <i32>::sse_encode(7, serializer);
+                <i32>::sse_encode(8, serializer);
                 <bool>::sse_encode(available, serializer);
             }
             _ => {

@@ -136,10 +136,13 @@ pub trait ServerLink {
         name: &BookmarkName,
         position: Millis,
     ) -> impl Future<Output = Result<Label, LinkError>>;
-    /// Sends an audio file; the server checks and stores it and queues its analysis.
+    /// Sends an audio file; the server checks and stores it and queues its analysis. While it
+    /// receives the file, the server reports the bytes received under `upload_id` over the
+    /// real-time channel.
     fn upload_recording(
         &self,
         file_name: &str,
+        upload_id: &str,
         content: Vec<u8>,
     ) -> impl Future<Output = Result<UploadedRecording, LinkError>>;
     fn rename_recording(
@@ -203,13 +206,15 @@ pub async fn analyse_again(
     link.request_analysis(recording).await
 }
 
-/// Use case: add a recording from an audio file; the analysis result arrives as a notice.
+/// Use case: add a recording from an audio file; the upload progress (under `upload_id`) and
+/// the analysis result arrive as notices.
 pub async fn add_recording(
     link: &impl ServerLink,
     file_name: &str,
+    upload_id: &str,
     content: Vec<u8>,
 ) -> Result<UploadedRecording, LinkError> {
-    link.upload_recording(file_name, content).await
+    link.upload_recording(file_name, upload_id, content).await
 }
 
 /// Use case: give a recording another title.

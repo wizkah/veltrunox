@@ -130,6 +130,13 @@ fn channel_event_from(text: &str) -> Option<ChannelEvent> {
             ServerEvent::AnalysisChanged(RecordingId::new(recording_id)),
         )),
         ServerEventDto::LibraryChanged => Some(ChannelEvent::Server(ServerEvent::LibraryChanged)),
+        ServerEventDto::UploadProgress {
+            upload_id,
+            received_bytes,
+        } => Some(ChannelEvent::Server(ServerEvent::UploadProgress {
+            upload_id,
+            received_bytes,
+        })),
         ServerEventDto::AudioOutput { available } => {
             Some(ChannelEvent::Server(ServerEvent::AudioOutput(available)))
         }
@@ -140,6 +147,19 @@ fn channel_event_from(text: &str) -> Option<ChannelEvent> {
 mod tests {
     use super::*;
     use veltrunox_core::Reason;
+
+    #[test]
+    fn upload_progress_becomes_a_server_event() {
+        assert_eq!(
+            channel_event_from(
+                r#"{"type":"upload_progress","upload_id":"u-1","received_bytes":512}"#
+            ),
+            Some(ChannelEvent::Server(ServerEvent::UploadProgress {
+                upload_id: "u-1".into(),
+                received_bytes: 512,
+            }))
+        );
+    }
 
     #[test]
     fn analysis_notices_become_server_events() {

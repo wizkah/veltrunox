@@ -56,12 +56,14 @@ async fn upload_rename_and_delete_go_through_the_client_core() {
     let (url, directory) = server("flow", 1 << 20).await;
     let link = HttpServerLink::new(&url);
 
-    let added = add_recording(&link, "Grüße von Ünï.wav", wav(440.0))
+    let added = add_recording(&link, "Grüße von Ünï.wav", "first", wav(440.0))
         .await
         .unwrap();
     assert_eq!(added.title.as_str(), "Grüße von Ünï");
     assert!(!added.existing);
-    let again = add_recording(&link, "copy.wav", wav(440.0)).await.unwrap();
+    let again = add_recording(&link, "copy.wav", "second", wav(440.0))
+        .await
+        .unwrap();
     assert!(again.existing);
     assert_eq!(again.id, added.id);
     assert_eq!(load_library(&link).await.unwrap().len(), 1);
@@ -86,13 +88,13 @@ async fn refused_files_come_back_with_the_servers_reason() {
     let (url, directory) = server("small", 500).await;
     let link = HttpServerLink::new(&url);
 
-    let too_large = add_recording(&link, "big.wav", wav(440.0)).await;
+    let too_large = add_recording(&link, "big.wav", "third", wav(440.0)).await;
     assert!(
         matches!(&too_large, Err(LinkError::Refused(reason)) if reason.code == "file_too_large" && !reason.args.is_empty())
     );
     let (url, other) = server("normal", 1 << 20).await;
     let link = HttpServerLink::new(&url);
-    let text = add_recording(&link, "notes.wav", b"not audio".to_vec()).await;
+    let text = add_recording(&link, "notes.wav", "fourth", b"not audio".to_vec()).await;
     assert!(matches!(&text, Err(LinkError::Refused(reason)) if reason.code == "audio_unsupported"));
     std::fs::remove_dir_all(directory).unwrap();
     std::fs::remove_dir_all(other).unwrap();

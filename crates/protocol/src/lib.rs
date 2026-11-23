@@ -63,6 +63,13 @@ pub const RECORDING_PATH: &str = "/api/v1/recordings/{id}";
 /// original file name, percent-encoded UTF-8.
 pub const FILE_NAME_HEADER: &str = "x-file-name";
 
+/// Optional header of an upload: an id the client made up (1 to 64 letters, digits, `-` or `_`).
+/// The server reports the bytes it has received under this id as `upload_progress` events.
+pub const UPLOAD_ID_HEADER: &str = "x-upload-id";
+
+/// Longest accepted upload id.
+pub const UPLOAD_ID_MAX_LENGTH: usize = 64;
+
 /// Path to start the analysis of one recording again; `{id}` is the recording id.
 pub const ANALYSIS_PATH: &str = "/api/v1/recordings/{id}/analysis";
 
@@ -148,6 +155,12 @@ pub enum ServerEventDto {
     AnalysisChanged { recording_id: u64 },
     /// Recordings were added, renamed or removed; reload the library.
     LibraryChanged,
+    /// How many bytes of the upload with this id the server has received. Sent to every
+    /// client (the id is the sender's secret), at most a few times per second.
+    UploadProgress {
+        upload_id: String,
+        received_bytes: u64,
+    },
     /// Whether the server can play sound; sent to a joining client and on change.
     /// Without an output device the shared state still runs, silently.
     AudioOutput { available: bool },
@@ -456,6 +469,23 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<AnalysisProgressDto>(r#"{"state":"running"}"#).unwrap(),
             AnalysisProgressDto::Running { percent: 0 }
+        );
+    }
+
+    #[test]
+    fn upload_progress_event_has_a_stable_wire_format() {
+        let event = ServerEventDto::UploadProgress {
+            upload_id: "a-1".into(),
+            received_bytes: 4096,
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert_eq!(
+            json,
+            r#"{"type":"upload_progress","upload_id":"a-1","received_bytes":4096}"#
+        );
+        assert_eq!(
+            serde_json::from_str::<ServerEventDto>(&json).unwrap(),
+            event
         );
     }
 

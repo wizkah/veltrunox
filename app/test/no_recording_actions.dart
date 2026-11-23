@@ -7,8 +7,11 @@ import 'package:veltrunox_app/features/library/recording_source.dart';
 mixin NoRecordingActions {
   Stream<void> libraryChanges() => const Stream.empty();
 
-  Future<UploadedRecording> upload(String fileName, Uint8List content) =>
-      throw UnimplementedError();
+  Future<UploadedRecording> upload(
+    String fileName,
+    Uint8List content, {
+    void Function(int receivedBytes)? onProgress,
+  }) => throw UnimplementedError();
 
   Future<void> rename(int recordingId, String title) =>
       throw UnimplementedError();

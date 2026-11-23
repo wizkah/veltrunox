@@ -37,13 +37,19 @@ class UploadBar extends ConsumerWidget {
   static List<Widget> _status(UploadState state, VoidCallback dismiss) {
     final status = switch (state) {
       UploadIdle() => null,
-      UploadSending(:final fileName, :final position, :final total) =>
+      UploadSending(
+        :final fileName,
+        :final position,
+        :final total,
+        :final percent,
+      ) =>
         ActivityStatus(
           state: ActivityState.loading,
           label: LibraryTexts.uploading(
             fileName,
             position: position,
             total: total,
+            percent: percent,
           ),
         ),
       UploadBatchDone(:final uploaded, :final existing, :final failures) =>

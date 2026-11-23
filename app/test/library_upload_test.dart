@@ -24,6 +24,9 @@ class _Recordings implements RecordingSource {
   final titles = <int, String>{1: 'Soundcheck'};
   final calls = <String>[];
   Completer<UploadedRecording>? pendingUpload;
+
+  /// Reports bytes of the running upload, as the server's notices do.
+  void Function(int receivedBytes)? progress;
   RecordingActionException? failure;
 
   /// Refuses the first upload only.
@@ -45,8 +48,13 @@ class _Recordings implements RecordingSource {
   Future<void> reanalyse(int recordingId) async {}
 
   @override
-  Future<UploadedRecording> upload(String fileName, Uint8List content) {
+  Future<UploadedRecording> upload(
+    String fileName,
+    Uint8List content, {
+    void Function(int receivedBytes)? onProgress,
+  }) {
     calls.add('upload $fileName ${content.length}');
+    progress = onProgress;
     final error = failure;
     if (error != null) return Future.error(error);
     if (failFirst) {
@@ -162,6 +170,33 @@ void main() {
     expect(source.calls, hasLength(1));
   });
 
+  testWidgets('the percentage follows the bytes the server received', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1400, 900);
+    addTearDown(tester.view.reset);
+    final source = _Recordings()..pendingUpload = Completer();
+    await tester.pumpWidget(_app(source, _Picker(), _user));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Aufnahmen hochladen'));
+    await tester.pump();
+    // The fake file has three bytes.
+    source.progress!(1);
+    await tester.pump();
+    expect(
+      find.text('Wird hochgeladen: New song.wav – 33\u00a0%'),
+      findsOneWidget,
+    );
+    source.progress!(3);
+    await tester.pump();
+    expect(
+      find.text('Wird hochgeladen: New song.wav – 100\u00a0%'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('a refused file shows the reason of the server', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1400, 900);
@@ -176,10 +211,20 @@ void main() {
     await tester.tap(find.text('Aufnahmen hochladen'));
     await tester.pumpAndSettle();
 
-    expect(find.text('New song.wav: Das Audioformat wird nicht unterstützt oder die Datei ist beschädigt.'), findsOneWidget);
+    expect(
+      find.text(
+        'New song.wav: Das Audioformat wird nicht unterstützt oder die Datei ist beschädigt.',
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.byTooltip('Meldung schließen'));
     await tester.pump();
-    expect(find.text('New song.wav: Das Audioformat wird nicht unterstützt oder die Datei ist beschädigt.'), findsNothing);
+    expect(
+      find.text(
+        'New song.wav: Das Audioformat wird nicht unterstützt oder die Datei ist beschädigt.',
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('several files are sent one after the other and summed up', (
@@ -219,7 +264,12 @@ void main() {
       find.textContaining('1 hochgeladen, 1 fehlgeschlagen'),
       findsOneWidget,
     );
-    expect(find.textContaining('New song.wav: Das Audioformat wird nicht unterstützt oder die Datei ist beschädigt.'), findsOne);
+    expect(
+      find.textContaining(
+        'New song.wav: Das Audioformat wird nicht unterstützt oder die Datei ist beschädigt.',
+      ),
+      findsOne,
+    );
   });
 
   testWidgets('cancelling the file dialog sends nothing', (tester) async {

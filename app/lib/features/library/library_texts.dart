@@ -60,11 +60,18 @@ abstract final class LibraryTexts {
       tr('Das ist nicht gelungen', 'That did not work');
 
   /// [position] of [total] files, counted from 1; no count for a single file.
-  static String uploading(String fileName, {int position = 1, int total = 1}) {
+  /// [percent] of the file the server has received; `null` before its first report.
+  static String uploading(
+    String fileName, {
+    int position = 1,
+    int total = 1,
+    int? percent,
+  }) {
     final count = total > 1 ? ' ($position/$total)' : '';
+    final done = percent == null ? '' : ' – $percent\u00a0%';
     return tr(
-      'Wird hochgeladen: $fileName$count',
-      'Uploading: $fileName$count',
+      'Wird hochgeladen: $fileName$count$done',
+      'Uploading: $fileName$count$done',
     );
   }
 

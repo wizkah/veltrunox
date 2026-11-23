@@ -255,3 +255,17 @@ Environment: macOS (Apple silicon), debug builds, headless Chromium (Playwright)
 | Playwright, 9 runs plus the reconnect run | Pass |
 
 Limits: the weights of the scan stages (decoding 40 %, waveform 5 %, analysis 55 %) are estimates, not measured. English texts were not reviewed by a native speaker. Texts of the browser's own widgets keep the browser's language. The upload of several files was tested with fakes in Flutter and with one file at a time in the browser (the file dialog of the browser test supplies one file); the progress display was not watched in the browser during a long scan.
+
+## Upload progress in bytes (2026-11-23)
+
+Environment: macOS (Apple silicon), debug builds, headless Chromium (Playwright) with the web app rebuilt by `scripts/build-web.sh` (browser language German), real server on a temporary data directory.
+
+| Check | Result |
+|---|---|
+| Rust workspace tests, Clippy, `cargo fmt --check`, `wasm32` build of the client core | Pass |
+| Server: a body sent in four slow chunks yields increasing `received_bytes` under the given id and none above the file size; an upload without an id reports nothing; a malformed id is refused with 400 (`tests/upload.rs`) | Pass |
+| Wire format of `upload_progress` and its mapping in the client core (unit tests) | Pass |
+| Flutter tests (262, one new): the percentage follows the reported bytes | Pass |
+| Playwright, 10 runs: a 20 MB file sent through a throttled connection (Chromium network emulation, 5 MB/s upload) shows "Wird hochgeladen: … – n %" in the browser, then "Hochgeladen" | Pass |
+
+Limits: the percentage counts bytes the server has received, not bytes the browser has handed to the network, so it follows the real transfer only as closely as the server's reads do. Not checked: an upload to the Pi over Wi-Fi, several clients uploading at once, a file larger than the browser's memory allows (reading the file into memory is unchanged).

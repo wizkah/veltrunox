@@ -42,7 +42,12 @@ abstract interface class RecordingSource {
   Future<void> reanalyse(int recordingId);
 
   /// Sends an audio file; throws [RecordingActionException] when it is refused.
-  Future<UploadedRecording> upload(String fileName, Uint8List content);
+  /// [onProgress] hears how many bytes of [content] the server has received.
+  Future<UploadedRecording> upload(
+    String fileName,
+    Uint8List content, {
+    void Function(int receivedBytes)? onProgress,
+  });
 
   Future<void> rename(int recordingId, String title);
 

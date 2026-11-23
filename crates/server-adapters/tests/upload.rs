@@ -208,6 +208,71 @@ async fn an_uploaded_file_becomes_a_recording_that_gets_scanned() {
     assert!(files[0].ends_with(".wav") && !files[0].starts_with('.'));
 }
 
+/// Sends an upload by hand, a chunk at a time with a pause between the chunks, so the server
+/// sees the body arrive slowly. Returns the status line of the answer.
+async fn upload_slowly(url: &str, id: Option<&str>, body: &[u8], chunks: usize) -> String {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let address = url.trim_start_matches("http://");
+    let mut stream = tokio::net::TcpStream::connect(address).await.unwrap();
+    let id_header = id.map_or(String::new(), |id| format!("x-upload-id: {id}\r\n"));
+    let head = format!(
+        "POST /api/v1/recordings HTTP/1.1\r\nHost: {address}\r\nx-file-name: slow.wav\r\n{id_header}\
+         Content-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    stream.write_all(head.as_bytes()).await.unwrap();
+    for chunk in body.chunks(body.len().div_ceil(chunks)) {
+        // A refused upload may be answered and closed before the body is sent.
+        if stream.write_all(chunk).await.is_err() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(130)).await;
+    }
+    let mut answer = String::new();
+    let _ = stream.read_to_string(&mut answer).await;
+    answer.lines().next().unwrap_or_default().to_owned()
+}
+
+#[tokio::test]
+async fn the_server_reports_the_bytes_it_has_received_under_the_upload_id() {
+    let server = open_server("progress", 1 << 20).await;
+    let mut notices = server.app.hub.subscribe_uploads();
+    let body = wav(3, 330.0);
+    let status = upload_slowly(&server.url, Some("slow-1"), &body, 4).await;
+    assert!(status.contains("201"), "{status}");
+
+    let mut counts = Vec::new();
+    while let Ok(notice) = notices.try_recv() {
+        assert_eq!(notice.upload_id, "slow-1");
+        counts.push(notice.received_bytes);
+    }
+    assert!(counts.len() >= 2, "several notices: {counts:?}");
+    assert!(
+        counts.windows(2).all(|pair| pair[0] < pair[1]),
+        "{counts:?}"
+    );
+    assert!(counts.iter().all(|count| *count <= body.len() as u64));
+}
+
+#[tokio::test]
+async fn an_upload_without_an_id_reports_nothing_and_a_bad_id_is_refused() {
+    let server = open_server("progress-none", 1 << 20).await;
+    let mut notices = server.app.hub.subscribe_uploads();
+    let status = upload_slowly(&server.url, None, &wav(2, 330.0), 3).await;
+    assert!(status.contains("201"), "{status}");
+    assert!(notices.try_recv().is_err());
+
+    let refused = Client::new()
+        .post(format!("{}/api/v1/recordings", server.url))
+        .header("x-file-name", "bad.wav")
+        .header("x-upload-id", "not valid!")
+        .body(wav(2, 350.0))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::BAD_REQUEST);
+}
+
 #[tokio::test]
 async fn the_same_audio_is_not_stored_twice() {
     let server = open_server("duplicate", 1 << 20).await;

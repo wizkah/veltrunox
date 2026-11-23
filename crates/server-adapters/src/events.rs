@@ -39,6 +39,7 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
     let mut bookmark_notices = app.hub.subscribe_bookmarks();
     let mut analysis_notices = app.hub.subscribe_analysis();
     let mut library_notices = app.hub.subscribe_library();
+    let mut upload_notices = app.hub.subscribe_uploads();
     let mut pings = tokio::time::interval(PING_INTERVAL);
     let mut last_heard = Instant::now();
 
@@ -123,6 +124,17 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
                 Ok(()) | Err(RecvError::Lagged(_)) => {
                     forward(&mut socket, ServerEventDto::LibraryChanged).await
                 }
+                Err(RecvError::Closed) => Outcome::Stop,
+            },
+            notice = upload_notices.recv() => match notice {
+                Ok(progress) => {
+                    forward(&mut socket, ServerEventDto::UploadProgress {
+                        upload_id: progress.upload_id,
+                        received_bytes: progress.received_bytes,
+                    }).await
+                }
+                // A later notice carries a larger count anyway.
+                Err(RecvError::Lagged(_)) => Outcome::Continue,
                 Err(RecvError::Closed) => Outcome::Stop,
             },
             _ = pings.tick() => {

@@ -36,7 +36,7 @@ class UploadController extends Notifier<UploadState> {
         position: index + 1,
         total: picked.length,
       );
-      last = await _send(file);
+      last = await _send(file, position: index + 1, total: picked.length);
       switch (last) {
         case UploadDone(existing: true):
           existing++;
@@ -57,11 +57,26 @@ class UploadController extends Notifier<UploadState> {
           );
   }
 
-  Future<UploadState> _send(PickedAudio file) async {
+  Future<UploadState> _send(
+    PickedAudio file, {
+    required int position,
+    required int total,
+  }) async {
     try {
+      final content = await file.readBytes();
       final uploaded = await ref
           .read(recordingSourceProvider)
-          .upload(file.name, await file.readBytes());
+          .upload(
+            file.name,
+            content,
+            onProgress: (received) => state = UploadSending(
+              file.name,
+              position: position,
+              total: total,
+              sentBytes: received,
+              fileBytes: content.length,
+            ),
+          );
       return UploadDone(title: uploaded.title, existing: uploaded.existing);
     } on RecordingActionException catch (error) {
       return UploadFailed(

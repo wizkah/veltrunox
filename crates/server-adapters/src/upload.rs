@@ -4,6 +4,7 @@ use crate::{
     access::Caller,
     audio::probe_file,
     http::{ApiError, blocking},
+    hub::Hub,
     state::AppState,
 };
 use axum::{
@@ -18,12 +19,18 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tokio::io::AsyncWriteExt;
 use veltrunox_core::{Capability, Reason, RecordingTitle};
-use veltrunox_protocol::{FILE_NAME_HEADER, UploadedRecordingDto};
+use veltrunox_protocol::{
+    FILE_NAME_HEADER, UPLOAD_ID_HEADER, UPLOAD_ID_MAX_LENGTH, UploadedRecordingDto,
+};
 use veltrunox_server_app::{MediaCatalog, PlaybackBroadcast, StorageError};
+
+/// Progress notices of one upload are at least this far apart (the last bytes are not reported:
+/// the answer to the request says the upload is complete).
+const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Prefix of files that are still being received; they are never part of the library.
 const TEMPORARY_PREFIX: &str = ".upload-";
@@ -140,6 +147,7 @@ pub(crate) async fn upload(
         )
     })?;
     let (title, extension) = file_name_of(&headers)?;
+    let upload_id = upload_id_of(&headers)?;
     let declared = headers
         .get(header::CONTENT_LENGTH)
         .and_then(|value| value.to_str().ok())
@@ -149,7 +157,8 @@ pub(crate) async fn upload(
     }
 
     let mut temporary = TemporaryFile(Some(store.temporary_path(extension.as_deref())));
-    let hash = receive(body, &store, temporary.path()).await?;
+    let progress = upload_id.as_deref().map(|id| (app.hub.as_ref(), id));
+    let hash = receive(body, &store, temporary.path(), progress).await?;
 
     let probed = temporary.path().to_owned();
     let checked = blocking(move || {
@@ -222,14 +231,21 @@ fn too_large(limit: u64) -> ApiError {
     )
 }
 
-/// Writes the body to `path` and returns the SHA-256 of what was received, hex encoded.
-async fn receive(body: Body, store: &UploadStore, path: &Path) -> Result<String, ApiError> {
+/// Writes the body to `path` and returns the SHA-256 of what was received, hex encoded. With
+/// `progress` (hub and upload id) the clients hear how many bytes have arrived.
+async fn receive(
+    body: Body,
+    store: &UploadStore,
+    path: &Path,
+    progress: Option<(&Hub, &str)>,
+) -> Result<String, ApiError> {
     let mut file = tokio::fs::File::create(path)
         .await
         .map_err(|_| ApiError::Internal)?;
     let mut hasher = Sha256::new();
     let mut received = 0u64;
     let mut chunks = body.into_data_stream();
+    let mut last_report = Instant::now();
     while let Some(chunk) = chunks.next().await {
         let chunk = chunk.map_err(|_| {
             refused(
@@ -246,6 +262,12 @@ async fn receive(body: Body, store: &UploadStore, path: &Path) -> Result<String,
         file.write_all(&chunk)
             .await
             .map_err(|_| ApiError::Internal)?;
+        if let Some((hub, id)) = progress
+            && last_report.elapsed() >= PROGRESS_INTERVAL
+        {
+            hub.upload_progress(id, received);
+            last_report = Instant::now();
+        }
     }
     file.flush().await.map_err(|_| ApiError::Internal)?;
     if received == 0 {
@@ -260,6 +282,30 @@ async fn receive(body: Body, store: &UploadStore, path: &Path) -> Result<String,
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect())
+}
+
+/// The optional upload id; a malformed one is refused rather than ignored.
+fn upload_id_of(headers: &HeaderMap) -> Result<Option<String>, ApiError> {
+    let Some(value) = headers.get(UPLOAD_ID_HEADER) else {
+        return Ok(None);
+    };
+    value
+        .to_str()
+        .ok()
+        .filter(|id| {
+            (1..=UPLOAD_ID_MAX_LENGTH).contains(&id.len())
+                && id
+                    .chars()
+                    .all(|letter| letter.is_ascii_alphanumeric() || matches!(letter, '-' | '_'))
+        })
+        .map(|id| Some(id.to_owned()))
+        .ok_or_else(|| {
+            refused(
+                StatusCode::BAD_REQUEST,
+                "upload_id_invalid",
+                "the upload id is not valid",
+            )
+        })
 }
 
 /// Title and extension from the file name header (percent-encoded UTF-8, no directories).
@@ -368,6 +414,20 @@ mod tests {
             ("noextension".to_owned(), None)
         );
         assert_eq!(title_and_extension(".hidden").1, None);
+    }
+
+    #[test]
+    fn the_upload_id_is_optional_but_must_be_plain() {
+        let with = |value: &str| {
+            let mut headers = HeaderMap::new();
+            headers.insert(UPLOAD_ID_HEADER, HeaderValue::from_str(value).unwrap());
+            upload_id_of(&headers)
+        };
+        assert!(matches!(upload_id_of(&HeaderMap::new()), Ok(None)));
+        assert!(matches!(with("a1-B_2"), Ok(Some(id)) if id == "a1-B_2"));
+        assert!(with("").is_err());
+        assert!(with("white space").is_err());
+        assert!(with(&"x".repeat(UPLOAD_ID_MAX_LENGTH + 1)).is_err());
     }
 
     #[test]

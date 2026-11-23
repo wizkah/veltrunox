@@ -245,6 +245,7 @@ abstract class RustLibApi extends BaseApi {
   Future<UploadedRecordingItem> crateApiUploadRecording({
     required String serverUrl,
     required String fileName,
+    required String uploadId,
     required List<int> content,
   });
 
@@ -1400,6 +1401,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<UploadedRecordingItem> crateApiUploadRecording({
     required String serverUrl,
     required String fileName,
+    required String uploadId,
     required List<int> content,
   }) {
     return handler.executeNormal(
@@ -1408,6 +1410,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(serverUrl, serializer);
           sse_encode_String(fileName, serializer);
+          sse_encode_String(uploadId, serializer);
           sse_encode_list_prim_u_8_loose(content, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -1421,7 +1424,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_recording_action_error,
         ),
         constMeta: kCrateApiUploadRecordingConstMeta,
-        argValues: [serverUrl, fileName, content],
+        argValues: [serverUrl, fileName, uploadId, content],
         apiImpl: this,
       ),
     );
@@ -1429,7 +1432,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUploadRecordingConstMeta => const TaskConstMeta(
     debugName: "upload_recording",
-    argNames: ["serverUrl", "fileName", "content"],
+    argNames: ["serverUrl", "fileName", "uploadId", "content"],
   );
 
   @override
@@ -1911,14 +1914,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 4:
         return SessionUpdate_LibraryChanged();
       case 5:
+        return SessionUpdate_UploadProgress(
+          uploadId: dco_decode_String(raw[1]),
+          receivedBytes: dco_decode_u_64(raw[2]),
+        );
+      case 6:
         return SessionUpdate_Rejected(
           reason: dco_decode_box_autoadd_reason_info(raw[1]),
         );
-      case 6:
+      case 7:
         return SessionUpdate_Rights(
           rights: dco_decode_box_autoadd_rights_info(raw[1]),
         );
-      case 7:
+      case 8:
         return SessionUpdate_AudioOutput(available: dco_decode_bool(raw[1]));
       default:
         throw Exception("unreachable");
@@ -2591,12 +2599,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 4:
         return SessionUpdate_LibraryChanged();
       case 5:
+        var var_uploadId = sse_decode_String(deserializer);
+        var var_receivedBytes = sse_decode_u_64(deserializer);
+        return SessionUpdate_UploadProgress(
+          uploadId: var_uploadId,
+          receivedBytes: var_receivedBytes,
+        );
+      case 6:
         var var_reason = sse_decode_box_autoadd_reason_info(deserializer);
         return SessionUpdate_Rejected(reason: var_reason);
-      case 6:
+      case 7:
         var var_rights = sse_decode_box_autoadd_rights_info(deserializer);
         return SessionUpdate_Rights(rights: var_rights);
-      case 7:
+      case 8:
         var var_available = sse_decode_bool(deserializer);
         return SessionUpdate_AudioOutput(available: var_available);
       default:
@@ -3228,14 +3243,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_64(recordingId, serializer);
       case SessionUpdate_LibraryChanged():
         sse_encode_i_32(4, serializer);
-      case SessionUpdate_Rejected(reason: final reason):
+      case SessionUpdate_UploadProgress(
+        uploadId: final uploadId,
+        receivedBytes: final receivedBytes,
+      ):
         sse_encode_i_32(5, serializer);
+        sse_encode_String(uploadId, serializer);
+        sse_encode_u_64(receivedBytes, serializer);
+      case SessionUpdate_Rejected(reason: final reason):
+        sse_encode_i_32(6, serializer);
         sse_encode_box_autoadd_reason_info(reason, serializer);
       case SessionUpdate_Rights(rights: final rights):
-        sse_encode_i_32(6, serializer);
+        sse_encode_i_32(7, serializer);
         sse_encode_box_autoadd_rights_info(rights, serializer);
       case SessionUpdate_AudioOutput(available: final available):
-        sse_encode_i_32(7, serializer);
+        sse_encode_i_32(8, serializer);
         sse_encode_bool(available, serializer);
     }
   }
