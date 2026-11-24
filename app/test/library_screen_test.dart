@@ -248,7 +248,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('C#-Moll · 148,0 bpm · 441,2 Hz'), findsOneWidget);
+    // As chips, read out as one line.
+    expect(find.text('C#-Moll'), findsOneWidget);
+    expect(find.text('148,0 bpm'), findsOneWidget);
+    expect(find.text('441,2 Hz'), findsOneWidget);
+    final semantics = tester.ensureSemantics();
+    expect(
+      find.bySemanticsLabel(RegExp('C#-Moll · 148,0 bpm · 441,2 Hz')),
+      findsOneWidget,
+    );
+    semantics.dispose();
   });
 
   testWidgets('shows the state of a pending or failed analysis', (
@@ -278,7 +287,12 @@ void main() {
     await _pumpFrames(tester);
 
     expect(find.text('Analyse läuft … 0 %'), findsOneWidget);
-    expect(find.text('Analyse fehlgeschlagen: Die Aufnahme ist zu kurz für die Analyse.'), findsOneWidget);
+    expect(
+      find.text(
+        'Analyse fehlgeschlagen: Die Aufnahme ist zu kurz für die Analyse.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a finished analysis shows up without reloading by hand', (
@@ -312,7 +326,39 @@ void main() {
     source.changes.add(1);
     await tester.pumpAndSettle();
 
-    expect(find.text('A-Moll · 90,0 bpm · 440,0 Hz'), findsOneWidget);
+    expect(find.text('A-Moll'), findsOneWidget);
+    expect(find.text('90,0 bpm'), findsOneWidget);
+  });
+
+  testWidgets('a recording analysed again shows the progress, not old values', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        _FakeSource(
+          () async => [
+            const RecordingSummary(
+              id: 1,
+              title: 'Soundcheck',
+              analysis: AnalysisInfo(
+                status: AnalysisStatus.running,
+                percent: 20,
+                values: AnalysisValues(
+                  tuningHz: 440,
+                  keyTonic: 1,
+                  keyMinor: true,
+                  tempoBpm: 148,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await _pumpFrames(tester);
+
+    expect(find.text('Analyse läuft … 20 %'), findsOneWidget);
+    expect(find.text('C#-Moll'), findsNothing);
   });
 
   testWidgets('a running analysis shows how far it has come', (tester) async {
@@ -330,6 +376,12 @@ void main() {
     await _pumpFrames(tester);
 
     expect(find.text('Analyse läuft … 40 %'), findsOneWidget);
+    expect(
+      tester
+          .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
+          .value,
+      0.4,
+    );
 
     await tester.tap(find.text('Soundcheck'));
     await _pumpFrames(tester);

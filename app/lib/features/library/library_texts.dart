@@ -36,10 +36,11 @@ abstract final class LibraryTexts {
   static String get openInPlayer =>
       tr('Im Player öffnen', 'Open in the player');
   static String get play => tr('Abspielen', 'Play');
+  static String get chooseForDetails => tr(
+    'Wähle eine Aufnahme, um ihre Details zu sehen.',
+    'Choose a recording to see its details.',
+  );
   static String get back => tr('Zurück zur Liste', 'Back to the list');
-  static String get keyLabel => tr('Tonart', 'Key');
-  static String get tempoLabel => tr('Tempo', 'Tempo');
-  static String get tuningLabel => tr('Stimmung', 'Tuning');
   static String get lengthLabel => tr('Länge', 'Length');
   static String get notAnalysed =>
       tr('Noch nicht analysiert', 'Not analysed yet');

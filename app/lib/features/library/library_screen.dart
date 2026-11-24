@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../design/tokens/app_colors.dart';
 import '../../design/tokens/app_geometry.dart';
+import '../../shared_ui/frame_decoration.dart';
 import '../access/access_controller.dart';
 import 'library_controller.dart';
 import 'library_failure.dart';
@@ -23,6 +25,7 @@ class LibraryScreen extends ConsumerWidget {
     required this.loadedId,
     required this.onOpenInPlayer,
     required this.onPlay,
+    this.previewBuilder,
     super.key,
   });
 
@@ -30,6 +33,9 @@ class LibraryScreen extends ConsumerWidget {
   final int? loadedId;
   final ValueChanged<int> onOpenInPlayer;
   final ValueChanged<int> onPlay;
+
+  /// Builds the picture of a recording shown above its details.
+  final Widget Function(RecordingSummary recording)? previewBuilder;
 
   /// From this width the details stand beside the list.
   static const _detailsBesideMin = AppBreakpoint.desktopMin;
@@ -65,14 +71,25 @@ class LibraryScreen extends ConsumerWidget {
         final list = _list(context, ref, recordings, query, detailId);
         if (!beside) return list;
         return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(child: list),
-            const VerticalDivider(width: AppSize.borderWidth),
             SizedBox(
               width: _detailsWidth,
-              child: details == null
-                  ? const SizedBox.shrink()
-                  : _details(context, ref, details, withBack: false),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  0,
+                  AppSpace.s4,
+                  AppSpace.s4,
+                  AppSpace.s4,
+                ),
+                child: DecoratedBox(
+                  decoration: frameDecoration(),
+                  child: details == null
+                      ? const _NoDetails()
+                      : _details(context, ref, details, withBack: false),
+                ),
+              ),
             ),
           ],
         );
@@ -147,6 +164,7 @@ class LibraryScreen extends ConsumerWidget {
     required bool withBack,
   }) => RecordingDetails(
     recording: recording,
+    preview: previewBuilder?.call(recording),
     onOpenInPlayer: () => onOpenInPlayer(recording.id),
     onPlay: () => onPlay(recording.id),
     onReanalyse: () =>
@@ -158,6 +176,34 @@ class LibraryScreen extends ConsumerWidget {
         ? () => deleteRecordingFlow(context, ref, recording)
         : null,
     onBack: withBack ? ref.read(libraryDetailProvider.notifier).close : null,
+  );
+}
+
+/// Stands in the detail panel while no recording is chosen.
+class _NoDetails extends StatelessWidget {
+  const _NoDetails();
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpace.s6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.library_music_outlined,
+            size: AppSpace.s8 + AppSpace.s4,
+            color: AppColors.accentSoft,
+          ),
+          const SizedBox(height: AppSpace.s3),
+          Text(
+            LibraryTexts.chooseForDetails,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    ),
   );
 }
 

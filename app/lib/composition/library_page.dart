@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../app_shell/shell_destination.dart';
 import '../features/library/library_screen.dart';
 import '../features/player/player_controller.dart';
+import 'recording_preview.dart';
 
 /// The library with its recordings wired to the shared player: opening or
 /// playing one loads it and leads to the player.
@@ -19,6 +20,12 @@ class LibraryPage extends ConsumerWidget {
     final shell = ref.read(shellDestinationProvider.notifier);
     return LibraryScreen(
       loadedId: loadedId,
+      previewBuilder: (recording) => recording.lengthMs == null
+          ? const SizedBox.shrink()
+          : RecordingPreview(
+              recordingId: recording.id,
+              lengthMs: recording.lengthMs!,
+            ),
       onOpenInPlayer: (id) {
         if (id != loadedId) player.select(id);
         shell.select(ShellDestination.player);

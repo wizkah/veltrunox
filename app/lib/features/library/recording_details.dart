@@ -3,21 +3,21 @@ import 'package:material_ui/material_ui.dart';
 import '../../design/tokens/app_geometry.dart';
 import '../../shared_ui/action_button.dart';
 import '../../shared_ui/clock_format.dart';
-import 'analysis_format.dart';
 import 'analysis_info.dart';
 import 'analysis_summary.dart';
 import 'library_texts.dart';
 import 'recording_summary.dart';
 
 /// What the library knows about one recording, and what can be done with it:
-/// open it in the player, play it at once, analyse it again. On a narrow
-/// screen it is a view of its own, with a way [onBack].
+/// open it in the player (the main action), play it at once, analyse it
+/// again. On a narrow screen it is a view of its own, with a way [onBack].
 class RecordingDetails extends StatelessWidget {
   const RecordingDetails({
     required this.recording,
     required this.onOpenInPlayer,
     required this.onPlay,
     required this.onReanalyse,
+    this.preview,
     this.onRename,
     this.onDelete,
     this.onBack,
@@ -25,6 +25,10 @@ class RecordingDetails extends StatelessWidget {
   });
 
   final RecordingSummary recording;
+
+  /// A picture of the recording above its title (its waveform); the library
+  /// does not know how it is made.
+  final Widget? preview;
   final VoidCallback onOpenInPlayer;
   final VoidCallback onPlay;
   final VoidCallback onReanalyse;
@@ -51,6 +55,10 @@ class RecordingDetails extends StatelessWidget {
               icon: const Icon(Icons.arrow_back),
               label: Text(LibraryTexts.back),
             ),
+          if (preview != null) ...[
+            preview!,
+            const SizedBox(height: AppSpace.s4),
+          ],
           Text(recording.title, style: theme.headlineMedium),
           const SizedBox(height: AppSpace.s3),
           AnalysisSummary(analysis: analysis),
@@ -59,6 +67,15 @@ class RecordingDetails extends StatelessWidget {
             _Value(LibraryTexts.lengthLabel, formatClock(recording.lengthMs!)),
           ..._values(analysis.values),
           const SizedBox(height: AppSpace.s4),
+          SizedBox(
+            width: double.infinity,
+            child: ActionButton(
+              label: LibraryTexts.openInPlayer,
+              icon: Icons.open_in_new,
+              onPressed: onOpenInPlayer,
+            ),
+          ),
+          const SizedBox(height: AppSpace.s3),
           Wrap(
             spacing: AppSpace.s3,
             runSpacing: AppSpace.s3,
@@ -66,13 +83,8 @@ class RecordingDetails extends StatelessWidget {
               ActionButton(
                 label: LibraryTexts.play,
                 icon: Icons.play_arrow,
-                onPressed: onPlay,
-              ),
-              ActionButton(
-                label: LibraryTexts.openInPlayer,
-                icon: Icons.open_in_new,
                 kind: ActionKind.secondary,
-                onPressed: onOpenInPlayer,
+                onPressed: onPlay,
               ),
               ActionButton(
                 label: LibraryTexts.reanalyse,
@@ -104,19 +116,9 @@ class RecordingDetails extends StatelessWidget {
   static bool _pending(AnalysisStatus status) =>
       status == AnalysisStatus.queued || status == AnalysisStatus.running;
 
-  List<Widget> _values(AnalysisValues? values) {
-    if (values == null) {
-      return [Text(LibraryTexts.notAnalysed)];
-    }
-    return [
-      _Value(
-        LibraryTexts.keyLabel,
-        keyName(values.keyTonic, minor: values.keyMinor),
-      ),
-      _Value(LibraryTexts.tempoLabel, '${decimal(values.tempoBpm)} bpm'),
-      _Value(LibraryTexts.tuningLabel, '${decimal(values.tuningHz)} Hz'),
-    ];
-  }
+  /// The chips above show analysed values; only their absence is said here.
+  List<Widget> _values(AnalysisValues? values) =>
+      values == null ? [Text(LibraryTexts.notAnalysed)] : const [];
 }
 
 class _Value extends StatelessWidget {
