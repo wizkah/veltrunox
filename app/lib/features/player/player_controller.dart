@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'pending_position.dart';
 import 'player_source.dart';
 import 'remote_change_detector.dart';
 import 'player_state.dart';
@@ -24,6 +25,7 @@ final playerStateProvider = StreamProvider<PlayerState>(
 /// is read at intervals to follow a jump.
 final playerPositionProvider = StreamProvider<int?>((ref) {
   final source = ref.watch(playerSourceProvider);
+  final pending = ref.watch(pendingPositionProvider);
   // Only what changes the timing; a changed volume must not restart the reading.
   final (recording, running, speed) = ref.watch(
     playerStateProvider.select(
@@ -43,8 +45,9 @@ final playerPositionProvider = StreamProvider<int?>((ref) {
   Timer? timer;
   var disposed = false;
   Future<void> read() async {
-    final position = await source.position();
+    final reported = await source.position();
     if (disposed) return;
+    final position = pending.shown(reported, running: running, speed: speed);
     controller.add(position);
     final wait = running && position != null
         ? untilNextTenth(position, speed)
@@ -61,6 +64,12 @@ final playerPositionProvider = StreamProvider<int?>((ref) {
   return controller.stream;
 });
 
+/// The position that actions here have asked for and the server has not yet
+/// confirmed; shared by the controller that sets it and the position reading.
+final pendingPositionProvider = Provider<PendingPosition>(
+  (ref) => PendingPosition(),
+);
+
 /// Refusals of the server, for display.
 final playerRejectionProvider = StreamProvider<ServerReason>(
   (ref) => ref.watch(playerSourceProvider).rejections(),
@@ -76,17 +85,21 @@ final playerControllerProvider = Provider<PlayerController>(
   (ref) => PlayerController(
     ref.watch(playerSourceProvider),
     ref.watch(remoteChangeDetectorProvider),
+    ref.watch(pendingPositionProvider),
   ),
 );
 
 class PlayerController {
-  PlayerController(this._source, this._changes);
+  PlayerController(this._source, this._changes, this._pending);
 
   final PlayerSource _source;
 
   /// Told about every change of position or recording made here, so it is not
   /// reported as a change by another client.
   final RemoteChangeDetector _changes;
+
+  /// Told where the position is moved to, so it shows that at once.
+  final PendingPosition _pending;
 
   Future<void> select(int recordingId) {
     _changes.ownAction();
@@ -106,18 +119,21 @@ class PlayerController {
 
   Future<void> restart() {
     _changes.ownAction();
+    _pending.expect(0);
     return _source.seek(0);
   }
 
   /// Moves the position without starting playback.
   Future<void> seek(int positionMs) {
     _changes.ownAction();
+    _pending.expect(positionMs);
     return _source.seek(positionMs);
   }
 
   /// Jumps to `positionMs` and plays on to the end of the recording.
   Future<void> playFrom(int positionMs) async {
     _changes.ownAction();
+    _pending.expect(positionMs);
     await _source.seek(positionMs);
     await _source.play();
   }
@@ -125,6 +141,7 @@ class PlayerController {
   /// Plays the region from its start; the play mode decides what follows its end.
   Future<void> playRegion({required int startMs, required int endMs}) {
     _changes.ownAction();
+    _pending.expect(startMs);
     return _source.playRegion(startMs: startMs, endMs: endMs);
   }
 
@@ -138,6 +155,7 @@ class PlayerController {
 
   Future<void> endScrub(int positionMs) {
     _changes.ownAction();
+    _pending.expect(positionMs);
     return _source.endScrub(positionMs);
   }
 
@@ -149,6 +167,7 @@ class PlayerController {
   Future<void> hold(int positionMs, {required bool running}) async {
     _playsOnlyWhileHeld = !running;
     _changes.ownAction();
+    _pending.expect(positionMs);
     await _source.endScrub(positionMs);
     if (_playsOnlyWhileHeld) await _source.play();
   }
