@@ -19,9 +19,8 @@ user commands:
   policy standard|strict         set the rules for new passwords
 
 add and passwd read the password from standard input instead of asking when given
---password-stdin. Run as the user that owns the data directory and from the directory the service runs in
-(relative paths in the configuration), for example `sudo -u veltrunox sh -c 'cd /var/lib/veltrunox
-&& veltrunox-server --config /etc/veltrunox/veltrunox.toml users list'`.";
+--password-stdin. Run as the user that owns the data directory, for example
+`sudo -u veltrunox veltrunox-server users list`.";
 
 /// What the command line asks for.
 #[derive(Debug, Clone, PartialEq, Eq)]

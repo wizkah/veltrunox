@@ -19,6 +19,8 @@ install -m 0755 "$here/veltrunox-server" /usr/local/bin/veltrunox-server
 install -d /etc/veltrunox
 if [ ! -f "$config" ]; then
     install -m 0644 "$here/veltrunox.toml" "$config"
+    # Absolute, so the command line finds the data from any directory.
+    sed -i "s|^data_dir = .*|data_dir = \"$data/data\"|" "$config"
     echo "Wrote $config; set address and audio_device there."
 fi
 

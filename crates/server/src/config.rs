@@ -6,8 +6,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// File looked up in the working directory when no path is given.
-pub const DEFAULT_CONFIG_FILE: &str = "veltrunox.toml";
+/// Files looked up, in this order, when no path is given: first in the working directory,
+/// then where the installer puts it.
+pub const DEFAULT_CONFIG_FILES: [&str; 2] = ["veltrunox.toml", "/etc/veltrunox/veltrunox.toml"];
 
 /// Settings of the server; every key is optional and has a default.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -76,21 +77,33 @@ impl Config {
         toml::from_str(text)
     }
 
-    /// Loads the named file. Without a name, `veltrunox.toml` in the working directory is
-    /// used if it exists; otherwise the defaults apply. A named file must exist.
+    /// Loads the named file, which must exist. Without a name, the first of
+    /// `DEFAULT_CONFIG_FILES` that exists is used; if none does, the defaults apply.
     /// Relative paths inside the file are relative to the working directory.
     pub fn load(explicit_path: Option<&Path>) -> Result<Self, ConfigError> {
-        let (path, required) = match explicit_path {
-            Some(path) => (path, true),
-            None => (Path::new(DEFAULT_CONFIG_FILE), false),
+        let defaults = DEFAULT_CONFIG_FILES.map(Path::new);
+        Self::load_from(explicit_path, &defaults)
+    }
+
+    fn load_from(explicit_path: Option<&Path>, defaults: &[&Path]) -> Result<Self, ConfigError> {
+        let explicit = explicit_path.as_slice();
+        let candidates = if explicit.is_empty() {
+            defaults
+        } else {
+            explicit
         };
-        match fs::read_to_string(path) {
-            Ok(text) => Self::parse(&text).map_err(|error| ConfigError::Parse(path.into(), error)),
-            Err(error) if !required && error.kind() == std::io::ErrorKind::NotFound => {
-                Ok(Self::default())
+        for &path in candidates {
+            match fs::read_to_string(path) {
+                Ok(text) => {
+                    return Self::parse(&text)
+                        .map_err(|error| ConfigError::Parse(path.into(), error));
+                }
+                Err(error)
+                    if explicit_path.is_none() && error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(ConfigError::Read(path.into(), error)),
             }
-            Err(error) => Err(ConfigError::Read(path.into(), error)),
         }
+        Ok(Self::default())
     }
 }
 
@@ -135,6 +148,24 @@ mod tests {
             Config::load(Some(&missing)),
             Err(ConfigError::Read(..))
         ));
+    }
+
+    #[test]
+    fn first_existing_default_file_wins_and_none_gives_defaults() {
+        let directory = tempfile::tempdir().unwrap();
+        let (first, second) = (
+            directory.path().join("a.toml"),
+            directory.path().join("b.toml"),
+        );
+        let candidates = [first.as_path(), second.as_path()];
+        assert_eq!(
+            Config::load_from(None, &candidates).unwrap(),
+            Config::default()
+        );
+        fs::write(&second, "address = \"b\"").unwrap();
+        assert_eq!(Config::load_from(None, &candidates).unwrap().address, "b");
+        fs::write(&first, "address = \"a\"").unwrap();
+        assert_eq!(Config::load_from(None, &candidates).unwrap().address, "a");
     }
 
     #[test]
