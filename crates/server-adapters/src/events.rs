@@ -85,7 +85,14 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
                     last_heard = Instant::now();
                     handle_incoming(&app, &identity, &mut socket, message).await
                 }
-                _ => Outcome::Stop,
+                Some(Err(error)) => {
+                    eprintln!("event channel closed: receive failed: {error}");
+                    Outcome::Stop
+                }
+                None => {
+                    eprintln!("event channel closed: client disconnected");
+                    Outcome::Stop
+                }
             },
             changed = states.changed() => match changed {
                 Ok(()) => {
@@ -139,7 +146,14 @@ async fn serve_connection(app: AppState, mut socket: WebSocket) {
             },
             _ = pings.tick() => {
                 let silent = last_heard.elapsed() > PING_INTERVAL * 2;
-                if silent || socket.send(Message::Ping(Vec::new().into())).await.is_err() {
+                if silent {
+                    eprintln!(
+                        "event channel closed: client silent for {} s",
+                        last_heard.elapsed().as_secs()
+                    );
+                    Outcome::Stop
+                } else if socket.send(Message::Ping(Vec::new().into())).await.is_err() {
+                    eprintln!("event channel closed: ping could not be sent");
                     Outcome::Stop
                 } else {
                     Outcome::Continue
@@ -184,7 +198,10 @@ async fn handle_incoming(
                 .await
             }
         },
-        Message::Close(_) => Outcome::Stop,
+        Message::Close(_) => {
+            eprintln!("event channel closed: client sent close");
+            Outcome::Stop
+        }
         // Pongs and pings only prove the client is alive.
         Message::Ping(_) | Message::Pong(_) => Outcome::Continue,
         Message::Binary(_) => {
