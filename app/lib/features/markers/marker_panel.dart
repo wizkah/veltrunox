@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../design/tokens/app_geometry.dart';
 import '../../shared_ui/action_button.dart';
+import '../../shared_ui/state_notice.dart';
 import 'marker.dart';
 import 'marker_controller.dart';
 import 'marker_filter_bar.dart';
@@ -106,11 +107,10 @@ class MarkerPanel extends ConsumerWidget {
   ) {
     final shown = orderMarkers(all, filter);
     if (shown.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpace.s4),
-        child: Text(
-          all.isEmpty ? MarkerTexts.empty : MarkerTexts.emptyFiltered,
-        ),
+      return StateNotice(
+        message: all.isEmpty ? MarkerTexts.empty : MarkerTexts.emptyFiltered,
+        icon: Icons.bookmark_border,
+        framed: false,
       );
     }
     return Column(
@@ -132,13 +132,13 @@ class MarkerPanel extends ConsumerWidget {
     child: Center(child: CircularProgressIndicator()),
   );
 
-  Widget _failure(VoidCallback onRetry) => Padding(
-    padding: const EdgeInsets.all(AppSpace.s4),
-    child: Column(
-      children: [
-        Text(MarkerTexts.failure),
-        TextButton(onPressed: onRetry, child: Text(MarkerTexts.retry)),
-      ],
-    ),
+  Widget _failure(VoidCallback onRetry) => StateNotice(
+    message: MarkerTexts.failure,
+    icon: Icons.error_outline,
+    tone: NoticeTone.error,
+    actionLabel: MarkerTexts.retry,
+    actionIcon: Icons.refresh,
+    onAction: onRetry,
+    framed: false,
   );
 }

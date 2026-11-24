@@ -6,6 +6,7 @@ import 'package:veltrunox_app/shared_ui/action_button.dart';
 import 'package:veltrunox_app/shared_ui/activity_status.dart';
 import 'package:veltrunox_app/shared_ui/app_icon_button.dart';
 import 'package:veltrunox_app/shared_ui/confirm_dialog.dart';
+import 'package:veltrunox_app/shared_ui/state_notice.dart';
 import 'package:veltrunox_app/shared_ui/toast_notice.dart';
 
 Widget _host(Widget child) => MaterialApp(
@@ -225,6 +226,39 @@ void main() {
         ),
       );
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
+    });
+  });
+
+  group('StateNotice', () {
+    testWidgets('tells the state and offers the next action', (tester) async {
+      var retried = 0;
+      await tester.pumpWidget(
+        _host(
+          StateNotice(
+            message: 'Nicht geladen.',
+            icon: Icons.error_outline,
+            tone: NoticeTone.error,
+            actionLabel: 'Erneut versuchen',
+            onAction: () => retried++,
+          ),
+        ),
+      );
+      expect(find.text('Nicht geladen.'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      await tester.tap(find.text('Erneut versuchen'));
+      expect(retried, 1);
+    });
+
+    testWidgets('shows a spinner while busy and no action without handler', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const StateNotice(message: 'Lädt …', busy: true, actionLabel: 'Nie'),
+        ),
+      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Nie'), findsNothing);
     });
   });
 }

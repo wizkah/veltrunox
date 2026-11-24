@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../design/tokens/app_geometry.dart';
 import '../../shared_ui/panel_surface.dart';
+import '../../shared_ui/state_notice.dart';
 import 'no_recording_notice.dart';
 import 'player_analysis.dart';
 import 'player_controller.dart';
@@ -61,11 +62,11 @@ class PlayerScreen extends ConsumerWidget {
     final state = ref.watch(playerStateProvider);
     final loaded = state.value;
     if (loaded == null) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(AppSpace.s6),
-          child: Text(PlayerTexts.waiting),
-        ),
+      // A still icon rather than a spinner: the shared state usually arrives
+      // at once, and a spinner would flicker.
+      return StateNotice(
+        message: PlayerTexts.waiting,
+        icon: Icons.hourglass_empty,
       );
     }
     if (loaded.recordingId == null) {

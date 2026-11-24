@@ -1,6 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../../design/tokens/app_geometry.dart';
+import '../../shared_ui/state_notice.dart';
 import 'library_texts.dart';
 import 'recording_summary.dart';
 import 'recording_tile.dart';
@@ -29,11 +29,9 @@ class RecordingList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (recordings.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpace.s6),
-          child: Text(narrowed ? LibraryTexts.noMatch : LibraryTexts.empty),
-        ),
+      return StateNotice(
+        message: narrowed ? LibraryTexts.noMatch : LibraryTexts.empty,
+        icon: narrowed ? Icons.search_off : Icons.library_music_outlined,
       );
     }
     return ListView.builder(

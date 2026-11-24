@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../shared_ui/action_button.dart';
-import '../../shared_ui/activity_status.dart';
+import '../../shared_ui/state_notice.dart';
 import 'access_card.dart';
 import 'access_controller.dart';
 import 'access_state.dart';
@@ -45,14 +45,8 @@ class _Checking extends StatelessWidget {
   const _Checking();
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: ActivityStatus(
-        state: ActivityState.loading,
-        label: AccessTexts.checking,
-      ),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      Scaffold(body: StateNotice(message: AccessTexts.checking, busy: true));
 }
 
 class _Unreachable extends StatelessWidget {

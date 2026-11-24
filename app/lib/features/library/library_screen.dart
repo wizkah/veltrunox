@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../design/tokens/app_colors.dart';
 import '../../design/tokens/app_geometry.dart';
 import '../../shared_ui/frame_decoration.dart';
+import '../../shared_ui/state_notice.dart';
 import '../access/access_controller.dart';
 import 'library_controller.dart';
 import 'library_failure.dart';
@@ -211,14 +212,6 @@ class _Loading extends StatelessWidget {
   const _Loading();
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        CircularProgressIndicator(),
-        SizedBox(height: AppSpace.s3),
-        Text(LibraryTexts.loading),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) =>
+      StateNotice(message: LibraryTexts.loading, busy: true);
 }
