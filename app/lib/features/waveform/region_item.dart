@@ -48,8 +48,13 @@ class RegionItem extends StatelessWidget {
       label: name,
       child: Container(
         height: WaveformGeometry.laneHeight,
+        // Filled in its tone over the surface, so the bar reads at a glance;
+        // the text stays on a dark enough ground.
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Color.alphaBlend(
+            tone.withValues(alpha: selected ? 0.4 : 0.32),
+            AppColors.surface,
+          ),
           border: Border.all(color: tone, width: selected ? 2 : 1),
           borderRadius: BorderRadius.circular(AppRadius.small),
         ),

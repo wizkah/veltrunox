@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../design/tokens/app_geometry.dart';
+import '../../shared_ui/panel_surface.dart';
 import 'player_analysis.dart';
 import 'player_controller.dart';
 import 'player_state.dart';
@@ -138,11 +139,13 @@ class PlayerControls extends ConsumerWidget {
               child: Stack(
                 fit: fill ? StackFit.expand : StackFit.loose,
                 children: [
+                  // Waveform and transport share one panel, the stage of
+                  // the player.
                   Padding(
                     padding: const EdgeInsets.only(
                       right: _volumeWidth + AppSpace.s4,
                     ),
-                    child: main(fill: fill),
+                    child: PanelSurface(child: main(fill: fill)),
                   ),
                   Positioned(
                     top: 0,

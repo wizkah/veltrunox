@@ -7,14 +7,16 @@ import 'waveform_data.dart';
 import 'waveform_geometry.dart';
 import 'waveform_texts.dart';
 
-/// The amplitudes of the visible time range. Draws only; no input. Without
-/// [data] it shows that the waveform is loading (or missing), never a
-/// plausible-looking empty one.
+/// The amplitudes of the visible time range on a dark stage. Draws only; no
+/// input. Without [data] it shows that the waveform is loading (or missing),
+/// never a plausible-looking empty one. What lies after [playedMs] is drawn
+/// muted, so the played part stands out; the amplitudes stay visible.
 class WaveformRenderer extends StatefulWidget {
   WaveformRenderer({
     required this.data,
     required this.viewport,
     this.height = WaveformGeometry.waveformHeight,
+    this.playedMs,
     String? missingText,
     super.key,
   }) : missingText = missingText ?? WaveformTexts.loading;
@@ -22,6 +24,9 @@ class WaveformRenderer extends StatefulWidget {
   final WaveformData? data;
   final TimeViewport viewport;
   final double height;
+
+  /// Up to here the recording counts as played; `null` draws all alike.
+  final double? playedMs;
 
   /// Shown instead of the waveform while [data] is null.
   final String missingText;
@@ -55,38 +60,90 @@ class _WaveformRendererState extends State<WaveformRenderer> {
   @override
   Widget build(BuildContext context) {
     final columns = _columns;
+    final played = widget.playedMs;
     return SizedBox(
       width: widget.viewport.widthPx,
       height: widget.height,
-      child: columns == null
-          ? Center(
-              child: Text(
-                widget.missingText,
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.textSecondary),
-              ),
-            )
-          : Semantics(
-              image: true,
-              label: WaveformTexts.title,
-              child: CustomPaint(painter: _PeakPainter(columns)),
-            ),
+      child: DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: _stageEdge,
+        child: ClipRRect(
+          borderRadius: _stageRadius,
+          child: ColoredBox(
+            color: AppColors.canvas,
+            child: columns == null
+                ? Center(
+                    child: Text(
+                      widget.missingText,
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                  )
+                : Semantics(
+                    image: true,
+                    label: WaveformTexts.title,
+                    child: CustomPaint(
+                      size: Size.infinite,
+                      painter: _PeakPainter(
+                        columns,
+                        playedX: played == null
+                            ? null
+                            : widget.viewport.timeToX(played),
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }
 
+final _stageRadius = BorderRadius.circular(AppRadius.small);
+
+/// The stage's edge, drawn over the waveform so it takes no room.
+final _stageEdge = BoxDecoration(
+  border: Border.all(
+    color: Color.lerp(AppColors.border, AppColors.accent, 0.25)!,
+    width: AppSize.borderWidth,
+  ),
+  borderRadius: _stageRadius,
+);
+
+/// Bright in the middle, deeper towards the peaks: gives a dense, loud
+/// recording some depth instead of a flat block.
+final _waveColors = [
+  Color.lerp(AppColors.accent, AppColors.canvas, 0.3)!,
+  AppColors.accentSoft,
+  Color.lerp(AppColors.accent, AppColors.canvas, 0.3)!,
+];
+
+/// How much of its colour the part after the playhead keeps.
+const _unplayedAlpha = 0.55;
+
 class _PeakPainter extends CustomPainter {
-  _PeakPainter(this.columns);
+  _PeakPainter(this.columns, {this.playedX});
 
   final PeakColumns columns;
+
+  /// Columns from here on are not played yet; `null`: all count as played.
+  final double? playedX;
 
   @override
   void paint(Canvas canvas, Size size) {
     final middle = size.height / 2;
     final scale = middle - AppSpace.s1;
-    final paint = Paint()
-      ..color = AppColors.accent
-      ..strokeWidth = 1;
+    final bounds = Offset.zero & size;
+    final played = _paint(bounds, 1);
+    final unplayed = _paint(bounds, _unplayedAlpha);
+    canvas.drawLine(
+      Offset(0, middle),
+      Offset(size.width, middle),
+      Paint()
+        ..color = AppColors.accent.withValues(alpha: 0.25)
+        ..strokeWidth = 1,
+    );
+    final split = playedX ?? double.infinity;
     for (var x = 0; x < columns.length; x++) {
       final low = columns.min[x];
       final high = columns.max[x];
@@ -94,11 +151,20 @@ class _PeakPainter extends CustomPainter {
       canvas.drawLine(
         Offset(x + 0.5, middle - high * scale),
         Offset(x + 0.5, middle - low * scale),
-        paint,
+        x < split ? played : unplayed,
       );
     }
   }
 
+  static Paint _paint(Rect bounds, double alpha) => Paint()
+    ..strokeWidth = 1
+    ..shader = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [for (final color in _waveColors) color.withValues(alpha: alpha)],
+    ).createShader(bounds);
+
   @override
-  bool shouldRepaint(_PeakPainter old) => old.columns != columns;
+  bool shouldRepaint(_PeakPainter old) =>
+      old.columns != columns || old.playedX != playedX;
 }

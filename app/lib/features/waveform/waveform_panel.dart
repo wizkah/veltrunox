@@ -268,6 +268,7 @@ class _LayersState extends State<_Layers> {
                       data: _panel.data,
                       viewport: viewport,
                       height: waveformHeight,
+                      playedMs: shownMs,
                     ),
                   ),
                   _scrollIf(

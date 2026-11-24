@@ -61,7 +61,17 @@ class Playhead extends StatelessWidget {
                   margin: const EdgeInsets.only(
                     top: WaveformGeometry.timeRowHeight,
                   ),
-                  color: AppColors.action,
+                  // A soft orange glow keeps the line visible over the
+                  // bright waveform.
+                  decoration: BoxDecoration(
+                    color: AppColors.action,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.action.withValues(alpha: 0.6),
+                        blurRadius: AppSpace.s2,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

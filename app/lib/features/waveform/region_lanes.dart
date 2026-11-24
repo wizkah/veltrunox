@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:material_ui/material_ui.dart';
 
 import '../../design/tokens/app_colors.dart';
+import '../../design/tokens/app_geometry.dart';
 import '../../design/tokens/app_typography.dart';
 import '../../shared_ui/clock_format.dart';
 import '../markers/marker.dart';
@@ -131,6 +132,7 @@ class _RegionLanesState extends State<RegionLanes> {
                 onTap: widget.onDeselect,
               ),
             ),
+            for (var row = 0; row < shown.length; row++) _track(row),
             for (final region in widget.regions)
               if (_rowOf(region, shown) case final row?)
                 ..._regionWidgets(region, row),
@@ -139,6 +141,23 @@ class _RegionLanesState extends State<RegionLanes> {
       ),
     );
   }
+
+  /// The faint track of one lane row; it shows where the lanes run and takes
+  /// no touches.
+  Widget _track(int row) => Positioned(
+    left: 0,
+    right: 0,
+    top: row * (WaveformGeometry.laneHeight + WaveformGeometry.laneGap),
+    height: WaveformGeometry.laneHeight,
+    child: IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.canvas.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(AppRadius.small),
+        ),
+      ),
+    ),
+  );
 
   int? _rowOf(RegionMarker region, List<int> shown) {
     final lane = _assignment.laneOf(region.id);
