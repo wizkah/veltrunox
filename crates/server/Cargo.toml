@@ -16,9 +16,11 @@ axum.workspace = true
 veltrunox-core.workspace = true
 tower-http = { version = "0.6", features = ["cors", "fs", "compression-gzip", "compression-br"] }
 serde = { workspace = true }
+thiserror.workspace = true
 toml = "0.8"
 include_dir = { version = "0.7", optional = true }
 mime_guess = { version = "2", optional = true }
+rpassword = "7"
 
 [features]
 # Bakes the built web app (`app/build/web`) into the binary; build the web app first.

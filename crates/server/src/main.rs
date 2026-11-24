@@ -1,11 +1,13 @@
 //! Server entry point: wires adapters and starts the HTTP endpoint.
 
+mod cli;
 mod config;
+mod user_admin;
 mod web;
 
 use axum::{Router, http::HeaderValue};
 use config::Config;
-use std::{error::Error, path::PathBuf, sync::Arc};
+use std::{error::Error, sync::Arc};
 use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 use veltrunox_core::RecordingTitle;
 use veltrunox_server_adapters::{
@@ -20,12 +22,19 @@ const DATABASE_FILE: &str = "veltrunox.db";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let config = Config::load(config_path_argument()?.as_deref()).unwrap_or_else(|error| {
+    let invocation = cli::parse(std::env::args().skip(1)).unwrap_or_else(|usage| {
+        eprintln!("{usage}");
+        std::process::exit(2);
+    });
+    let config = Config::load(invocation.config.as_deref()).unwrap_or_else(|error| {
         eprintln!("{error}");
         std::process::exit(2);
     });
     std::fs::create_dir_all(&config.data_dir)?;
     let store = Arc::new(SqliteStore::open(&config.data_dir.join(DATABASE_FILE))?);
+    if let cli::Command::Users(command) = invocation.command {
+        return administer_users(store, &command);
+    }
     if let Some(directory) = &config.media_dir {
         let added = import_directory(directory, store.as_ref())?;
         println!("imported {added} new audio file(s)");
@@ -83,6 +92,31 @@ fn queue_pending_analyses(app: &AppState) {
     }
 }
 
+/// Runs one user command against the database and ends the process on failure.
+fn administer_users(
+    store: Arc<SqliteStore>,
+    command: &cli::UserCommand,
+) -> Result<(), Box<dyn Error>> {
+    let accounts = AccountService::new(
+        store.clone(),
+        store,
+        Arc::new(Argon2Hasher::new()),
+        Arc::new(RandomTokens),
+        Arc::new(SystemWallClock),
+    )?;
+    let result = user_admin::run(
+        &accounts,
+        command,
+        &mut user_admin::TerminalPasswords,
+        &mut std::io::stdout(),
+    );
+    if let Err(error) = result {
+        eprintln!("{error}");
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
 /// Placeholder until upload exists: an empty library would leave nothing to play.
 fn add_sample_recordings_if_empty(store: &dyn RecordingRepository) -> Result<(), Box<dyn Error>> {
     if !store.list()?.is_empty() {
@@ -92,19 +126,6 @@ fn add_sample_recordings_if_empty(store: &dyn RecordingRepository) -> Result<(),
         store.add(RecordingTitle::new(title)?)?;
     }
     Ok(())
-}
-
-/// Reads `--config <file>` from the command line.
-fn config_path_argument() -> Result<Option<PathBuf>, Box<dyn Error>> {
-    let mut arguments = std::env::args().skip(1);
-    match arguments.next().as_deref() {
-        None => Ok(None),
-        Some("--config") => match (arguments.next(), arguments.next()) {
-            (Some(path), None) => Ok(Some(PathBuf::from(path))),
-            _ => Err("usage: veltrunox-server [--config <file>]".into()),
-        },
-        Some(_) => Err("usage: veltrunox-server [--config <file>]".into()),
-    }
 }
 
 /// Allows exactly one browser origin when configured; otherwise no cross-origin access.

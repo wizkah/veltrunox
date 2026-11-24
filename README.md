@@ -33,6 +33,8 @@ cargo run -p veltrunox-server -- --config veltrunox.toml
 
 The server reads its settings from a TOML file (`--config <file>`; without the option `veltrunox.toml` in the working directory, if present, else the defaults). All keys are optional; `dist/veltrunox.toml` documents them. By default the server keeps its data in `data/` (ignored by Git).
 
+Users can be administered on the machine itself, with the server stopped or running (for example to set up an admin or after a forgotten password): `veltrunox-server [--config <file>] users list|add|passwd|role|enable|disable|delete|guest|policy`, see `veltrunox-server users` for the details. Passwords are asked for without echo, or read from standard input with `--password-stdin`. Run it as the user that owns the data directory, so the database files keep their owner: `sudo -u veltrunox veltrunox-server --config /etc/veltrunox/veltrunox.toml users passwd anna`.
+
 Server for a 64-bit Raspberry Pi (Debian 12 or newer), cross-built on macOS or Linux (needs Rust, `curl` and Homebrew or ready-made Zig and `pkg-config`; the script fetches ALSA packages and checks their hashes):
 
 ```sh
