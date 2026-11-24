@@ -42,14 +42,67 @@ pub struct Waveform {
 impl Waveform {
     /// Builds all levels from the mono mix of a recording. No samples, no levels.
     pub fn from_mono(samples: &[f32], sample_rate: u32) -> Self {
+        let mut builder = WaveformBuilder::new(sample_rate);
+        builder.push(samples);
+        builder.finish()
+    }
+}
+
+/// Builds a waveform from mono samples that arrive in pieces, so a long recording
+/// never has to be in memory as a whole.
+#[derive(Debug)]
+pub struct WaveformBuilder {
+    sample_rate: u32,
+    /// Finished blocks of the finest level.
+    peaks: Vec<Peak>,
+    /// The block being filled.
+    min: f32,
+    max: f32,
+    filled: usize,
+}
+
+impl WaveformBuilder {
+    pub fn new(sample_rate: u32) -> Self {
+        Self {
+            sample_rate,
+            peaks: Vec::new(),
+            min: f32::MAX,
+            max: f32::MIN,
+            filled: 0,
+        }
+    }
+
+    pub fn push(&mut self, samples: &[f32]) {
+        for &sample in samples {
+            self.min = self.min.min(sample);
+            self.max = self.max.max(sample);
+            self.filled += 1;
+            if self.filled == FINEST_BLOCK_FRAMES as usize {
+                self.close_block();
+            }
+        }
+    }
+
+    fn close_block(&mut self) {
+        self.peaks.push(Peak {
+            min: quantise(self.min),
+            max: quantise(self.max),
+        });
+        self.min = f32::MAX;
+        self.max = f32::MIN;
+        self.filled = 0;
+    }
+
+    /// All levels; the last block may be shorter. No samples, no levels.
+    pub fn finish(mut self) -> Waveform {
+        if self.filled > 0 {
+            self.close_block();
+        }
         let mut levels = Vec::new();
-        if !samples.is_empty() {
+        if !self.peaks.is_empty() {
             let mut level = WaveformLevel {
                 frames_per_block: FINEST_BLOCK_FRAMES,
-                peaks: samples
-                    .chunks(FINEST_BLOCK_FRAMES as usize)
-                    .map(peak_of)
-                    .collect(),
+                peaks: self.peaks,
             };
             while level.peaks.len() > COARSEST_MAX_BLOCKS {
                 let coarser = coarsen(&level);
@@ -58,20 +111,10 @@ impl Waveform {
             levels.push(level);
             levels.reverse();
         }
-        Self {
-            sample_rate,
+        Waveform {
+            sample_rate: self.sample_rate,
             levels,
         }
-    }
-}
-
-fn peak_of(block: &[f32]) -> Peak {
-    let (min, max) = block.iter().fold((f32::MAX, f32::MIN), |(min, max), &s| {
-        (min.min(s), max.max(s))
-    });
-    Peak {
-        min: quantise(min),
-        max: quantise(max),
     }
 }
 
@@ -94,6 +137,18 @@ fn coarsen(level: &WaveformLevel) -> WaveformLevel {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pieces_of_any_size_give_the_same_waveform_as_the_whole() {
+        let samples: Vec<f32> = (0..5_000_u32)
+            .map(|n| ((n * 37) % 200) as f32 / 100.0 - 1.0)
+            .collect();
+        let mut builder = WaveformBuilder::new(8_000);
+        for piece in samples.chunks(333) {
+            builder.push(piece);
+        }
+        assert_eq!(builder.finish(), Waveform::from_mono(&samples, 8_000));
+    }
 
     #[test]
     fn no_samples_give_no_levels() {

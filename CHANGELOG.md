@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The analysis of a new recording no longer decodes the whole file into memory: decoding, waveform, spectrum and length are built in one pass over the decoded pieces. A long recording used to need hundreds of megabytes at once, enough for the kernel to stop the server on a small Raspberry Pi; the results are the same. Playback still holds the decoded recording that is loaded.
 - The server writes a line to standard error when it closes a real-time channel, with the reason: the client was silent for more than 30 seconds, the client closed, the connection failed, or a ping could not be sent.
 - Without `--config` the server (and the `users` command) also looks for `/etc/veltrunox/veltrunox.toml`, after `veltrunox.toml` in the working directory. The installer writes `data_dir` as an absolute path (`/var/lib/veltrunox/data`) into a new configuration, so the command line works from any directory.
 - User administration on the command line: `veltrunox-server [--config <file>] users <command>` lists, creates (including the first admin), deletes, enables and disables users, sets passwords and roles, switches guest access and the password rules, working directly on the database without the HTTP interface (the server may be stopped). The password is asked for twice without echo, or read from standard input with `--password-stdin`. The rules of the account service apply (name and password rules, the last active admin stays); a new password ends the sessions of that user.

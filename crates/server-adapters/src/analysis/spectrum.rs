@@ -1,6 +1,7 @@
 //! Short-time spectrum of a mono signal: tonal peaks per frame and the onset strength.
 
-use rustfft::{FftPlanner, num_complex::Complex};
+use rustfft::{Fft, FftPlanner, num_complex::Complex};
+use std::sync::Arc;
 
 pub const FFT_SIZE: usize = 4096;
 pub const HOP: usize = 1024;
@@ -27,44 +28,82 @@ pub struct Frames {
     pub hop_seconds: f64,
 }
 
-pub fn frames(mono: &[f32], sample_rate: u32) -> Frames {
-    let window = hann_window();
-    let fft = FftPlanner::<f32>::new().plan_fft_forward(FFT_SIZE);
-    let mut buffer = vec![Complex::new(0.0_f32, 0.0); FFT_SIZE];
-    let mut magnitudes = vec![0.0_f32; FFT_SIZE / 2 + 1];
-    let mut previous_log = vec![0.0_f32; FFT_SIZE / 2 + 1];
-    let mut peaks = Vec::new();
-    let mut flux = Vec::new();
+/// Computes the frames from mono samples that arrive in pieces; only the samples of the
+/// frame being built are kept, so a long recording never has to be in memory as a whole.
+pub struct FrameBuilder {
+    sample_rate: u32,
+    window: Vec<f32>,
+    fft: Arc<dyn Fft<f32>>,
+    buffer: Vec<Complex<f32>>,
+    magnitudes: Vec<f32>,
+    previous_log: Vec<f32>,
+    /// Samples not yet consumed by a finished frame.
+    pending: Vec<f32>,
+    peaks: Vec<Vec<Peak>>,
+    flux: Vec<f64>,
+    samples_seen: usize,
+}
 
-    for (index, start) in (0..=mono.len().saturating_sub(FFT_SIZE))
-        .step_by(HOP)
-        .enumerate()
-    {
-        let Some(chunk) = mono.get(start..start + FFT_SIZE) else {
-            break;
-        };
-        for ((slot, sample), weight) in buffer.iter_mut().zip(chunk).zip(&window) {
-            *slot = Complex::new(sample * weight, 0.0);
+impl FrameBuilder {
+    pub fn new(sample_rate: u32) -> Self {
+        Self {
+            sample_rate,
+            window: hann_window(),
+            fft: FftPlanner::<f32>::new().plan_fft_forward(FFT_SIZE),
+            buffer: vec![Complex::new(0.0_f32, 0.0); FFT_SIZE],
+            magnitudes: vec![0.0_f32; FFT_SIZE / 2 + 1],
+            previous_log: vec![0.0_f32; FFT_SIZE / 2 + 1],
+            pending: Vec::new(),
+            peaks: Vec::new(),
+            flux: Vec::new(),
+            samples_seen: 0,
         }
-        fft.process(&mut buffer);
-        for (magnitude, bin) in magnitudes.iter_mut().zip(&buffer) {
+    }
+
+    /// How many samples were pushed so far.
+    pub fn samples_seen(&self) -> usize {
+        self.samples_seen
+    }
+
+    pub fn push(&mut self, samples: &[f32]) {
+        self.samples_seen += samples.len();
+        self.pending.extend_from_slice(samples);
+        let mut start = 0;
+        while self.pending.len() - start >= FFT_SIZE {
+            let chunk = &self.pending[start..start + FFT_SIZE];
+            for ((slot, sample), weight) in self.buffer.iter_mut().zip(chunk).zip(&self.window) {
+                *slot = Complex::new(sample * weight, 0.0);
+            }
+            self.finish_frame();
+            start += HOP;
+        }
+        self.pending.drain(..start);
+    }
+
+    /// Transforms the windowed samples in `buffer` and records the frame.
+    fn finish_frame(&mut self) {
+        self.fft.process(&mut self.buffer);
+        for (magnitude, bin) in self.magnitudes.iter_mut().zip(&self.buffer) {
             *magnitude = bin.norm();
         }
-        peaks.push(tonal_peaks(&magnitudes, sample_rate));
-        flux.push(if index == 0 {
+        self.peaks
+            .push(tonal_peaks(&self.magnitudes, self.sample_rate));
+        self.flux.push(if self.peaks.len() == 1 {
             0.0
         } else {
-            flux_against(&magnitudes, &previous_log)
+            flux_against(&self.magnitudes, &self.previous_log)
         });
-        for (log, magnitude) in previous_log.iter_mut().zip(&magnitudes) {
+        for (log, magnitude) in self.previous_log.iter_mut().zip(&self.magnitudes) {
             *log = magnitude.ln_1p();
         }
     }
 
-    Frames {
-        peaks,
-        onset_strength: normalise_onsets(&flux),
-        hop_seconds: HOP as f64 / f64::from(sample_rate),
+    pub fn finish(self) -> Frames {
+        Frames {
+            peaks: self.peaks,
+            onset_strength: normalise_onsets(&self.flux),
+            hop_seconds: HOP as f64 / f64::from(self.sample_rate),
+        }
     }
 }
 

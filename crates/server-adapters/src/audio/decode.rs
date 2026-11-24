@@ -107,6 +107,21 @@ pub fn decode_file(path: &Path) -> Result<Pcm, DecodeError> {
 /// Like `decode_file`; `report` is told how far the decoding has come in percent while the
 /// file is read (only if the container announces its length).
 pub fn decode_file_reporting(path: &Path, report: &dyn Fn(u8)) -> Result<Pcm, DecodeError> {
+    let mut stereo = Vec::new();
+    let sample_rate = decode_blocks(path, report, &mut |_, interleaved, channels| {
+        append_stereo(&mut stereo, interleaved, channels);
+    })?;
+    Ok(Pcm::new(stereo, sample_rate))
+}
+
+/// Decodes the file piece by piece and hands each piece to `sink` as interleaved samples
+/// with their channel count, so the file never has to be in memory as a whole. Returns the
+/// sample rate. `report` is as for `decode_file_reporting`.
+pub fn decode_blocks(
+    path: &Path,
+    report: &dyn Fn(u8),
+    sink: &mut dyn FnMut(u32, &[f32], usize),
+) -> Result<u32, DecodeError> {
     let Opened {
         mut format,
         mut decoder,
@@ -115,8 +130,6 @@ pub fn decode_file_reporting(path: &Path, report: &dyn Fn(u8)) -> Result<Pcm, De
     } = open(path)?;
     let mut decoded_frames = 0u64;
     let mut reported = 0u8;
-
-    let mut stereo = Vec::new();
     let mut interleaved: Vec<f32> = Vec::new();
     let mut sample_rate = 0;
     while let Some(packet) = format.next_packet()? {
@@ -140,12 +153,21 @@ pub fn decode_file_reporting(path: &Path, report: &dyn Fn(u8)) -> Result<Pcm, De
         let channels = buffer.spec().channels().count();
         interleaved.resize(buffer.samples_interleaved(), 0.0);
         buffer.copy_to_slice_interleaved(&mut interleaved);
-        append_stereo(&mut stereo, &interleaved, channels);
+        sink(sample_rate, &interleaved, channels);
     }
-    if sample_rate == 0 || stereo.is_empty() {
+    if sample_rate == 0 || decoded_frames == 0 {
         return Err(DecodeError::Audio("no audio samples".to_owned()));
     }
-    Ok(Pcm::new(stereo, sample_rate))
+    Ok(sample_rate)
+}
+
+/// The two channels averaged into one, as `Pcm::mono` does after `append_stereo`.
+pub fn append_mono(mono: &mut Vec<f32>, interleaved: &[f32], channels: usize) {
+    for frame in interleaved.chunks_exact(channels.max(1)) {
+        let left = frame[0];
+        let right = if channels > 1 { frame[1] } else { left };
+        mono.push((left + right) / 2.0);
+    }
 }
 
 fn append_stereo(stereo: &mut Vec<f32>, interleaved: &[f32], channels: usize) {

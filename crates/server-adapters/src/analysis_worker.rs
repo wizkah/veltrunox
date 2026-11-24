@@ -1,31 +1,58 @@
 //! Runs the analyses one after the other on a background thread: they are CPU
 //! and memory heavy, and the server may be a Raspberry Pi.
 
-use crate::analysis::analyse_reporting;
-use crate::audio::decode_file_reporting;
+use crate::analysis::{FrameBuilder, analyse_frames, analyse_spectrum};
+use crate::audio::{append_mono, decode_blocks};
 use std::path::Path;
 use std::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
-use veltrunox_core::{Millis, RecordingId, Refusal, Waveform};
+use veltrunox_core::{Millis, RecordingId, Refusal, WaveformBuilder};
 use veltrunox_server_app::{AnalysisFailure, AnalysisService, RecordingAnalyzer, RecordingScan};
 
-/// Decodes a file once and derives length, waveform and analysis from it.
+/// Decodes a file once and derives length, waveform and analysis from it, piece by piece:
+/// the recording is never in memory as a whole, which a small Raspberry Pi could not bear.
 pub struct FileAnalyzer;
 
+/// The decoding pass, which also builds the waveform and the spectrum, counts for this
+/// many percent of the whole; the analyses of the spectrum take the rest.
+const PASS_PERCENT: u8 = 60;
+
 impl RecordingAnalyzer for FileAnalyzer {
-    /// Decoding counts for the first 40 percent, the waveform up to 45, the analysis the rest.
     fn scan(&self, path: &Path, report: &dyn Fn(u8)) -> Result<RecordingScan, AnalysisFailure> {
-        let pcm = decode_file_reporting(path, &|percent| report(scaled(percent, 0, 40)))
-            .map_err(|error| AnalysisFailure(error.reason().code))?;
-        report(40);
-        let waveform = Waveform::from_mono(&pcm.mono(), pcm.sample_rate());
-        report(45);
+        let mut waveform = None;
+        let mut frames = None;
+        let mut block = Vec::new();
+        let mut total_samples = 0u64;
+        let sample_rate = decode_blocks(
+            path,
+            &|percent| report(scaled(percent, 0, PASS_PERCENT)),
+            &mut |rate, interleaved, channels| {
+                block.clear();
+                append_mono(&mut block, interleaved, channels);
+                total_samples += block.len() as u64;
+                waveform
+                    .get_or_insert_with(|| WaveformBuilder::new(rate))
+                    .push(&block);
+                frames
+                    .get_or_insert_with(|| FrameBuilder::new(rate))
+                    .push(&block);
+            },
+        )
+        .map_err(|error| AnalysisFailure(error.reason().code))?;
+        report(PASS_PERCENT);
+        let (Some(waveform), Some(frames)) = (waveform, frames) else {
+            return Err(AnalysisFailure("audio_unsupported".to_owned()));
+        };
+        let analysis = analyse_spectrum(frames).and_then(|frames| {
+            analyse_frames(frames, &|percent| {
+                report(scaled(percent, PASS_PERCENT, 100 - PASS_PERCENT));
+            })
+        });
         Ok(RecordingScan {
-            length: Millis::new(pcm.duration_ms()),
-            waveform,
-            analysis: analyse_reporting(&pcm, &|percent| report(scaled(percent, 45, 55)))
-                .map_err(|error| AnalysisFailure(error.reason().code)),
+            length: Millis::new(total_samples * 1_000 / u64::from(sample_rate)),
+            waveform: waveform.finish(),
+            analysis: analysis.map_err(|error| AnalysisFailure(error.reason().code)),
         })
     }
 }

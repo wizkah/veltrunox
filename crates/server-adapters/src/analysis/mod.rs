@@ -6,6 +6,7 @@ mod tempo;
 mod tuning;
 
 use crate::audio::Pcm;
+pub use spectrum::{FrameBuilder, Frames};
 use veltrunox_core::{Confidence, RecordingAnalysis, TuningHz};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -41,14 +42,26 @@ pub fn analyse_reporting(
     pcm: &Pcm,
     report: &dyn Fn(u8),
 ) -> Result<RecordingAnalysis, AnalysisError> {
-    let mono = pcm.mono();
-    if mono.len() < spectrum::FFT_SIZE {
+    let mut builder = FrameBuilder::new(pcm.sample_rate());
+    builder.push(&pcm.mono());
+    let frames = analyse_spectrum(builder)?;
+    report(30);
+    analyse_frames(frames, report)
+}
+
+/// The spectrum of a recording that was fed to `builder`; refuses one shorter than a frame.
+pub fn analyse_spectrum(builder: FrameBuilder) -> Result<Frames, AnalysisError> {
+    if builder.samples_seen() < spectrum::FFT_SIZE {
         return Err(AnalysisError::TooShort);
     }
-    let frames = spectrum::frames(&mono, pcm.sample_rate());
-    drop(mono);
-    report(30);
+    Ok(builder.finish())
+}
 
+/// The analyses after the spectrum; `report` is told 60 and 80 percent on the way.
+pub fn analyse_frames(
+    frames: Frames,
+    report: &dyn Fn(u8),
+) -> Result<RecordingAnalysis, AnalysisError> {
     let all_peaks: Vec<_> = frames.peaks.iter().flatten().copied().collect();
     let (tuning, tuning_confidence) = match tuning::estimate(&all_peaks) {
         Some(found) => (found.tuning, found.confidence),
@@ -125,6 +138,21 @@ mod tests {
             (found.tempo.value() - 100.0).abs() < 1.0,
             "tempo {}",
             found.tempo.value()
+        );
+    }
+
+    #[test]
+    fn pieces_of_any_size_give_the_same_analysis_as_the_whole() {
+        let pcm = rehearsal(435.0, 100.0, 40.0);
+        let mono = pcm.mono();
+        let mut builder = FrameBuilder::new(pcm.sample_rate());
+        for piece in mono.chunks(1_237) {
+            builder.push(piece);
+        }
+        let frames = analyse_spectrum(builder).unwrap();
+        assert_eq!(
+            analyse_frames(frames, &|_| {}).unwrap(),
+            analyse(&pcm).unwrap()
         );
     }
 
