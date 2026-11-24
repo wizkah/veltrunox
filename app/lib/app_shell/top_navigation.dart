@@ -59,9 +59,28 @@ class _Tab extends StatelessWidget {
     onPressed: onTap,
     icon: Icon(selected ? destination.selectedIcon : destination.icon),
     label: Text(destination.label),
-    style: TextButton.styleFrom(
-      foregroundColor: selected ? AppColors.action : AppColors.textPrimary,
-      backgroundColor: selected ? AppColors.surfaceRaised : null,
-    ),
+    // The selected tab is outlined in orange on a faint orange tint.
+    style:
+        TextButton.styleFrom(
+          foregroundColor: selected ? AppColors.action : AppColors.textPrimary,
+          backgroundColor: selected
+              ? AppColors.action.withValues(alpha: 0.12)
+              : null,
+        ).copyWith(
+          // Keyboard focus keeps the theme's focus ring.
+          side: selected
+              ? WidgetStateProperty.resolveWith(
+                  (states) => states.contains(WidgetState.focused)
+                      ? const BorderSide(
+                          color: AppColors.focus,
+                          width: AppSize.focusRingWidth,
+                        )
+                      : const BorderSide(
+                          color: AppColors.action,
+                          width: AppSize.borderWidth,
+                        ),
+                )
+              : null,
+        ),
   );
 }

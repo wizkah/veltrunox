@@ -12,7 +12,7 @@ import 'package:veltrunox_app/features/library/recording_source.dart';
 import 'package:veltrunox_app/features/library/recording_summary.dart';
 import 'package:veltrunox_app/features/markers/marker.dart';
 import 'package:veltrunox_app/features/markers/marker_controller.dart';
-import 'package:veltrunox_app/features/player/panel_surface.dart';
+import 'package:veltrunox_app/shared_ui/panel_surface.dart';
 import 'package:veltrunox_app/features/player/player_controller.dart';
 import 'package:veltrunox_app/features/player/player_state.dart';
 import 'package:veltrunox_app/features/player/position_slider.dart';

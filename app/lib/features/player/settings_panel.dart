@@ -2,7 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../design/tokens/app_colors.dart';
 import '../../design/tokens/app_geometry.dart';
-import 'panel_surface.dart';
+import '../../shared_ui/panel_surface.dart';
 
 /// A titled panel that groups related settings, with an optional note below
 /// (for example the value the analysis found).

@@ -1,7 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../design/tokens/app_geometry.dart';
-import 'panel_surface.dart';
+import '../../shared_ui/panel_surface.dart';
 import 'player_texts.dart';
 import 'throttled_value.dart';
 

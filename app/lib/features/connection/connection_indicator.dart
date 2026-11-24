@@ -19,22 +19,39 @@ class ConnectionIndicator extends ConsumerWidget {
           data: (status) => status,
           orElse: () => ConnectionStatus.disconnected,
         );
+    final color = _color(status);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpace.s4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(_icon(status), size: AppSpace.s4, color: _color(status)),
-          const SizedBox(width: AppSpace.s2),
-          Text(_label(status)),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.s2),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.6)),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpace.s3,
+            vertical: AppSpace.s1,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(_icon(status), size: AppSpace.s4, color: color),
+              const SizedBox(width: AppSpace.s2),
+              Text(
+                _label(status),
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   static IconData _icon(ConnectionStatus status) => switch (status) {
     ConnectionStatus.connecting => Icons.sync,
-    ConnectionStatus.connected => Icons.check_circle_outline,
+    ConnectionStatus.connected => Icons.signal_cellular_alt,
     ConnectionStatus.disconnected => Icons.cloud_off,
   };
 

@@ -443,6 +443,40 @@ void main() {
       expect(slider.value, 30000);
       expect(slider.max, 180000);
       expect(find.text('0:30.0'), findsWidgets);
+      // The clock beside the transport shows position and length.
+      expect(find.text('0:30,0 / 3:00'), findsOneWidget);
+    });
+
+    testWidgets('the header names the recording and what is known of it', (
+      tester,
+    ) async {
+      _useTallScreen(tester);
+      final player = FakePlayerSource();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [playerSourceProvider.overrideWithValue(player)],
+          child: MaterialApp(
+            home: Scaffold(
+              body: PlayerScreen(
+                onChooseRecording: () {},
+                title: 'Back to Rehearsal',
+                analysis: const PlayerAnalysis(
+                  tuningHz: 440,
+                  tempoBpm: 120,
+                  keyTonic: 4,
+                ),
+                lengthMs: 180000,
+              ),
+            ),
+          ),
+        ),
+      );
+      player.states.add(_loaded);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Back to Rehearsal'), findsOneWidget);
+      expect(find.text('E-Dur · 120,0 bpm · 3:00'), findsOneWidget);
     });
 
     testWidgets('is shown disabled for a recording without a scan', (

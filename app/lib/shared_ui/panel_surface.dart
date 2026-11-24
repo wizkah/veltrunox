@@ -1,9 +1,9 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../../design/tokens/app_geometry.dart';
-import '../../shared_ui/frame_decoration.dart';
+import '../design/tokens/app_geometry.dart';
+import 'frame_decoration.dart';
 
-/// The bordered, transparent surface the player's panels (tempo, pitch, volume) stand on.
+/// The framed surface panels stand on (tempo, pitch, volume, markers).
 class PanelSurface extends StatelessWidget {
   const PanelSurface({required this.child, super.key});
 

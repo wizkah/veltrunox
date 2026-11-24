@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Livelier player and top bar: panels (tempo, pitch, volume, markers on a wide screen, framed buttons) are filled surfaces with a teal edge and glow instead of bare outlines; the play button glows orange; the connection status is a coloured pill; the selected tab of the top navigation is outlined in orange. The player's head shows an icon tile and a line with key, tempo and length under the title, and a clock "position / length" stands beside the transport.
 - The client notes why it gives up the real-time channel: a line `veltrunox: channel failed: …` (or `channel closed …`) in the browser console (standard error natively) with the reason, such as a socket error, a message it did not understand, a different protocol version or a playback state with an invalid value. No tokens or user data are written.
 - The analysis of a new recording no longer decodes the whole file into memory: decoding, waveform, spectrum and length are built in one pass over the decoded pieces. A long recording used to need hundreds of megabytes at once, enough for the kernel to stop the server on a small Raspberry Pi; the results are the same. Playback still holds the decoded recording that is loaded.
 - The server writes a line to standard error when it closes a real-time channel, with the reason: the client was silent for more than 30 seconds, the client closed, the connection failed, or a ping could not be sent.

@@ -2,11 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../design/tokens/app_geometry.dart';
+import '../../shared_ui/panel_surface.dart';
 import 'no_recording_notice.dart';
 import 'player_analysis.dart';
 import 'player_controller.dart';
 import 'player_controls.dart';
 import 'player_texts.dart';
+import 'recording_header.dart';
 
 /// The player page: the loaded recording with its controls and its markers.
 /// What the markers look like is passed in, so the player knows no marker
@@ -80,7 +82,7 @@ class PlayerScreen extends ConsumerWidget {
           above: _aboveTransport(showMarkerOpener: !beside),
           showPositionSlider: waveform == null,
         );
-        final header = _title(context);
+        final header = _header();
         final fits =
             beside &&
             constraints.hasBoundedHeight &&
@@ -104,7 +106,10 @@ class PlayerScreen extends ConsumerWidget {
               : CrossAxisAlignment.start,
           children: [
             if (markers != null) ...[
-              SizedBox(width: _markerColumnWidth, child: markers),
+              SizedBox(
+                width: _markerColumnWidth,
+                child: PanelSurface(child: markers!),
+              ),
               const SizedBox(width: AppSpace.s6),
             ],
             Expanded(child: main),
@@ -135,12 +140,16 @@ class PlayerScreen extends ConsumerWidget {
     );
   }
 
-  Widget? _title(BuildContext context) {
+  Widget? _header() {
     final name = title;
     if (name == null) return null;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpace.s3),
-      child: Text(name, style: Theme.of(context).textTheme.headlineMedium),
+      child: RecordingHeader(
+        title: name,
+        analysis: analysis,
+        lengthMs: lengthMs,
+      ),
     );
   }
 }

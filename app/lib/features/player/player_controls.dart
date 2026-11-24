@@ -7,6 +7,7 @@ import 'player_controller.dart';
 import 'player_state.dart';
 import 'position_slider.dart';
 import 'settings_controls.dart';
+import 'transport_clock.dart';
 import 'transport_controls.dart';
 import 'volume_control.dart';
 
@@ -72,12 +73,25 @@ class PlayerControls extends ConsumerWidget {
                 controller.hold(position, running: state.running),
             onHoldEnd: controller.endHold,
           ),
-        TransportControls(
-          running: state.running,
-          playMode: state.playMode,
-          onTogglePlay: () => controller.togglePlay(running: state.running),
-          onRestart: controller.restart,
-          onPlayMode: () => controller.setPlayMode(state.playMode.next),
+        // The clock goes below the buttons where both do not fit in a row.
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: AppSpace.s6,
+          runSpacing: AppSpace.s2,
+          children: [
+            TransportControls(
+              running: state.running,
+              playMode: state.playMode,
+              onTogglePlay: () => controller.togglePlay(running: state.running),
+              onRestart: controller.restart,
+              onPlayMode: () => controller.setPlayMode(state.playMode.next),
+            ),
+            TransportClock(
+              positionMs: length == null ? position : position.clamp(0, length),
+              lengthMs: length,
+            ),
+          ],
         ),
       ],
     );

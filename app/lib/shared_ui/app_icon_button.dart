@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../design/tokens/app_colors.dart';
 import '../design/tokens/app_geometry.dart';
 import 'frame_decoration.dart';
 
@@ -38,7 +39,7 @@ class AppIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (prominent) {
-      return IconButton.filled(
+      final filled = IconButton.filled(
         tooltip: tooltip,
         onPressed: onPressed,
         iconSize: iconSize ?? AppSpace.s8,
@@ -49,6 +50,21 @@ class AppIconButton extends StatelessWidget {
         ),
         icon: Icon(icon),
       );
+      // The primary control glows in the action colour while it can be used.
+      return onPressed == null
+          ? filled
+          : DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.action.withValues(alpha: 0.4),
+                    blurRadius: AppSpace.s6,
+                  ),
+                ],
+              ),
+              child: filled,
+            );
     }
     final button = IconButton(
       tooltip: tooltip,
