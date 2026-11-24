@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import '../features/connection/connection_status.dart';
 import '../features/player/player_state.dart';
 import '../shared_ui/server_reason.dart';
@@ -94,8 +96,16 @@ class BridgeSession {
     _audioOutput = null;
   }
 
-  StreamSubscription<rust.SessionUpdate> _open() =>
-      rust.watchSession(serverUrl: serverUrl).listen(_onUpdate);
+  StreamSubscription<rust.SessionUpdate> _open() {
+    _note('session opened');
+    return rust
+        .watchSession(serverUrl: serverUrl)
+        .listen(
+          _onUpdate,
+          onError: (Object error) => _note('session stream failed: $error'),
+          onDone: () => _note('session stream ended'),
+        );
+  }
 
   /// Sends a command; a failure is reported like a refusal by the server.
   Future<void> send(rust.PlayerCommand command) async {
@@ -153,6 +163,7 @@ class BridgeSession {
   }
 
   void _onConnection(rust.ConnectionState state) {
+    _note('connection $state');
     _connection = switch (state) {
       rust.ConnectionState.connected => ConnectionStatus.connected,
       rust.ConnectionState.disconnected => ConnectionStatus.disconnected,
@@ -178,6 +189,9 @@ class BridgeSession {
     ),
   );
 }
+
+/// A line in the browser console for whoever debugs the connection; reasons only.
+void _note(String text) => debugPrint('veltrunox: $text');
 
 extension _Let<T> on T? {
   R? let<R>(R Function(T) transform) {
