@@ -151,7 +151,8 @@ impl Supervisor {
                     connections.push((id, connection));
                 });
             }
-            Err(_) => {
+            Err(error) => {
+                crate::diagnostics::note(&format!("channel failed: could not open: {error:?}"));
                 let delay = control.policy.on_link_event(LinkEvent::Failed);
                 drop(control);
                 (self.on_event)(ChannelEvent::Link(LinkEvent::Failed));
@@ -182,6 +183,7 @@ impl Supervisor {
         (self.on_event)(event.clone());
         match event {
             ChannelEvent::Link(LinkEvent::Greeted) => {
+                crate::diagnostics::note("channel open");
                 // Signing in comes first; a failed send only means the connection was lost again.
                 let access = self.access.clone();
                 let _ = self.with_connection(|connection| connection.send_access(&access));
