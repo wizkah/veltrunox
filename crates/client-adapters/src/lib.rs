@@ -2,6 +2,7 @@
 
 mod access;
 mod channel;
+mod diagnostics;
 mod events;
 mod timer;
 

@@ -1,6 +1,7 @@
 //! Real-time channel client (WebSocket); works natively and on `wasm32`.
 
 use crate::access::rights_from_dto;
+use crate::diagnostics;
 use ewebsock::{Options, WsEvent, WsMessage, WsSender};
 use std::ops::ControlFlow;
 use veltrunox_client_app::{ChannelAccess, ChannelEvent, LinkError, LinkEvent, ServerEvent};
@@ -90,25 +91,48 @@ fn into_channel_event(event: &WsEvent) -> Option<ChannelEvent> {
         WsEvent::Opened | WsEvent::Message(WsMessage::Binary(_)) => None,
         WsEvent::Message(WsMessage::Text(text)) => channel_event_from(text),
         WsEvent::Message(_) => None,
-        WsEvent::Error(_) => Some(ChannelEvent::Link(LinkEvent::Failed)),
-        WsEvent::Closed => Some(ChannelEvent::Link(LinkEvent::Closed)),
+        WsEvent::Error(error) => {
+            diagnostics::note(&format!("channel failed: {error}"));
+            Some(ChannelEvent::Link(LinkEvent::Failed))
+        }
+        WsEvent::Closed => {
+            diagnostics::note("channel closed by the server or the network");
+            Some(ChannelEvent::Link(LinkEvent::Closed))
+        }
     }
 }
 
 /// A greeting counts only if it speaks the protocol version this client knows;
 /// a message that cannot be understood means the channel cannot be trusted.
 fn channel_event_from(text: &str) -> Option<ChannelEvent> {
-    let Ok(event) = serde_json::from_str::<ServerEventDto>(text) else {
-        return Some(ChannelEvent::Link(LinkEvent::Failed));
+    let event = match serde_json::from_str::<ServerEventDto>(text) {
+        Ok(event) => event,
+        Err(error) => {
+            let start: String = text.chars().take(200).collect();
+            diagnostics::note(&format!(
+                "channel failed: message not understood ({error}): {start}"
+            ));
+            return Some(ChannelEvent::Link(LinkEvent::Failed));
+        }
     };
     match event {
         ServerEventDto::Hello { protocol_version } if protocol_version == PROTOCOL_VERSION => {
             Some(ChannelEvent::Link(LinkEvent::Greeted))
         }
-        ServerEventDto::Hello { .. } => Some(ChannelEvent::Link(LinkEvent::Failed)),
+        ServerEventDto::Hello { protocol_version } => {
+            diagnostics::note(&format!(
+                "channel failed: server speaks protocol {protocol_version}, this client {PROTOCOL_VERSION}"
+            ));
+            Some(ChannelEvent::Link(LinkEvent::Failed))
+        }
         ServerEventDto::State(dto) => Some(match state_from_dto(&dto) {
             Ok(state) => ChannelEvent::Server(ServerEvent::State(state)),
-            Err(_) => ChannelEvent::Link(LinkEvent::Failed),
+            Err(error) => {
+                diagnostics::note(&format!(
+                    "channel failed: invalid playback state ({error:?}): {dto:?}"
+                ));
+                ChannelEvent::Link(LinkEvent::Failed)
+            }
         }),
         ServerEventDto::Pong {
             client_time_ms,

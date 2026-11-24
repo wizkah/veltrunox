@@ -3009,6 +3009,7 @@ dependencies = [
  "veltrunox-client-app",
  "veltrunox-core",
  "veltrunox-protocol",
+ "web-sys",
 ]
 
 [[package]]
