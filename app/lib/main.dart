@@ -10,6 +10,7 @@ import 'bridge/bridge_exchange_source.dart';
 import 'bridge/bridge_marker_source.dart';
 import 'bridge/bridge_player_source.dart';
 import 'bridge/bridge_recording_source.dart';
+import 'bridge/bridge_own_password_source.dart';
 import 'bridge/bridge_token_source.dart';
 import 'bridge/bridge_session.dart';
 import 'bridge/bridge_user_source.dart';
@@ -24,6 +25,7 @@ import 'features/library/audio_file_picker.dart';
 import 'features/library/library_controller.dart';
 import 'features/markers/marker_controller.dart';
 import 'features/player/player_controller.dart';
+import 'features/own_password/own_password_source.dart';
 import 'features/tokens/token_source.dart';
 import 'features/users/users_controller.dart';
 import 'features/waveform/waveform_source.dart';
@@ -84,6 +86,9 @@ Future<void> main() async {
         ),
         tokenSourceProvider.overrideWithValue(
           BridgeTokenSource(serverUrl: serverUrl),
+        ),
+        ownPasswordSourceProvider.overrideWithValue(
+          BridgeOwnPasswordSource(serverUrl: serverUrl),
         ),
         textClipboardProvider.overrideWithValue(SystemTextClipboard()),
         textFilePickerProvider.overrideWithValue(SystemTextFilePicker()),

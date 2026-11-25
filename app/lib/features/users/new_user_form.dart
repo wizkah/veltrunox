@@ -5,6 +5,7 @@ import '../../shared_ui/action_button.dart';
 import '../access/access_models.dart';
 import '../access/access_texts.dart';
 import '../access/failure_notice.dart';
+import '../access/password_field.dart';
 import 'users_texts.dart';
 
 /// Creates a user: name, first password and role. A refusal by the server
@@ -29,6 +30,7 @@ class NewUserForm extends StatefulWidget {
 class _NewUserFormState extends State<NewUserForm> {
   final _userName = TextEditingController();
   final _password = TextEditingController();
+  final _repeat = TextEditingController();
   UserRole _role = UserRole.user;
   bool _submitted = false;
   bool _busy = false;
@@ -38,6 +40,7 @@ class _NewUserFormState extends State<NewUserForm> {
   void dispose() {
     _userName.dispose();
     _password.dispose();
+    _repeat.dispose();
     super.dispose();
   }
 
@@ -52,9 +55,14 @@ class _NewUserFormState extends State<NewUserForm> {
         : AccessTexts.passwordProblem(widget.policy, problem);
   }
 
+  String? get _repeatError =>
+      _submitted && _repeat.text != _password.text ? UsersTexts.mismatch : null;
+
   Future<void> _submit() async {
     setState(() => _submitted = true);
-    if (_nameError != null || _passwordError != null) return;
+    if (_nameError != null || _passwordError != null || _repeatError != null) {
+      return;
+    }
     setState(() {
       _busy = true;
       _failure = null;
@@ -71,6 +79,7 @@ class _NewUserFormState extends State<NewUserForm> {
       if (failure == null) {
         _userName.clear();
         _password.clear();
+        _repeat.clear();
         _submitted = false;
       }
     });
@@ -91,18 +100,18 @@ class _NewUserFormState extends State<NewUserForm> {
         ),
       ),
       const SizedBox(height: AppSpace.s2),
-      TextField(
+      PasswordField(
         controller: _password,
-        obscureText: true,
-        autocorrect: false,
-        enableSuggestions: false,
-        decoration: InputDecoration(
-          labelText: AccessTexts.password,
-          helperText: AccessTexts.passwordRule(widget.policy),
-          helperMaxLines: 2,
-          errorText: _passwordError,
-          errorMaxLines: 2,
-        ),
+        label: AccessTexts.password,
+        helper: AccessTexts.passwordRule(widget.policy),
+        error: _passwordError,
+        textInputAction: TextInputAction.next,
+      ),
+      const SizedBox(height: AppSpace.s2),
+      PasswordField(
+        controller: _repeat,
+        label: UsersTexts.repeatPassword,
+        error: _repeatError,
       ),
       const SizedBox(height: AppSpace.s2),
       DropdownButtonFormField<UserRole>(

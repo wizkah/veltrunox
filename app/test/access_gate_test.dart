@@ -39,7 +39,11 @@ Future<_Setup> _pump(
             appBar: AppBar(
               title: const Text('Drinnen'),
               actions: [
-                AccountMenu(onManageUsers: () {}, onManageTokens: () {}),
+                AccountMenu(
+                  onManageUsers: () {},
+                  onManageTokens: () {},
+                  onChangePassword: () {},
+                ),
               ],
             ),
           ),
@@ -243,6 +247,47 @@ void main() {
       await tester.tap(find.byTooltip('Konto'));
       await tester.pumpAndSettle();
       expect(find.text('API-Tokens'), findsOneWidget);
+    });
+
+    testWidgets('an account and an admin see the change of their password', (
+      tester,
+    ) async {
+      await _pump(tester, savedToken: 'saved');
+      await tester.tap(find.byTooltip('Konto'));
+      await tester.pumpAndSettle();
+      expect(find.text('Passwort ändern'), findsOneWidget);
+    });
+
+    testWidgets('a guest has no entry for the password', (tester) async {
+      final source = FakeAccessSource(
+        guestEnabled: true,
+        rights: const Rights(role: UserRole.guest),
+      );
+      await _pump(tester, source: source, savedToken: 'saved');
+      await tester.tap(find.byTooltip('Konto'));
+      await tester.pumpAndSettle();
+      expect(find.text('Passwort ändern'), findsNothing);
+    });
+
+    testWidgets('after a changed password the sign-in says so', (tester) async {
+      final setup = await _pump(tester, savedToken: 'saved');
+      final container = ProviderScope.containerOf(
+        tester.element(find.text('Drinnen')),
+      );
+
+      await container
+          .read(accessControllerProvider.notifier)
+          .ownPasswordChanged();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Drinnen'), findsNothing);
+      expect(
+        find.text(
+          'Das Passwort wurde geändert. Bitte mit dem neuen Passwort anmelden.',
+        ),
+        findsOneWidget,
+      );
+      expect(setup.tokens.token, isNull);
     });
 
     testWidgets('a guest has no entry for API tokens', (tester) async {

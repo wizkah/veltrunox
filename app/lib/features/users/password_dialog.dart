@@ -1,8 +1,10 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../design/tokens/app_geometry.dart';
 import '../../shared_ui/action_button.dart';
 import '../access/access_models.dart';
 import '../access/access_texts.dart';
+import '../access/password_field.dart';
 import 'users_texts.dart';
 
 /// Asks for a new password for one user. Resolves to the password, or `null`
@@ -32,11 +34,13 @@ class PasswordDialog extends StatefulWidget {
 
 class _PasswordDialogState extends State<PasswordDialog> {
   final _password = TextEditingController();
+  final _repeat = TextEditingController();
   bool _submitted = false;
 
   @override
   void dispose() {
     _password.dispose();
+    _repeat.dispose();
     super.dispose();
   }
 
@@ -48,9 +52,12 @@ class _PasswordDialogState extends State<PasswordDialog> {
         : AccessTexts.passwordProblem(widget.policy, problem);
   }
 
+  String? get _repeatError =>
+      _submitted && _repeat.text != _password.text ? UsersTexts.mismatch : null;
+
   void _submit() {
     setState(() => _submitted = true);
-    if (widget.policy.check(_password.text) == null) {
+    if (_error == null && _repeatError == null) {
       Navigator.of(context).pop(_password.text);
     }
   }
@@ -58,20 +65,25 @@ class _PasswordDialogState extends State<PasswordDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text('${UsersTexts.setPassword}: ${widget.userName}'),
-    content: TextField(
-      controller: _password,
-      autofocus: true,
-      obscureText: true,
-      autocorrect: false,
-      enableSuggestions: false,
-      onSubmitted: (_) => _submit(),
-      decoration: InputDecoration(
-        labelText: UsersTexts.newPassword,
-        helperText: AccessTexts.passwordRule(widget.policy),
-        helperMaxLines: 2,
-        errorMaxLines: 2,
-        errorText: _error,
-      ),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PasswordField(
+          controller: _password,
+          label: UsersTexts.newPassword,
+          helper: AccessTexts.passwordRule(widget.policy),
+          error: _error,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: AppSpace.s3),
+        PasswordField(
+          controller: _repeat,
+          label: UsersTexts.repeatPassword,
+          error: _repeatError,
+          textInputAction: TextInputAction.done,
+          onSubmitted: _submit,
+        ),
+      ],
     ),
     actions: [
       ActionButton(

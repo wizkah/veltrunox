@@ -38,12 +38,20 @@ abstract final class UsersTexts {
   static String get inactive => tr('Deaktiviert', 'Deactivated');
   static String get setPassword => tr('Passwort ändern', 'Change password');
   static String get newPassword => tr('Neues Passwort', 'New password');
+  static String get repeatPassword =>
+      tr('Passwort wiederholen', 'Repeat password');
+  static String get mismatch => tr(
+    'Die beiden Passwörter sind verschieden.',
+    'The two passwords differ.',
+  );
   static String get save => tr('Speichern', 'Save');
   static String get cancel => tr('Abbrechen', 'Cancel');
   static String get delete => tr('Löschen', 'Delete');
   static String get required => tr('Bitte ausfüllen.', 'Please fill in.');
-  static String get passwordChanged =>
-      tr('Passwort geändert.', 'Password changed.');
+  static String get passwordChanged => tr(
+    'Passwort geändert. Der Benutzer ist überall abgemeldet.',
+    'Password changed. The user is signed out everywhere.',
+  );
 
   static String deleteTitle(String name) =>
       tr('Benutzer „$name“ löschen?', 'Delete user “$name”?');

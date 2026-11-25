@@ -119,6 +119,20 @@ class AccessController extends Notifier<AccessState> {
     }
   }
 
+  /// The person changed their own password: the server ended every sign-in of
+  /// the account, so this client forgets its token and asks for the new one.
+  Future<void> ownPasswordChanged() async {
+    if (state is! AccessSignedIn) return;
+    await signOut();
+    if (!ref.mounted) return;
+    if (state case AccessSignedOut(:final guestEnabled)) {
+      state = AccessSignedOut(
+        guestEnabled: guestEnabled,
+        passwordChanged: true,
+      );
+    }
+  }
+
   bool get _guestEnabled => switch (state) {
     AccessSignedOut(:final guestEnabled) => guestEnabled,
     _ => false,

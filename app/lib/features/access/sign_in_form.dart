@@ -14,6 +14,7 @@ class SignInForm extends StatefulWidget {
   const SignInForm({
     required this.guestEnabled,
     required this.busy,
+    this.passwordChanged = false,
     required this.failure,
     required this.onSignIn,
     required this.onGuest,
@@ -23,6 +24,9 @@ class SignInForm extends StatefulWidget {
   final bool guestEnabled;
   final bool busy;
   final AccessFailure? failure;
+
+  /// Says that the password was changed and the new one is needed now.
+  final bool passwordChanged;
   final void Function(String userName, String password) onSignIn;
   final VoidCallback onGuest;
 
@@ -53,6 +57,7 @@ class _SignInFormState extends State<SignInForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (widget.passwordChanged) const _PasswordChangedNotice(),
           FailureNotice(failure: widget.failure),
           TextField(
             controller: _userName,
@@ -81,6 +86,26 @@ class _SignInFormState extends State<SignInForm> {
               onPressed: widget.busy ? null : widget.onGuest,
             ),
           ],
+        ],
+      ),
+    ),
+  );
+}
+
+class _PasswordChangedNotice extends StatelessWidget {
+  const _PasswordChangedNotice();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.s3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.check_circle_outline),
+          const SizedBox(width: AppSpace.s2),
+          Expanded(child: Text(AccessTexts.passwordChangedSignIn)),
         ],
       ),
     ),

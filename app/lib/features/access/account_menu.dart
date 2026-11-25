@@ -11,6 +11,7 @@ class AccountMenu extends ConsumerWidget {
   const AccountMenu({
     required this.onManageUsers,
     required this.onManageTokens,
+    required this.onChangePassword,
     super.key,
   });
 
@@ -18,6 +19,10 @@ class AccountMenu extends ConsumerWidget {
 
   /// Opens the person's API tokens; offered to accounts, not to guests.
   final VoidCallback onManageTokens;
+
+  /// Opens the change of the person's own password; offered to accounts, not
+  /// to guests.
+  final VoidCallback onChangePassword;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,6 +35,7 @@ class AccountMenu extends ConsumerWidget {
       onSelected: (choice) => switch (choice) {
         _Choice.users => onManageUsers(),
         _Choice.tokens => onManageTokens(),
+        _Choice.password => onChangePassword(),
         _Choice.signOut => controller.signOut(),
       },
       itemBuilder: (_) => [
@@ -44,6 +50,11 @@ class AccountMenu extends ConsumerWidget {
             value: _Choice.tokens,
             child: Text(AccessTexts.apiTokens),
           ),
+        if (!rights.isGuest)
+          PopupMenuItem(
+            value: _Choice.password,
+            child: Text(AccessTexts.changePassword),
+          ),
         PopupMenuItem(value: _Choice.signOut, child: Text(AccessTexts.signOut)),
       ],
     );
@@ -53,4 +64,4 @@ class AccountMenu extends ConsumerWidget {
       rights.userName ?? AccessTexts.guestName;
 }
 
-enum _Choice { users, tokens, signOut }
+enum _Choice { users, tokens, password, signOut }

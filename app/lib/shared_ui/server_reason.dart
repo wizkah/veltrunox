@@ -121,6 +121,10 @@ String? _text(ServerReason reason) => switch (reason.code) {
     'Benutzername oder Passwort stimmt nicht.',
     'Wrong user name or password.',
   ),
+  'wrong_current_password' => tr(
+    'Das aktuelle Passwort stimmt nicht.',
+    'The current password is wrong.',
+  ),
   'too_many_attempts' => tr(
     'Zu viele Fehlversuche. Bitte in ${_number(reason, 0)} s erneut versuchen.',
     'Too many failed attempts. Please try again in ${_number(reason, 0)} s.',

@@ -28,11 +28,17 @@ class AccessGate extends ConsumerWidget {
         failure: failure,
         onSetUp: controller.setUp,
       ),
-      AccessSignedOut(:final guestEnabled, :final busy, :final failure) =>
+      AccessSignedOut(
+        :final guestEnabled,
+        :final busy,
+        :final failure,
+        :final passwordChanged,
+      ) =>
         SignInForm(
           guestEnabled: guestEnabled,
           busy: busy,
           failure: failure,
+          passwordChanged: passwordChanged,
           onSignIn: controller.signIn,
           onGuest: controller.continueAsGuest,
         ),

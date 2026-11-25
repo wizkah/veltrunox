@@ -135,6 +135,21 @@ Future<void> _toForm(WidgetTester tester) async {
   );
 }
 
+/// Both fields of the new user's password: the password and its repeat.
+Future<void> _enterPassword(WidgetTester tester, String text) async {
+  await tester.enterText(find.widgetWithText(TextField, 'Passwort'), text);
+  await tester.enterText(
+    find.widgetWithText(TextField, 'Passwort wiederholen'),
+    text,
+  );
+}
+
+/// A field of the password dialog, not of the form behind it.
+Finder _inDialog(String label) => find.descendant(
+  of: find.byType(AlertDialog),
+  matching: find.widgetWithText(TextField, label),
+);
+
 void main() {
   testWidgets('lists the users and the guest switch', (tester) async {
     await _open(tester);
@@ -172,10 +187,7 @@ void main() {
       find.widgetWithText(TextField, 'Benutzername'),
       'bo',
     );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Passwort'),
-      'a long enough password',
-    );
+    await _enterPassword(tester, 'a long enough password');
     await tester.tap(find.widgetWithText(FilledButton, 'Anlegen'));
     await tester.pumpAndSettle();
 
@@ -191,12 +203,74 @@ void main() {
       find.widgetWithText(TextField, 'Benutzername'),
       'bo',
     );
-    await tester.enterText(find.widgetWithText(TextField, 'Passwort'), 'short');
+    await _enterPassword(tester, 'short');
     await tester.tap(find.widgetWithText(FilledButton, 'Anlegen'));
     await tester.pumpAndSettle();
 
     expect(find.text('Mindestens 6 Zeichen.'), findsOneWidget);
     expect(source.calls, isEmpty);
+  });
+
+  testWidgets('a differing repeat is refused at its field', (tester) async {
+    final source = await _open(tester);
+
+    await _toForm(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Benutzername'),
+      'bo',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Passwort'),
+      'a long enough password',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Passwort wiederholen'),
+      'another one',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Anlegen'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Die beiden Passwörter sind verschieden.'),
+      findsOneWidget,
+    );
+    expect(source.calls, isEmpty);
+  });
+
+  testWidgets('the admin sets another user\'s password after repeating it', (
+    tester,
+  ) async {
+    final source = await _open(tester);
+
+    await tester.tap(find.byIcon(Icons.key).last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      _inDialog('Neues Passwort'),
+      'a long enough password',
+    );
+    await tester.enterText(
+      _inDialog('Passwort wiederholen'),
+      'a long enough passwor',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Speichern'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Die beiden Passwörter sind verschieden.'),
+      findsOneWidget,
+    );
+    expect(source.calls, isEmpty);
+
+    await tester.enterText(
+      _inDialog('Passwort wiederholen'),
+      'a long enough password',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Speichern'));
+    await tester.pumpAndSettle();
+    expect(source.calls, ['change:2:null:null:true']);
+    expect(
+      find.text('Passwort geändert. Der Benutzer ist überall abgemeldet.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -213,19 +287,13 @@ void main() {
         find.widgetWithText(TextField, 'Benutzername'),
         'bo',
       );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Passwort'),
-        'longenough1!',
-      );
+      await _enterPassword(tester, 'longenough1!');
       await tester.tap(find.widgetWithText(FilledButton, 'Anlegen'));
       await tester.pumpAndSettle();
       expect(find.text('Es fehlt ein Großbuchstabe.'), findsOneWidget);
       expect(source.calls, ['policy:strict']);
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Passwort'),
-        'Longenough1!',
-      );
+      await _enterPassword(tester, 'Longenough1!');
       await tester.tap(find.widgetWithText(FilledButton, 'Anlegen'));
       await tester.pumpAndSettle();
       expect(source.calls, ['policy:strict', 'create:bo:user']);
@@ -243,10 +311,7 @@ void main() {
       find.widgetWithText(TextField, 'Benutzername'),
       'ann',
     );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Passwort'),
-      'a long enough password',
-    );
+    await _enterPassword(tester, 'a long enough password');
     await tester.tap(find.widgetWithText(FilledButton, 'Anlegen'));
     await tester.pumpAndSettle();
 

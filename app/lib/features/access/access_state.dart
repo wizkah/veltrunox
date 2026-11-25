@@ -28,11 +28,15 @@ class AccessSignedOut extends AccessState {
     required this.guestEnabled,
     this.busy = false,
     this.failure,
+    this.passwordChanged = false,
   });
 
   final bool guestEnabled;
   final bool busy;
   final AccessFailure? failure;
+
+  /// The person just changed their password and signs in again with it.
+  final bool passwordChanged;
 }
 
 class AccessSignedIn extends AccessState {

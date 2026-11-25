@@ -81,6 +81,12 @@ abstract final class AccessTexts {
     ),
   };
 
+  static String get changePassword => tr('Passwort ändern', 'Change password');
+  static String get passwordChangedSignIn => tr(
+    'Das Passwort wurde geändert. Bitte mit dem neuen Passwort anmelden.',
+    'The password was changed. Please sign in with the new password.',
+  );
+
   static String signedInAs(String name) =>
       tr('Angemeldet als $name', 'Signed in as $name');
 

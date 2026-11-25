@@ -9,6 +9,7 @@ class PasswordField extends StatefulWidget {
     required this.controller,
     required this.label,
     this.error,
+    this.helper,
     this.onSubmitted,
     this.textInputAction,
     super.key,
@@ -17,6 +18,9 @@ class PasswordField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
   final String? error;
+
+  /// A standing hint under the field, such as the rule for a new password.
+  final String? helper;
   final VoidCallback? onSubmitted;
   final TextInputAction? textInputAction;
 
@@ -40,6 +44,9 @@ class _PasswordFieldState extends State<PasswordField> {
     decoration: InputDecoration(
       labelText: widget.label,
       errorText: widget.error,
+      helperText: widget.helper,
+      helperMaxLines: 3,
+      errorMaxLines: 3,
       suffixIcon: IconButton(
         tooltip: _visible ? AccessTexts.hidePassword : AccessTexts.showPassword,
         icon: Icon(_visible ? Icons.visibility_off : Icons.visibility),
