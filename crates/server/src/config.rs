@@ -30,6 +30,25 @@ pub struct Config {
     pub upload_dir: Option<PathBuf>,
     /// Largest accepted upload in bytes.
     pub max_upload_bytes: u64,
+    /// Transport security of the endpoint.
+    pub tls: TlsMode,
+    /// Certificate chain (PEM) for `tls = "files"`.
+    pub tls_cert_file: Option<PathBuf>,
+    /// Private key (PEM) for `tls = "files"`.
+    pub tls_key_file: Option<PathBuf>,
+}
+
+/// How connections are secured.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TlsMode {
+    /// Plain HTTP, for a trusted local network only.
+    #[default]
+    Off,
+    /// A certificate authority the server creates itself.
+    LocalCa,
+    /// Certificate and key files kept by the operator.
+    Files,
 }
 
 impl Default for Config {
@@ -43,6 +62,9 @@ impl Default for Config {
             web_dir: None,
             upload_dir: None,
             max_upload_bytes: 512 << 20,
+            tls: TlsMode::Off,
+            tls_cert_file: None,
+            tls_key_file: None,
         }
     }
 }
@@ -133,6 +155,20 @@ mod tests {
         let config = Config::parse("upload_dir = \"/mnt/audio\"\nmax_upload_bytes = 1000").unwrap();
         assert_eq!(config.upload_directory(), PathBuf::from("/mnt/audio"));
         assert_eq!(config.max_upload_bytes, 1000);
+    }
+
+    #[test]
+    fn tls_modes_are_named_and_plain_http_is_the_default() {
+        assert_eq!(Config::default().tls, TlsMode::Off);
+        for (name, mode) in [
+            ("off", TlsMode::Off),
+            ("local-ca", TlsMode::LocalCa),
+            ("files", TlsMode::Files),
+        ] {
+            let config = Config::parse(&format!("tls = \"{name}\"")).unwrap();
+            assert_eq!(config.tls, mode);
+        }
+        assert!(Config::parse("tls = \"on\"").is_err());
     }
 
     #[test]

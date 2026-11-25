@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- HTTPS (ADR-008): the new setting `tls` is `off` (default, plain HTTP), `local-ca` (the server creates its own certificate authority in `<data_dir>/tls`, issues a certificate for `<hostname>.local` and its local addresses, renews it by itself and offers the authority at `/ca.crt`) or `files` (`tls_cert_file`, `tls_key_file`; read at start). With HTTPS the browser treats the app as a secure context, which lets it use its faster renderer. `veltrunox-mcp` speaks HTTPS and trusts the certificate named in `VELTRUNOX_CA`.
 - Waveform: the mouse wheel over the waveform zooms around the pointer (the page does not scroll then; a sideways swipe still pans). A pinch keeps the time under the fingers in place while they move. Less work per zoom step: the peaks are drawn in two calls instead of one per pixel column, ruler labels and the region lane layout are reused.
 - Marker list: tick boxes appear only after “Edit” (“Done” leaves it and drops the ticks); the highlighted row is no longer shifted. A region can be duplicated and split at the playhead (row menu and long press in the waveform). Splitting is one server call, `POST /api/v1/regions/{id}/split`.
 - Dragging the position of a stopped recording still previews it, also while resting, but the play button keeps showing “stopped” and letting go leaves the position where it was let go, stopped.

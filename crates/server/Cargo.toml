@@ -21,6 +21,13 @@ toml = "0.8"
 include_dir = { version = "0.7", optional = true }
 mime_guess = { version = "2", optional = true }
 rpassword = "7"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+axum-server = { version = "0.9.2", default-features = false, features = ["tls-rustls-no-provider"] }
+rcgen = { version = "0.14.10", default-features = false, features = ["crypto", "pem", "ring", "x509-parser"] }
+if-addrs = "0.15.0"
+gethostname = "1.1.0"
+ring = "0.17.14"
+time = "0.3.55"
 
 [features]
 # Bakes the built web app (`app/build/web`) into the binary; build the web app first.

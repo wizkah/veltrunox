@@ -1,7 +1,7 @@
 # ADR-008 – Transport security
 
-**Status:** Proposed  
-**Date:** 2026-11-22
+**Status:** Accepted  
+**Date:** 2026-11-26
 
 ## Context
 
@@ -15,6 +15,9 @@ The server runs on a Raspberry Pi that moves between networks, some without inte
 | `local-ca` | The server creates its own certificate authority on first start and issues a server certificate for its local name (`<hostname>.local`) and current IP addresses. It issues a new one when the addresses change or expiry is near; the authority stays the same. The authority certificate is offered for download so that users can install it once per device |
 | `files` | Certificate and private key are read from configured paths. Obtaining and renewing them is the operator's task, with any tool |
 
+- The authority is name-constrained to `.local`, `localhost` and private or loopback addresses, so a stolen authority key cannot impersonate sites on the internet. Only such addresses go into the server certificate.
+- The authority certificate is downloaded from `/ca.crt`; its SHA-256 fingerprint is logged at start for comparison.
+- With TLS on, the configured address serves HTTPS only; plain HTTP is not redirected.
 - No built-in support for public certificate authorities (ACME, for example Let's Encrypt): it cannot work offline and needs a domain and DNS access.
 - Without an installed authority certificate, browsers warn; the user can still confirm and proceed.
 - The private keys of the authority and the server certificate stay in the data directory, readable by the service user only, and never appear in logs.

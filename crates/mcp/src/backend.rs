@@ -37,9 +37,20 @@ pub struct HttpBackend {
 }
 
 impl HttpBackend {
-    pub fn new(base_url: &str, token: &str) -> Result<Self, BackendError> {
-        let client = reqwest::blocking::Client::builder()
-            .timeout(TIMEOUT)
+    /// `authority` is a certificate (PEM) to trust besides the system's, for a
+    /// server with a certificate authority of its own.
+    pub fn new(
+        base_url: &str,
+        token: &str,
+        authority: Option<&[u8]>,
+    ) -> Result<Self, BackendError> {
+        let mut builder = reqwest::blocking::Client::builder().timeout(TIMEOUT);
+        if let Some(pem) = authority {
+            let certificate = reqwest::Certificate::from_pem(pem)
+                .map_err(|error| BackendError(error.to_string()))?;
+            builder = builder.add_root_certificate(certificate);
+        }
+        let client = builder
             .build()
             .map_err(|error| BackendError(error.to_string()))?;
         Ok(Self {

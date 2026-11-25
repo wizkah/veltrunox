@@ -2,6 +2,7 @@
 
 mod cli;
 mod config;
+mod tls;
 mod user_admin;
 mod web;
 
@@ -78,13 +79,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )?);
     watch_end(&app);
     queue_pending_analyses(&app);
-    let listener = tokio::net::TcpListener::bind(&config.address).await?;
-    println!("listening on http://{}", config.address);
+    let tls = tls::prepare(&config)?;
     let routes = with_web_app(
         with_cors(router(app), config.allowed_origin.as_deref()),
         config.web_dir.as_deref(),
     );
-    axum::serve(listener, routes.layer(CompressionLayer::new())).await?;
+    serve(&config.address, routes, tls).await
+}
+
+/// Serves the routes over HTTPS if a certificate is prepared, else over HTTP.
+async fn serve(address: &str, routes: Router, tls: Option<tls::Tls>) -> Result<(), Box<dyn Error>> {
+    let Some(tls) = tls else {
+        let listener = tokio::net::TcpListener::bind(address).await?;
+        println!("listening on http://{address}");
+        axum::serve(listener, routes.layer(CompressionLayer::new())).await?;
+        return Ok(());
+    };
+    let routes = tls.with_ca_download(routes).layer(CompressionLayer::new());
+    let listener = std::net::TcpListener::bind(address)?;
+    listener.set_nonblocking(true)?;
+    let server = axum_server::from_tcp_rustls(listener, tls.config.clone())?;
+    println!("listening on https://{address}");
+    tls.keep_current();
+    server.serve(routes.into_make_service()).await?;
     Ok(())
 }
 

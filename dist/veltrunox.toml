@@ -26,3 +26,11 @@ data_dir = "data"
 
 # Directory with a built web app; replaces the one baked into the binary.
 # web_dir = "app/build/web"
+
+# Transport security. "off" is plain HTTP, for a trusted local network only. "local-ca": the
+# server creates its own certificate authority in "<data_dir>/tls" and serves HTTPS for
+# <hostname>.local and its local addresses; install the authority certificate (download from
+# /ca.crt) once on each device. "files": use the certificate chain and key named below.
+# tls = "off"
+# tls_cert_file = "/etc/veltrunox/cert.pem"
+# tls_key_file = "/etc/veltrunox/key.pem"

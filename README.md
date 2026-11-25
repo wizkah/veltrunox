@@ -66,6 +66,17 @@ The result lands in `dist/veltrunox-server-<target>/`. Copy the Pi folder to the
 
 Without the `embedded-web` feature (the default for `cargo run`), the server serves a built web app only if `web_dir` is set (for example `web_dir = "app/build/web"`); `address` sets address and port, and the app uses the address it was loaded from, so nothing needs rebuilding. An app served from elsewhere (for example `flutter run`) needs `--dart-define=VELTRUNOX_SERVER_URL=...` and `allowed_origin = "<origin of the web app>"` in the configuration.
 
+## HTTPS
+
+Set `tls = "local-ca"` in the configuration and restart. The server then serves `https://<hostname>.local:<port>` (plain `http://` no longer answers) with a certificate from its own authority, which needs no internet. Install the authority once on each device: download `https://<hostname>.local:<port>/ca.crt` (confirm the browser's warning this one time) and compare its SHA-256 fingerprint with the one in the log (`journalctl -u veltrunox`).
+
+- macOS: open the file, add it to the login keychain, then set it to "Always Trust".
+- iOS/iPadOS: install the downloaded profile in Settings, then enable it under General → About → Certificate Trust Settings.
+- Android: Settings → Security → Install a certificate → CA certificate.
+- Windows: install into "Trusted Root Certification Authorities". Firefox keeps its own list (Settings → Certificates).
+
+The authority can only certify `.local` names and local network addresses. Browsers treat plain `http://` on a network address as insecure and then run the app noticeably slower (for example when zooming).
+
 ## Bookmarks with an LLM
 
 The server exports and imports bookmarks (labels and regions) as JSON or CSV, and a small program lets an LLM do it through the Model Context Protocol (MCP). Make an API token as a signed-in user (`POST /api/v1/tokens` with `{"name": "llm", "scope": "edit_bookmarks"}`; `read_only` only reads), then register `veltrunox-mcp` with the MCP client, for example in a `.mcp.json`:
@@ -84,7 +95,7 @@ The server exports and imports bookmarks (labels and regions) as JSON or CSV, an
 }
 ```
 
-The tools are `list_recordings`, `get_recording`, `get_bookmarks` and `set_bookmarks` (replaces all bookmarks of a recording; `dry_run` shows what would change). Without MCP, `GET /api/v1/export` and `POST /api/v1/import?dry_run=true` do the same with files; `GET /api/v1/import/schema` describes the format. The token is sent unencrypted until transport encryption is in use.
+The tools are `list_recordings`, `get_recording`, `get_bookmarks` and `set_bookmarks` (replaces all bookmarks of a recording; `dry_run` shows what would change). Without MCP, `GET /api/v1/export` and `POST /api/v1/import?dry_run=true` do the same with files; `GET /api/v1/import/schema` describes the format. Over plain HTTP the token is sent unencrypted. With `tls = "local-ca"` use the `https://` address and set `VELTRUNOX_CA` to the downloaded authority certificate.
 
 ## Documentation
 
