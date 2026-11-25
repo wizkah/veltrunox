@@ -1,7 +1,7 @@
 //! Wire types for sign-in, rights and user administration.
 
 use serde::{Deserialize, Serialize};
-use veltrunox_core::{Capability, PasswordPolicy, Role};
+use veltrunox_core::{Capability, PasswordPolicy, Role, TokenScope};
 
 pub const STATUS_PATH: &str = "/api/v1/status";
 /// Creates the first admin (body: `CredentialsDto`, answer: `SessionDto`); only while no user exists.
@@ -19,6 +19,63 @@ pub const USER_PATH: &str = "/api/v1/users/{id}";
 pub const GUEST_ACCESS_PATH: &str = "/api/v1/guest-access";
 /// The rules for new passwords (`PasswordPolicyDto`); changing them is for admins.
 pub const PASSWORD_POLICY_PATH: &str = "/api/v1/password-policy";
+
+/// The API tokens of the signed-in user (`GET`) and creation of one (`POST`, `NewApiTokenDto`).
+pub const TOKENS_PATH: &str = "/api/v1/tokens";
+/// One API token; `{id}` is the token id (`DELETE` revokes it).
+pub const TOKEN_PATH: &str = "/api/v1/tokens/{id}";
+
+/// How far an API token reaches at most.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenScopeDto {
+    ReadOnly,
+    EditBookmarks,
+}
+
+pub fn token_scope_to_dto(scope: TokenScope) -> TokenScopeDto {
+    match scope {
+        TokenScope::ReadOnly => TokenScopeDto::ReadOnly,
+        TokenScope::EditBookmarks => TokenScopeDto::EditBookmarks,
+    }
+}
+
+pub fn token_scope_from_dto(scope: TokenScopeDto) -> TokenScope {
+    match scope {
+        TokenScopeDto::ReadOnly => TokenScope::ReadOnly,
+        TokenScopeDto::EditBookmarks => TokenScope::EditBookmarks,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NewApiTokenDto {
+    pub name: String,
+    pub scope: TokenScopeDto,
+}
+
+/// An API token as listed; the token itself is not.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApiTokenDto {
+    pub id: u64,
+    pub name: String,
+    pub scope: TokenScopeDto,
+    /// Unix seconds.
+    pub created_at: u64,
+    /// Unix seconds; absent until the token was used.
+    pub last_used: Option<u64>,
+}
+
+/// Answer to the creation of a token: the only time its text is shown.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CreatedApiTokenDto {
+    pub token: String,
+    pub api_token: ApiTokenDto,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApiTokenListDto {
+    pub tokens: Vec<ApiTokenDto>,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

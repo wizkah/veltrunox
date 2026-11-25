@@ -137,6 +137,65 @@ impl PasswordPolicy {
     }
 }
 
+/// Identifies an API token of a user.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ApiTokenId(u64);
+
+impl ApiTokenId {
+    pub const fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    pub fn value(self) -> u64 {
+        self.0
+    }
+}
+
+pub const MAX_TOKEN_NAME_CHARS: usize = 64;
+
+/// The label a user gives an API token, to tell the tokens apart: trimmed and not empty.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TokenName(String);
+
+impl TokenName {
+    pub fn new(text: &str) -> Result<Self, crate::InvalidValue> {
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            return Err(crate::InvalidValue::EmptyName);
+        }
+        if trimmed.chars().count() > MAX_TOKEN_NAME_CHARS {
+            return Err(crate::InvalidValue::NameTooLong);
+        }
+        Ok(Self(trimmed.to_owned()))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// How far an API token reaches at most; what it may do is also limited by the rights of
+/// its user. A token never plays, uploads or manages anything.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TokenScope {
+    /// Reads the library, the bookmarks and the exports.
+    ReadOnly,
+    /// Reads, and writes bookmarks (edit, replace, import).
+    EditBookmarks,
+}
+
+impl TokenScope {
+    pub const ALL: [Self; 2] = [Self::ReadOnly, Self::EditBookmarks];
+
+    /// Reading needs no capability, so a read-only token holds none.
+    pub fn allows(self, capability: Capability) -> bool {
+        match self {
+            Self::ReadOnly => false,
+            Self::EditBookmarks => capability == Capability::EditBookmarks,
+        }
+    }
+}
+
 /// What a person may be. The guest exists only while guest access is on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Role {
@@ -190,6 +249,25 @@ impl Role {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_token_name_is_trimmed_and_limited() {
+        assert_eq!(TokenName::new(" LLM ").unwrap().as_str(), "LLM");
+        assert_eq!(TokenName::new(" "), Err(crate::InvalidValue::EmptyName));
+        let long = "x".repeat(MAX_TOKEN_NAME_CHARS + 1);
+        assert_eq!(TokenName::new(&long), Err(crate::InvalidValue::NameTooLong));
+    }
+
+    #[test]
+    fn a_token_never_reaches_beyond_bookmarks() {
+        for capability in Capability::ALL {
+            assert!(!TokenScope::ReadOnly.allows(capability));
+            assert_eq!(
+                TokenScope::EditBookmarks.allows(capability),
+                capability == Capability::EditBookmarks
+            );
+        }
+    }
 
     #[test]
     fn user_and_guest_have_the_same_rights() {

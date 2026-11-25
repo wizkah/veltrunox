@@ -6,6 +6,7 @@ use crate::{
     events::events,
     exchange_http,
     state::AppState,
+    tokens_http,
     upload::upload,
 };
 use axum::{
@@ -52,6 +53,7 @@ pub fn router(app: AppState) -> Router {
         .route(REGION_TO_LABEL_PATH, post(region_to_label))
         .merge(accounts_http::routes())
         .merge(exchange_http::routes())
+        .merge(tokens_http::routes())
         .with_state(app)
 }
 

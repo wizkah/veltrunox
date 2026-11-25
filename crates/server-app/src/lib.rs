@@ -2,6 +2,7 @@
 
 mod accounts;
 mod analysis;
+mod api_tokens;
 mod bookmarks;
 mod playback;
 mod ports;
@@ -10,13 +11,15 @@ mod testing;
 
 pub use accounts::{AccessStatus, AccountError, AccountService, Identity, Session};
 pub use analysis::AnalysisService;
+pub use api_tokens::{API_TOKEN_PREFIX, ApiTokenService, CreatedToken, TokenError};
 pub use bookmarks::{BookmarkService, ImportMode, ImportOutcome};
 pub use playback::{IntentError, PlaybackService};
 pub use ports::{
-    AnalysisFailure, AnalysisRepository, BookmarkError, BookmarkRepository, Clock, HashFailure,
-    MediaCatalog, Owned, PasswordHasher, PlaybackBroadcast, RecordingAnalyzer, RecordingLengths,
-    RecordingRepository, RecordingScan, SessionRepository, SessionTokens, StorageError, UserRecord,
-    UserRepository, UserStoreError, WallClock, WaveformRepository,
+    AnalysisFailure, AnalysisRepository, ApiTokenRecord, ApiTokenRepository, BookmarkError,
+    BookmarkRepository, Clock, HashFailure, MediaCatalog, Owned, PasswordHasher, PlaybackBroadcast,
+    RecordingAnalyzer, RecordingLengths, RecordingRepository, RecordingScan, SessionRepository,
+    SessionTokens, StorageError, UserRecord, UserRepository, UserStoreError, WallClock,
+    WaveformRepository,
 };
 
 use veltrunox_core::Recording;

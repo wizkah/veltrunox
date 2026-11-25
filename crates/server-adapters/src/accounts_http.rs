@@ -45,7 +45,6 @@ pub fn identity_to_dto(identity: &Identity) -> IdentityDto {
             .map(|(_, name)| name.as_str().to_owned()),
         role: role_to_dto(identity.role),
         capabilities: identity
-            .role
             .capabilities()
             .into_iter()
             .map(capability_to_dto)

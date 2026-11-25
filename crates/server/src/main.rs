@@ -14,8 +14,8 @@ use veltrunox_server_adapters::{
     AppState, Argon2Hasher, AudioPlayback, RandomTokens, SqliteStore, SystemClock, SystemWallClock,
     UploadStore, import_directory, router, system_volume, watch_end,
 };
-use veltrunox_server_app::AccountService;
 use veltrunox_server_app::RecordingRepository;
+use veltrunox_server_app::{AccountService, ApiTokenService};
 use web::with_web_app;
 
 const DATABASE_FILE: &str = "veltrunox.db";
@@ -52,6 +52,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Arc::new(RandomTokens),
         Arc::new(SystemWallClock),
     )?);
+    let api_tokens = Arc::new(ApiTokenService::new(
+        store.clone(),
+        Arc::new(RandomTokens),
+        Arc::new(SystemWallClock),
+    ));
     let audio_clock = clock.clone();
     let volume = system_volume(config.audio_device.as_deref());
     let app = AppState::with_audio(store, clock, volume, |hooks| {
@@ -65,6 +70,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ))
     })
     .with_accounts(accounts)
+    .with_api_tokens(api_tokens)
     .with_uploads(UploadStore::open(
         &config.upload_directory(),
         config.max_upload_bytes,

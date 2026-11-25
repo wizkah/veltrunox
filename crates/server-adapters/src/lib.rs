@@ -4,6 +4,7 @@ mod access;
 mod accounts_http;
 mod analysis;
 mod analysis_worker;
+mod api_tokens;
 mod audio;
 mod bookmark_csv;
 mod clock;
@@ -17,6 +18,7 @@ mod import;
 mod security;
 mod sqlite;
 mod state;
+mod tokens_http;
 mod upload;
 mod users;
 

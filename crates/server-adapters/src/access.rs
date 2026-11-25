@@ -8,7 +8,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use veltrunox_core::{Capability, Reason, Role};
-use veltrunox_server_app::{AccountError, Identity};
+use veltrunox_server_app::{AccountService, ApiTokenService, Identity};
 
 /// The caller of a request. Without accounts the server is open and everybody is an admin.
 pub struct Caller(pub Identity);
@@ -28,6 +28,7 @@ pub fn open_identity() -> Identity {
     Identity {
         user: None,
         role: Role::Admin,
+        scope: None,
     }
 }
 
@@ -38,6 +39,23 @@ pub fn bearer_token(headers: &HeaderMap) -> Option<&str> {
         .eq_ignore_ascii_case("bearer")
         .then_some(token.trim())
         .filter(|token| !token.is_empty())
+}
+
+/// The identity behind a token of either kind: an API token, recognised by its prefix, or the
+/// token of a login. `None` if it is unknown, expired or of a deactivated user. Blocking.
+pub(crate) fn identify(
+    accounts: &AccountService,
+    api_tokens: Option<&ApiTokenService>,
+    token: &str,
+) -> Result<Option<Identity>, ()> {
+    if ApiTokenService::is_api_token(token) {
+        match api_tokens {
+            Some(service) => service.authenticate(token).map_err(|_| ()),
+            None => Ok(None),
+        }
+    } else {
+        accounts.authenticate(token).map_err(|_| ())
+    }
 }
 
 /// Why a request is refused before any work is done.
@@ -78,14 +96,15 @@ impl FromRequestParts<AppState> for Caller {
         };
         // No token means a guest, while guests are let in; a wrong token never does.
         let token = bearer_token(&parts.headers).map(str::to_owned);
+        let api_tokens = app.api_tokens.clone();
         // Looking up a session reads and writes the database, which blocks.
         let found = tokio::task::spawn_blocking(move || match token {
-            Some(token) => accounts.authenticate(&token),
+            Some(token) => identify(&accounts, api_tokens.as_deref(), &token),
             None => Ok(accounts.guest().ok()),
         })
         .await
         .map_err(|_| AccessError::Failed)?
-        .map_err(|_: AccountError| AccessError::Failed)?;
+        .map_err(|()| AccessError::Failed)?;
         found.map(Self).ok_or(AccessError::Unauthorized)
     }
 }

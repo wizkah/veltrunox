@@ -5,8 +5,8 @@ use crate::upload::UploadStore;
 use std::sync::Arc;
 use veltrunox_core::{PlaybackState, Volume};
 use veltrunox_server_app::{
-    AccountService, AnalysisRepository, AnalysisService, BookmarkRepository, BookmarkService,
-    Clock, MediaCatalog, PlaybackBroadcast, PlaybackService, RecordingRepository,
+    AccountService, AnalysisRepository, AnalysisService, ApiTokenService, BookmarkRepository,
+    BookmarkService, Clock, MediaCatalog, PlaybackBroadcast, PlaybackService, RecordingRepository,
     WaveformRepository,
 };
 
@@ -24,6 +24,8 @@ pub struct AppState {
     pub analysis_queue: Arc<AnalysisQueue>,
     /// `None` leaves the server open: everybody may do everything.
     pub accounts: Option<Arc<AccountService>>,
+    /// `None` knows no API tokens: a token is not accepted and none can be made.
+    pub api_tokens: Option<Arc<ApiTokenService>>,
     /// `None` refuses uploads.
     pub uploads: Option<Arc<UploadStore>>,
 }
@@ -125,6 +127,7 @@ impl AppState {
             analysis,
             analysis_queue,
             accounts: None,
+            api_tokens: None,
             uploads: None,
         }
     }
@@ -132,6 +135,12 @@ impl AppState {
     /// Accepts uploads into the store.
     pub fn with_uploads(mut self, uploads: UploadStore) -> Self {
         self.uploads = Some(Arc::new(uploads));
+        self
+    }
+
+    /// Accepts API tokens and lets signed-in users make them; only useful with accounts.
+    pub fn with_api_tokens(mut self, api_tokens: Arc<ApiTokenService>) -> Self {
+        self.api_tokens = Some(api_tokens);
         self
     }
 

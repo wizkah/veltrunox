@@ -37,6 +37,7 @@ pub fn run(
     let admin = Identity {
         user: None,
         role: Role::Admin,
+        scope: None,
     };
     let message = match command {
         UserCommand::List => return list(accounts, &admin, output),

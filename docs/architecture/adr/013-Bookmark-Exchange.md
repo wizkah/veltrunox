@@ -27,7 +27,8 @@ Labels and regions are created one by one in the interface and through the per-i
 
 **Access for scripts and LLMs.**
 - A user can create named API tokens (`POST /api/v1/tokens`, list, revoke), stored like sessions (only the hash) but without the 30-day expiry and with a role limited to `read` or `read + edit_bookmarks`; they never carry upload, management or user administration. The token is shown once. A token's rights are the intersection of the user's rights and its limit.
-- Tokens use `Authorization: Bearer`, so every endpoint above works unchanged.
+- A token starts with `vxt_` and works until it is revoked or its user is deleted or deactivated; changing the user's password does not end it. Only a person signed in with a password makes, lists and revokes tokens (their own); a guest or a token cannot.
+- Tokens use `Authorization: Bearer` (and the `auth` message of the real-time channel), so every endpoint above works unchanged.
 
 **Interface.** Editing labels and regions stays as it is. The interface only gains export and import (file choice, then the preview with its errors and conflicts before anything is applied). The design specification is extended on the owner's instruction before this is built.
 

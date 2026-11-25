@@ -2,9 +2,10 @@
 
 use std::path::{Path, PathBuf};
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, InvalidValue, Label, Millis, NewBookmarks, PasswordPolicy,
-    PlaybackSettings, PlaybackState, Recording, RecordingAnalysis, RecordingId, RecordingTitle,
-    Region, Role, TimeRange, UserId, UserName, Version, Waveform,
+    ApiTokenId, BookmarkId, BookmarkName, Bookmarks, InvalidValue, Label, Millis, NewBookmarks,
+    PasswordPolicy, PlaybackSettings, PlaybackState, Recording, RecordingAnalysis, RecordingId,
+    RecordingTitle, Region, Role, TimeRange, TokenName, TokenScope, UserId, UserName, Version,
+    Waveform,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -269,6 +270,40 @@ pub trait UserRepository: Send + Sync {
     /// The rules for new passwords; `Standard` until the admin changes them.
     fn password_policy(&self) -> Result<PasswordPolicy, StorageError>;
     fn set_password_policy(&self, policy: PasswordPolicy) -> Result<(), StorageError>;
+}
+
+/// A stored API token; the token itself is never kept, only its digest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApiTokenRecord {
+    pub id: ApiTokenId,
+    pub user: UserId,
+    pub name: TokenName,
+    pub scope: TokenScope,
+    pub created_at: u64,
+    /// `None` until the token was used.
+    pub last_used: Option<u64>,
+}
+
+/// Port: API tokens of users, known by the digest of their token only.
+pub trait ApiTokenRepository: Send + Sync {
+    fn create(
+        &self,
+        user: UserId,
+        name: &TokenName,
+        scope: TokenScope,
+        digest: &str,
+        now: u64,
+    ) -> Result<ApiTokenRecord, StorageError>;
+    /// The tokens of one user, oldest first.
+    fn list_for_user(&self, user: UserId) -> Result<Vec<ApiTokenRecord>, StorageError>;
+    /// The active user a token belongs to and the token's reach; a hit counts as use.
+    fn user_of(
+        &self,
+        digest: &str,
+        now: u64,
+    ) -> Result<Option<(UserRecord, TokenScope)>, StorageError>;
+    /// Removes the token if it belongs to `user`; `false` if there is none.
+    fn revoke(&self, user: UserId, id: ApiTokenId) -> Result<bool, StorageError>;
 }
 
 /// Port: login sessions, known by the digest of their token only.

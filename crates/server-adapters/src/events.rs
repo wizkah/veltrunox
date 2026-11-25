@@ -1,6 +1,10 @@
 //! The real-time channel: greets, publishes state, takes intents.
 
-use crate::{access::open_identity, accounts_http::identity_to_dto, state::AppState};
+use crate::{
+    access::{identify, open_identity},
+    accounts_http::identity_to_dto,
+    state::AppState,
+};
 use axum::{
     extract::{
         State,
@@ -260,6 +264,7 @@ async fn authenticate(app: &AppState, socket: &mut WebSocket) -> Option<Identity
     let Some(accounts) = app.accounts.clone() else {
         return Some(open_identity());
     };
+    let api_tokens = app.api_tokens.clone();
     let first = tokio::time::timeout(AUTH_TIMEOUT, async {
         loop {
             match socket.recv().await {
@@ -275,7 +280,9 @@ async fn authenticate(app: &AppState, socket: &mut WebSocket) -> Option<Identity
     let found = match first.and_then(|text| serde_json::from_str::<ClientMessageDto>(&text).ok()) {
         Some(ClientMessageDto::Auth { token, guest }) => {
             let resolved = tokio::task::spawn_blocking(move || match (token, guest) {
-                (Some(token), _) => accounts.authenticate(&token).ok().flatten(),
+                (Some(token), _) => identify(&accounts, api_tokens.as_deref(), &token)
+                    .ok()
+                    .flatten(),
                 (None, true) => accounts.guest().ok(),
                 (None, false) => None,
             })

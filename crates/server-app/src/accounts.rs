@@ -7,7 +7,7 @@ use crate::ports::{
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 use veltrunox_core::{
-    Capability, InvalidUser, PasswordPolicy, Reason, Refusal, Role, UserId, UserName,
+    Capability, InvalidUser, PasswordPolicy, Reason, Refusal, Role, TokenScope, UserId, UserName,
 };
 
 /// A session unused for this long is gone (30 days).
@@ -21,24 +21,45 @@ const MAX_DELAY_SECONDS: u64 = 60;
 pub struct Identity {
     pub user: Option<(UserId, UserName)>,
     pub role: Role,
+    /// Set when the caller used an API token: what the token reaches, at most.
+    pub scope: Option<TokenScope>,
 }
 
 impl Identity {
+    /// The role's rights, cut down to what an API token reaches.
     pub fn allows(&self, capability: Capability) -> bool {
-        self.role.allows(capability)
+        self.role.allows(capability) && self.scope.is_none_or(|scope| scope.allows(capability))
+    }
+
+    pub fn capabilities(&self) -> Vec<Capability> {
+        Capability::ALL
+            .into_iter()
+            .filter(|capability| self.allows(*capability))
+            .collect()
     }
 
     pub fn guest() -> Self {
         Self {
             user: None,
             role: Role::Guest,
+            scope: None,
         }
     }
 
-    fn of(record: &UserRecord) -> Self {
+    /// An account signed in with its password.
+    pub fn of(record: &UserRecord) -> Self {
         Self {
             user: Some((record.id, record.name.clone())),
             role: record.role,
+            scope: None,
+        }
+    }
+
+    /// An account acting through an API token of the given reach.
+    pub fn of_token(record: &UserRecord, scope: TokenScope) -> Self {
+        Self {
+            scope: Some(scope),
+            ..Self::of(record)
         }
     }
 }
@@ -582,6 +603,7 @@ mod tests {
         let ann = Identity {
             user: Some((user.id, user.name)),
             role: Role::User,
+            scope: None,
         };
         let guest = Identity::guest();
         for actor in [&ann, &guest] {

@@ -89,6 +89,18 @@ const MIGRATIONS: &[&str] = &[
         value TEXT NOT NULL
     );
 ",
+    "
+    CREATE TABLE api_tokens (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        digest TEXT NOT NULL UNIQUE,
+        scope TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        last_used INTEGER
+    );
+    CREATE INDEX api_tokens_by_user ON api_tokens(user_id);
+",
 ];
 
 /// Blocking store; callers on an async runtime run it off the runtime threads.

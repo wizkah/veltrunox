@@ -15,7 +15,10 @@ pub use analysis::{
     AnalysisInfo, AnalysisProgress, Confidence, KeyMode, LibraryEntry, MusicalKey, PitchClass,
     RecordingAnalysis,
 };
-pub use auth::{Capability, InvalidUser, PasswordPolicy, Role, UserId, UserName};
+pub use auth::{
+    ApiTokenId, Capability, InvalidUser, PasswordPolicy, Role, TokenName, TokenScope, UserId,
+    UserName,
+};
 pub use bookmark::{
     BookmarkId, BookmarkName, Bookmarks, EntryRef, Label, NewBookmarks, NewLabel, NewRegion,
     Region, Version, VersionConflict, check_version,

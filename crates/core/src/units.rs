@@ -56,6 +56,8 @@ pub enum InvalidValue {
     KeyTonicOutOfRange,
     #[error("a name must not be empty")]
     EmptyName,
+    #[error("a name must have at most {max} characters", max = crate::auth::MAX_TOKEN_NAME_CHARS)]
+    NameTooLong,
     #[error("a bookmark lies outside the recording")]
     OutsideRecording,
 }
@@ -72,6 +74,7 @@ impl crate::Refusal for InvalidValue {
             Self::TempoNotPositive => "tempo_not_positive",
             Self::KeyTonicOutOfRange => "key_tonic_out_of_range",
             Self::EmptyName => "empty_name",
+            Self::NameTooLong => "name_too_long",
             Self::OutsideRecording => "outside_recording",
         };
         crate::Reason::new(self, code)

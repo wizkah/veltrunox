@@ -12,7 +12,7 @@ use veltrunox_server_adapters::{
     AppState, Argon2Hasher, RandomTokens, SqliteStore, SystemClock, SystemWallClock, router,
     watch_end,
 };
-use veltrunox_server_app::{AccountService, RecordingRepository};
+use veltrunox_server_app::{AccountService, ApiTokenService, RecordingRepository};
 
 pub const WAIT: Duration = Duration::from_secs(5);
 
@@ -39,7 +39,14 @@ pub async fn secured_server() -> String {
         )
         .unwrap(),
     );
-    let app = AppState::new(store, Arc::new(SystemClock::new())).with_accounts(accounts);
+    let api_tokens = Arc::new(ApiTokenService::new(
+        store.clone(),
+        Arc::new(RandomTokens),
+        Arc::new(SystemWallClock),
+    ));
+    let app = AppState::new(store, Arc::new(SystemClock::new()))
+        .with_accounts(accounts)
+        .with_api_tokens(api_tokens);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     tokio::spawn(async move { axum::serve(listener, router(app)).await.unwrap() });
