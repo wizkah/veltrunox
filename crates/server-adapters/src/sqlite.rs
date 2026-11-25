@@ -101,6 +101,33 @@ const MIGRATIONS: &[&str] = &[
     );
     CREATE INDEX api_tokens_by_user ON api_tokens(user_id);
 ",
+    // Bookmark ids are never used twice, so that an id in an old export cannot name another
+    // bookmark made later. SQLite reuses the rowid of a deleted last row unless AUTOINCREMENT.
+    "
+    CREATE TABLE labels_next (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        recording_id INTEGER NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        position_ms INTEGER NOT NULL,
+        version INTEGER NOT NULL
+    );
+    INSERT INTO labels_next SELECT id, recording_id, name, position_ms, version FROM labels;
+    DROP TABLE labels;
+    ALTER TABLE labels_next RENAME TO labels;
+    CREATE INDEX labels_by_recording ON labels(recording_id);
+    CREATE TABLE regions_next (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        recording_id INTEGER NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        start_ms INTEGER NOT NULL,
+        end_ms INTEGER NOT NULL,
+        version INTEGER NOT NULL
+    );
+    INSERT INTO regions_next SELECT id, recording_id, name, start_ms, end_ms, version FROM regions;
+    DROP TABLE regions;
+    ALTER TABLE regions_next RENAME TO regions;
+    CREATE INDEX regions_by_recording ON regions(recording_id);
+",
 ];
 
 /// Blocking store; callers on an async runtime run it off the runtime threads.
@@ -1061,6 +1088,53 @@ mod tests {
 
     fn range(start: u64, end: u64) -> TimeRange {
         TimeRange::new(Millis::new(start), Millis::new(end)).unwrap()
+    }
+
+    #[test]
+    fn a_bookmark_id_is_never_used_twice() {
+        let (store, id) = store_with_recording();
+        let first = BookmarkRepository::add_label(&store, id, name("A"), Millis::new(1)).unwrap();
+        BookmarkRepository::replace_all(&store, id, &NewBookmarks::default()).unwrap();
+        let second = BookmarkRepository::add_label(&store, id, name("B"), Millis::new(2)).unwrap();
+        assert_ne!(first.id, second.id);
+
+        let region = BookmarkRepository::add_region(&store, id, name("R"), range(1, 2)).unwrap();
+        BookmarkRepository::delete_region(&store, region.id, region.version).unwrap();
+        let next = BookmarkRepository::add_region(&store, id, name("S"), range(3, 4)).unwrap();
+        assert_ne!(region.id, next.id);
+    }
+
+    #[test]
+    fn bookmarks_survive_the_change_to_ids_that_are_not_reused() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        // The schema as it was before the migration, with a label and a region in it.
+        let before = MIGRATIONS.len() - 1;
+        for (index, script) in MIGRATIONS.iter().take(before).enumerate() {
+            connection.execute_batch(script).unwrap();
+            connection
+                .pragma_update(None, "user_version", index as i64 + 1)
+                .unwrap();
+        }
+        connection
+            .execute_batch(
+                "INSERT INTO recordings (id, title) VALUES (1, 'Old');
+                 INSERT INTO labels (id, recording_id, name, position_ms, version) VALUES (7, 1, 'Verse', 10, 3);
+                 INSERT INTO regions (id, recording_id, name, start_ms, end_ms, version) VALUES (9, 1, 'Chorus', 20, 30, 2);",
+            )
+            .unwrap();
+        migrate(&mut connection).unwrap();
+        let store = SqliteStore {
+            connection: Mutex::new(connection),
+        };
+        let found = BookmarkRepository::list(&store, RecordingId::new(1)).unwrap();
+        assert_eq!(found.labels[0].id, BookmarkId::new(7));
+        assert_eq!(found.labels[0].version, Version::new(3));
+        assert_eq!(found.regions[0].id, BookmarkId::new(9));
+        // New ids continue after the highest one.
+        let label =
+            BookmarkRepository::add_label(&store, RecordingId::new(1), name("New"), Millis::new(1))
+                .unwrap();
+        assert!(label.id.value() > 7);
     }
 
     #[test]

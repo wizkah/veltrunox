@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Bookmark ids are never used again: `labels` and `regions` are `AUTOINCREMENT` (migration 7, stored bookmarks keep their ids and versions). Before, a bookmark made after the last one was deleted could get the id of the deleted one, so an id and version in an old export file could name another bookmark and hide a conflict.
+- The client core and the bridge can export and import bookmarks and manage API tokens (`export_bookmarks_text`, `import_bookmarks_text` with `dry_run` and `overwrite`, `list_api_tokens`, `create_api_token`, `revoke_api_token`); the interface follows.
+
 - `veltrunox-mcp`, a program that serves bookmark tools to an LLM over the Model Context Protocol (standard input and output, no server of its own): `list_recordings`, `get_recording`, `get_bookmarks` and `set_bookmarks` (replaces all bookmarks of one recording, with `dry_run`; ids and versions of entries taken over make a concurrent change a conflict). It reaches the server through its HTTP API with an API token (`VELTRUNOX_TOKEN`, address in `VELTRUNOX_URL` or `--url`), so it can do no more than the token. Server refusals come back to the LLM as tool errors with the server's reason. Setup in the README.
 
 - Bookmarks can be replaced and exported as a whole: `PUT /api/v1/recordings/{id}/bookmarks` swaps all labels and regions of a recording in one transaction (new ids, first versions; any invalid entry, or one past the end of a known length, refuses the whole request with `empty_name`, `empty_range` or `outside_recording` and changes nothing), `GET /api/v1/export` and `GET /api/v1/recordings/{id}/export` return recordings with their details and bookmarks (`format_version` 1). Connected clients are told that the bookmarks changed. The interface follows.

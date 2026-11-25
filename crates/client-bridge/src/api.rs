@@ -8,6 +8,11 @@ use crate::frb_generated::StreamSink;
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
 use veltrunox_client_adapters::{EventChannel, HttpServerLink, SystemTimer, open_channel};
 use veltrunox_client_app::{
+    ApiToken, CreatedApiToken, ExchangeFormat, ImportOptions, ImportReport, ImportStatus,
+    RecordingImport, end_api_token, export_bookmarks, import_bookmarks, load_api_tokens,
+    make_api_token,
+};
+use veltrunox_client_app::{
     ChannelAccess, ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkError, LinkEvent,
     ScrubThrottle, ServerEvent, SessionView, ViewChange, WaveformCache, add_label, add_recording,
     add_region, analyse_again, convert_label_to_region, convert_region_to_label, delete_label,
@@ -20,10 +25,10 @@ use veltrunox_client_app::{
     set_up_first_admin, sign_in, sign_out,
 };
 use veltrunox_core::{
-    AnalysisProgress, BookmarkId, BookmarkName, Bpm, Capability, Intent, InvalidValue, KeyMode,
-    KeyShift, LibraryEntry, Millis, PasswordPolicy, PlayMode, Reason, RecordingId, RecordingTitle,
-    Refusal, Role, Speed, TargetSpeed, TimeRange, TuningHz, UserId, Version, Volume,
-    speed_for_target_tempo,
+    AnalysisProgress, ApiTokenId, BookmarkId, BookmarkName, Bpm, Capability, EntryRef, Intent,
+    InvalidValue, KeyMode, KeyShift, LibraryEntry, Millis, PasswordPolicy, PlayMode, Reason,
+    RecordingId, RecordingTitle, Refusal, Role, Speed, TargetSpeed, TimeRange, TokenScope,
+    TuningHz, UserId, Version, Volume, speed_for_target_tempo,
 };
 
 /// A recording as the user interface needs it.
@@ -1270,6 +1275,239 @@ pub async fn switch_password_policy(
 /// Lets guests in or not; admin only.
 pub async fn switch_guest_access(server_url: String, enabled: bool) -> Result<(), AccessError> {
     set_guest_access(&link(&server_url), enabled)
+        .await
+        .map_err(AccessError::from)
+}
+
+/// The file formats of the bookmark exchange.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ExchangeFormatChoice {
+    Json,
+    Csv,
+}
+
+impl From<ExchangeFormatChoice> for ExchangeFormat {
+    fn from(choice: ExchangeFormatChoice) -> Self {
+        match choice {
+            ExchangeFormatChoice::Json => Self::Json,
+            ExchangeFormatChoice::Csv => Self::Csv,
+        }
+    }
+}
+
+/// The bookmarks of one recording, or of the whole library when `recording_id` is `None`, as the
+/// text of a file in the chosen format. Failures are an `AccessError`: not signed in, a refusal
+/// with a reason, or the server cannot be reached.
+pub async fn export_bookmarks_text(
+    server_url: String,
+    recording_id: Option<u64>,
+    format: ExchangeFormatChoice,
+) -> Result<String, AccessError> {
+    export_bookmarks(
+        &link(&server_url),
+        recording_id.map(RecordingId::new),
+        format.into(),
+    )
+    .await
+    .map_err(AccessError::from)
+}
+
+/// What became of one recording of an import.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ImportStatusInfo {
+    /// Applied, or, for a preview, would be applied.
+    Ready,
+    /// An entry's stored original changed or is gone.
+    Conflict,
+    /// Entries are invalid; see the issues.
+    Invalid,
+    UnknownRecording,
+}
+
+/// What kind of bookmark an import issue points at.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ImportEntryKind {
+    Label,
+    Region,
+}
+
+/// A problem with one entry of an import: the `index`-th label or region of the file's set for
+/// the recording, counted from 0.
+pub struct ImportIssueInfo {
+    pub kind: ImportEntryKind,
+    pub index: u32,
+    pub reason: ReasonInfo,
+}
+
+/// The outcome for one recording; the counts are zero unless the status is `Ready`.
+pub struct RecordingImportInfo {
+    pub recording_id: u64,
+    pub status: ImportStatusInfo,
+    pub added: u32,
+    pub changed: u32,
+    pub unchanged: u32,
+    pub removed: u32,
+    pub issues: Vec<ImportIssueInfo>,
+}
+
+/// The server's answer to an import, one entry per recording of the file in its order.
+pub struct ImportReportInfo {
+    pub dry_run: bool,
+    pub recordings: Vec<RecordingImportInfo>,
+}
+
+impl From<&RecordingImport> for RecordingImportInfo {
+    fn from(found: &RecordingImport) -> Self {
+        Self {
+            recording_id: found.recording.value(),
+            status: match found.status {
+                ImportStatus::Ready => ImportStatusInfo::Ready,
+                ImportStatus::Conflict => ImportStatusInfo::Conflict,
+                ImportStatus::Invalid => ImportStatusInfo::Invalid,
+                ImportStatus::UnknownRecording => ImportStatusInfo::UnknownRecording,
+            },
+            added: found.counts.added,
+            changed: found.counts.changed,
+            unchanged: found.counts.unchanged,
+            removed: found.counts.removed,
+            issues: found
+                .issues
+                .iter()
+                .map(|issue| {
+                    let (kind, index) = match issue.entry {
+                        EntryRef::Label(index) => (ImportEntryKind::Label, index),
+                        EntryRef::Region(index) => (ImportEntryKind::Region, index),
+                    };
+                    ImportIssueInfo {
+                        kind,
+                        index: u32::try_from(index).unwrap_or(u32::MAX),
+                        reason: issue.reason.clone().into(),
+                    }
+                })
+                .collect(),
+        }
+    }
+}
+
+impl From<&ImportReport> for ImportReportInfo {
+    fn from(report: &ImportReport) -> Self {
+        Self {
+            dry_run: report.dry_run,
+            recordings: report.recordings.iter().map(Into::into).collect(),
+        }
+    }
+}
+
+/// Sends the text of an export file. With `dry_run` the server only says what it would do; the
+/// same call without it replaces the bookmarks of the recordings the file lists. With
+/// `overwrite`, entries whose stored original changed meanwhile are taken too. A file that
+/// cannot be read at all is an `AccessError::Refused` with a reason.
+pub async fn import_bookmarks_text(
+    server_url: String,
+    content: String,
+    format: ExchangeFormatChoice,
+    dry_run: bool,
+    overwrite: bool,
+) -> Result<ImportReportInfo, AccessError> {
+    import_bookmarks(
+        &link(&server_url),
+        &content,
+        format.into(),
+        ImportOptions { dry_run, overwrite },
+    )
+    .await
+    .map(|report| ImportReportInfo::from(&report))
+    .map_err(AccessError::from)
+}
+
+/// How far an API token reaches at most.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TokenScopeChoice {
+    /// Reads library, bookmarks and exports.
+    ReadOnly,
+    /// Also edits, replaces and imports bookmarks.
+    EditBookmarks,
+}
+
+impl From<TokenScopeChoice> for TokenScope {
+    fn from(choice: TokenScopeChoice) -> Self {
+        match choice {
+            TokenScopeChoice::ReadOnly => Self::ReadOnly,
+            TokenScopeChoice::EditBookmarks => Self::EditBookmarks,
+        }
+    }
+}
+
+impl From<TokenScope> for TokenScopeChoice {
+    fn from(scope: TokenScope) -> Self {
+        match scope {
+            TokenScope::ReadOnly => Self::ReadOnly,
+            TokenScope::EditBookmarks => Self::EditBookmarks,
+        }
+    }
+}
+
+/// An API token as listed; its text is known only when it is made.
+pub struct ApiTokenItem {
+    pub id: u64,
+    pub name: String,
+    pub scope: TokenScopeChoice,
+    /// Unix seconds.
+    pub created_at: u64,
+    /// Unix seconds; `None` until the token was used.
+    pub last_used: Option<u64>,
+}
+
+impl From<&ApiToken> for ApiTokenItem {
+    fn from(token: &ApiToken) -> Self {
+        Self {
+            id: token.id.value(),
+            name: token.name.clone(),
+            scope: token.scope.into(),
+            created_at: token.created_at,
+            last_used: token.last_used,
+        }
+    }
+}
+
+/// A new token with its text, shown only once.
+pub struct CreatedApiTokenItem {
+    pub token: String,
+    pub api_token: ApiTokenItem,
+}
+
+impl From<&CreatedApiToken> for CreatedApiTokenItem {
+    fn from(created: &CreatedApiToken) -> Self {
+        Self {
+            token: created.token.clone(),
+            api_token: ApiTokenItem::from(&created.api_token),
+        }
+    }
+}
+
+/// The API tokens of the signed-in user.
+pub async fn list_api_tokens(server_url: String) -> Result<Vec<ApiTokenItem>, AccessError> {
+    load_api_tokens(&link(&server_url))
+        .await
+        .map(|tokens| tokens.iter().map(ApiTokenItem::from).collect())
+        .map_err(AccessError::from)
+}
+
+/// Makes an API token for the signed-in user (not for a guest).
+pub async fn create_api_token(
+    server_url: String,
+    name: String,
+    scope: TokenScopeChoice,
+) -> Result<CreatedApiTokenItem, AccessError> {
+    make_api_token(&link(&server_url), &name, scope.into())
+        .await
+        .map(|created| CreatedApiTokenItem::from(&created))
+        .map_err(AccessError::from)
+}
+
+/// Ends one of the signed-in user's API tokens.
+pub async fn revoke_api_token(server_url: String, token_id: u64) -> Result<(), AccessError> {
+    end_api_token(&link(&server_url), ApiTokenId::new(token_id))
         .await
         .map_err(AccessError::from)
 }

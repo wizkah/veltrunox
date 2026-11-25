@@ -11,7 +11,7 @@ part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `access`, `action_failure`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`, `write_failure`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Access`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Loads the recording list from the server at `server_url`.
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
@@ -336,6 +336,61 @@ Future<void> switchGuestAccess({
   enabled: enabled,
 );
 
+/// The bookmarks of one recording, or of the whole library when `recording_id` is `None`, as the
+/// text of a file in the chosen format. Failures are an `AccessError`: not signed in, a refusal
+/// with a reason, or the server cannot be reached.
+Future<String> exportBookmarksText({
+  required String serverUrl,
+  BigInt? recordingId,
+  required ExchangeFormatChoice format,
+}) => RustLib.instance.api.crateApiExportBookmarksText(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+  format: format,
+);
+
+/// Sends the text of an export file. With `dry_run` the server only says what it would do; the
+/// same call without it replaces the bookmarks of the recordings the file lists. With
+/// `overwrite`, entries whose stored original changed meanwhile are taken too. A file that
+/// cannot be read at all is an `AccessError::Refused` with a reason.
+Future<ImportReportInfo> importBookmarksText({
+  required String serverUrl,
+  required String content,
+  required ExchangeFormatChoice format,
+  required bool dryRun,
+  required bool overwrite,
+}) => RustLib.instance.api.crateApiImportBookmarksText(
+  serverUrl: serverUrl,
+  content: content,
+  format: format,
+  dryRun: dryRun,
+  overwrite: overwrite,
+);
+
+/// The API tokens of the signed-in user.
+Future<List<ApiTokenItem>> listApiTokens({required String serverUrl}) =>
+    RustLib.instance.api.crateApiListApiTokens(serverUrl: serverUrl);
+
+/// Makes an API token for the signed-in user (not for a guest).
+Future<CreatedApiTokenItem> createApiToken({
+  required String serverUrl,
+  required String name,
+  required TokenScopeChoice scope,
+}) => RustLib.instance.api.crateApiCreateApiToken(
+  serverUrl: serverUrl,
+  name: name,
+  scope: scope,
+);
+
+/// Ends one of the signed-in user's API tokens.
+Future<void> revokeApiToken({
+  required String serverUrl,
+  required BigInt tokenId,
+}) => RustLib.instance.api.crateApiRevokeApiToken(
+  serverUrl: serverUrl,
+  tokenId: tokenId,
+);
+
 @freezed
 sealed class AccessError with _$AccessError implements FrbException {
   const AccessError._();
@@ -427,6 +482,46 @@ class AnalysisValues {
           tempoBpm == other.tempoBpm;
 }
 
+/// An API token as listed; its text is known only when it is made.
+class ApiTokenItem {
+  final BigInt id;
+  final String name;
+  final TokenScopeChoice scope;
+
+  /// Unix seconds.
+  final BigInt createdAt;
+
+  /// Unix seconds; `None` until the token was used.
+  final BigInt? lastUsed;
+
+  const ApiTokenItem({
+    required this.id,
+    required this.name,
+    required this.scope,
+    required this.createdAt,
+    this.lastUsed,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      scope.hashCode ^
+      createdAt.hashCode ^
+      lastUsed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ApiTokenItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          scope == other.scope &&
+          createdAt == other.createdAt &&
+          lastUsed == other.lastUsed;
+}
+
 /// All labels and regions of one recording.
 class BookmarkSet {
   final List<LabelItem> labels;
@@ -448,6 +543,89 @@ class BookmarkSet {
 
 /// State of the real-time channel as the user interface needs it.
 enum ConnectionState { connected, disconnected }
+
+/// A new token with its text, shown only once.
+class CreatedApiTokenItem {
+  final String token;
+  final ApiTokenItem apiToken;
+
+  const CreatedApiTokenItem({required this.token, required this.apiToken});
+
+  @override
+  int get hashCode => token.hashCode ^ apiToken.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CreatedApiTokenItem &&
+          runtimeType == other.runtimeType &&
+          token == other.token &&
+          apiToken == other.apiToken;
+}
+
+/// The file formats of the bookmark exchange.
+enum ExchangeFormatChoice { json, csv }
+
+/// What kind of bookmark an import issue points at.
+enum ImportEntryKind { label, region }
+
+/// A problem with one entry of an import: the `index`-th label or region of the file's set for
+/// the recording, counted from 0.
+class ImportIssueInfo {
+  final ImportEntryKind kind;
+  final int index;
+  final ReasonInfo reason;
+
+  const ImportIssueInfo({
+    required this.kind,
+    required this.index,
+    required this.reason,
+  });
+
+  @override
+  int get hashCode => kind.hashCode ^ index.hashCode ^ reason.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImportIssueInfo &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          index == other.index &&
+          reason == other.reason;
+}
+
+/// The server's answer to an import, one entry per recording of the file in its order.
+class ImportReportInfo {
+  final bool dryRun;
+  final List<RecordingImportInfo> recordings;
+
+  const ImportReportInfo({required this.dryRun, required this.recordings});
+
+  @override
+  int get hashCode => dryRun.hashCode ^ recordings.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImportReportInfo &&
+          runtimeType == other.runtimeType &&
+          dryRun == other.dryRun &&
+          recordings == other.recordings;
+}
+
+/// What became of one recording of an import.
+enum ImportStatusInfo {
+  /// Applied, or, for a preview, would be applied.
+  ready,
+
+  /// An entry's stored original changed or is gone.
+  conflict,
+
+  /// Entries are invalid; see the issues.
+  invalid,
+  unknownRecording,
+}
 
 /// A point marker of a recording.
 class LabelItem {
@@ -633,6 +811,50 @@ sealed class RecordingActionError
   /// Anything else (no connection, an invalid title, ...), described in English.
   const factory RecordingActionError.failed({required String detail}) =
       RecordingActionError_Failed;
+}
+
+/// The outcome for one recording; the counts are zero unless the status is `Ready`.
+class RecordingImportInfo {
+  final BigInt recordingId;
+  final ImportStatusInfo status;
+  final int added;
+  final int changed;
+  final int unchanged;
+  final int removed;
+  final List<ImportIssueInfo> issues;
+
+  const RecordingImportInfo({
+    required this.recordingId,
+    required this.status,
+    required this.added,
+    required this.changed,
+    required this.unchanged,
+    required this.removed,
+    required this.issues,
+  });
+
+  @override
+  int get hashCode =>
+      recordingId.hashCode ^
+      status.hashCode ^
+      added.hashCode ^
+      changed.hashCode ^
+      unchanged.hashCode ^
+      removed.hashCode ^
+      issues.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RecordingImportInfo &&
+          runtimeType == other.runtimeType &&
+          recordingId == other.recordingId &&
+          status == other.status &&
+          added == other.added &&
+          changed == other.changed &&
+          unchanged == other.unchanged &&
+          removed == other.removed &&
+          issues == other.issues;
 }
 
 /// A recording as the user interface needs it.
@@ -869,6 +1091,15 @@ class TimeSpan {
           runtimeType == other.runtimeType &&
           startMs == other.startMs &&
           endMs == other.endMs;
+}
+
+/// How far an API token reaches at most.
+enum TokenScopeChoice {
+  /// Reads library, bookmarks and exports.
+  readOnly,
+
+  /// Also edits, replaces and imports bookmarks.
+  editBookmarks,
 }
 
 /// What became of an uploaded file.

@@ -342,6 +342,17 @@ pub fn entry_path(entry: EntryRef) -> String {
     }
 }
 
+/// The entry a place like `labels[2]` points at; `None` for text that is no such place.
+pub fn entry_from_path(path: &str) -> Option<EntryRef> {
+    let (kind, rest) = path.split_once('[')?;
+    let index = rest.strip_suffix(']')?.parse().ok()?;
+    match kind {
+        "labels" => Some(EntryRef::Label(index)),
+        "regions" => Some(EntryRef::Region(index)),
+        _ => None,
+    }
+}
+
 /// An entry that names a stored entry by id and version; one with only half of that is new.
 fn known_entry(id: Option<u64>, version: Option<u64>) -> Option<(BookmarkId, Version)> {
     Some((BookmarkId::new(id?), Version::new(version?)))
@@ -673,6 +684,12 @@ mod tests {
             ]
         );
         assert_eq!(entry_path(issues[0].entry), "labels[1]");
+        for entry in [EntryRef::Label(0), EntryRef::Region(12)] {
+            assert_eq!(entry_from_path(&entry_path(entry)), Some(entry));
+        }
+        for text in ["", "labels", "labels[x]", "notes[1]", "labels[1"] {
+            assert_eq!(entry_from_path(text), None, "{text}");
+        }
 
         let valid = ImportBookmarksDto {
             labels: vec![dto.labels[0].clone()],

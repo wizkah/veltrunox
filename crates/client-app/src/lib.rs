@@ -2,6 +2,7 @@
 
 mod access;
 mod connection;
+mod exchange;
 mod reconnect;
 mod session;
 mod waveform;
@@ -10,6 +11,10 @@ pub use access::{
     AccessStatus, ChannelAccess, Credentials, ManagedUser, NewUser, Rights, SignedIn, UserChange,
 };
 pub use connection::{ConnectionMonitor, ConnectionStatus, LinkEvent};
+pub use exchange::{
+    ApiToken, CreatedApiToken, ExchangeFormat, ImportCounts, ImportIssue, ImportOptions,
+    ImportReport, ImportStatus, RecordingImport,
+};
 pub use reconnect::{CLOCK_SYNC_INTERVAL, ReconnectPolicy, Timer};
 pub use session::{ScrubThrottle, ServerEvent, SessionView, ViewChange};
 pub use waveform::{RecordingWaveform, WaveformCache, cached_waveform};
@@ -23,8 +28,8 @@ pub enum ChannelEvent {
 
 use std::future::Future;
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, PasswordPolicy, Reason,
-    RecordingId, RecordingTitle, Region, TimeRange, UserId, Version,
+    ApiTokenId, BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, PasswordPolicy,
+    Reason, RecordingId, RecordingTitle, Region, TimeRange, TokenScope, UserId, Version,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -155,6 +160,28 @@ pub trait ServerLink {
         &self,
         recording: RecordingId,
     ) -> impl Future<Output = Result<(), LinkError>>;
+    /// The bookmarks of one recording, or of all recordings, as the text of a file.
+    fn fetch_export(
+        &self,
+        recording: Option<RecordingId>,
+        format: ExchangeFormat,
+    ) -> impl Future<Output = Result<String, LinkError>>;
+    /// Sends the text of an export file to the server, which replaces the bookmarks of the
+    /// recordings it lists (or, with `dry_run`, only says what it would do).
+    fn send_import(
+        &self,
+        content: &str,
+        format: ExchangeFormat,
+        options: ImportOptions,
+    ) -> impl Future<Output = Result<ImportReport, LinkError>>;
+    /// The API tokens of the signed-in user.
+    fn fetch_api_tokens(&self) -> impl Future<Output = Result<Vec<ApiToken>, LinkError>>;
+    fn create_api_token(
+        &self,
+        name: &str,
+        scope: TokenScope,
+    ) -> impl Future<Output = Result<CreatedApiToken, LinkError>>;
+    fn revoke_api_token(&self, id: ApiTokenId) -> impl Future<Output = Result<(), LinkError>>;
     /// What may be known without signing in.
     fn fetch_access_status(&self) -> impl Future<Output = Result<AccessStatus, LinkError>>;
     /// Creates the first admin and signs in; only works while no user exists.
@@ -402,4 +429,43 @@ pub async fn set_password_policy(
 /// Use case (admin): let guests in or not.
 pub async fn set_guest_access(link: &impl ServerLink, enabled: bool) -> Result<(), LinkError> {
     link.switch_guest_access(enabled).await
+}
+
+/// Use case: the bookmarks of a recording, or of the whole library, as the text of a file.
+pub async fn export_bookmarks(
+    link: &impl ServerLink,
+    recording: Option<RecordingId>,
+    format: ExchangeFormat,
+) -> Result<String, LinkError> {
+    link.fetch_export(recording, format).await
+}
+
+/// Use case: import bookmarks from the text of a file. A first call with `dry_run` shows what
+/// would change; the same call without it applies it.
+pub async fn import_bookmarks(
+    link: &impl ServerLink,
+    content: &str,
+    format: ExchangeFormat,
+    options: ImportOptions,
+) -> Result<ImportReport, LinkError> {
+    link.send_import(content, format, options).await
+}
+
+/// Use case: the API tokens of the signed-in user.
+pub async fn load_api_tokens(link: &impl ServerLink) -> Result<Vec<ApiToken>, LinkError> {
+    link.fetch_api_tokens().await
+}
+
+/// Use case: make an API token; its text is in the answer and is not shown again.
+pub async fn make_api_token(
+    link: &impl ServerLink,
+    name: &str,
+    scope: TokenScope,
+) -> Result<CreatedApiToken, LinkError> {
+    link.create_api_token(name, scope).await
+}
+
+/// Use case: end an API token of the signed-in user.
+pub async fn end_api_token(link: &impl ServerLink, id: ApiTokenId) -> Result<(), LinkError> {
+    link.revoke_api_token(id).await
 }

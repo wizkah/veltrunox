@@ -4,6 +4,7 @@ mod access;
 mod channel;
 mod diagnostics;
 mod events;
+mod exchange;
 mod timer;
 
 pub use access::rights_from_dto;
@@ -12,27 +13,38 @@ pub use events::{EventConnection, connect_events};
 pub use timer::SystemTimer;
 
 use access::{managed_user_from_dto, signed_in_from_dto};
-use reqwest::{Client, RequestBuilder, Response, StatusCode, header::RETRY_AFTER};
+use exchange::{
+    api_token_from_dto, content_type, created_api_token_from_dto, format_name,
+    import_report_from_dto,
+};
+use reqwest::{
+    Client, RequestBuilder, Response, StatusCode,
+    header::{CONTENT_TYPE, RETRY_AFTER},
+};
 use serde::de::DeserializeOwned;
 use veltrunox_client_app::{
-    AccessStatus, Credentials, LinkError, ManagedUser, NewUser, RecordingWaveform, Rights,
-    ServerLink, SignedIn, UploadedRecording, UserChange,
+    AccessStatus, ApiToken, CreatedApiToken, Credentials, ExchangeFormat, ImportOptions,
+    ImportReport, LinkError, ManagedUser, NewUser, RecordingWaveform, Rights, ServerLink, SignedIn,
+    UploadedRecording, UserChange,
 };
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, PasswordPolicy, Reason,
-    RecordingId, RecordingTitle, Region, TimeRange, UserId, Version, Waveform, WaveformLevel,
+    ApiTokenId, BookmarkId, BookmarkName, Bookmarks, Label, LibraryEntry, Millis, PasswordPolicy,
+    Reason, RecordingId, RecordingTitle, Region, TimeRange, TokenScope, UserId, Version, Waveform,
+    WaveformLevel,
 };
 use veltrunox_protocol::{
-    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, CredentialsDto, FILE_NAME_HEADER,
-    GUEST_ACCESS_PATH, GuestAccessDto, IdentityDto, LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH,
-    LOGIN_PATH, LOGOUT_PATH, LabelDto, ME_PATH, NewLabelDto, NewRegionDto, NewUserDto,
-    PASSWORD_POLICY_PATH, RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH,
-    REGIONS_PATH, ReasonDto, RecordingListDto, RegionDto, RenameRecordingDto, SETUP_PATH,
-    STATUS_PATH, SessionDto, SetPasswordPolicyDto, StatusDto, UPLOAD_ID_HEADER, USER_PATH,
-    USERS_PATH, UpdateLabelDto, UpdateRegionDto, UpdateUserDto, UploadedRecordingDto, UserDto,
-    WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_from_dto, label_from_dto,
-    library_entry_from_dto, password_policy_from_dto, password_policy_to_dto, peaks_from_bytes,
-    range_to_dto, region_from_dto, role_to_dto,
+    ANALYSIS_PATH, ApiTokenListDto, BOOKMARKS_PATH, BookmarksDto, ConflictDto, CreatedApiTokenDto,
+    CredentialsDto, EXPORT_PATH, FILE_NAME_HEADER, GUEST_ACCESS_PATH, GuestAccessDto, IMPORT_PATH,
+    IdentityDto, ImportResultDto, LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH, LOGIN_PATH,
+    LOGOUT_PATH, LabelDto, ME_PATH, NewApiTokenDto, NewLabelDto, NewRegionDto, NewUserDto,
+    PASSWORD_POLICY_PATH, RECORDING_EXPORT_PATH, RECORDING_PATH, RECORDINGS_PATH, REGION_PATH,
+    REGION_TO_LABEL_PATH, REGIONS_PATH, ReasonDto, RecordingListDto, RegionDto, RenameRecordingDto,
+    SETUP_PATH, STATUS_PATH, SessionDto, SetPasswordPolicyDto, StatusDto, TOKEN_PATH, TOKENS_PATH,
+    UPLOAD_ID_HEADER, USER_PATH, USERS_PATH, UpdateLabelDto, UpdateRegionDto, UpdateUserDto,
+    UploadedRecordingDto, UserDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto,
+    bookmarks_from_dto, label_from_dto, library_entry_from_dto, password_policy_from_dto,
+    password_policy_to_dto, peaks_from_bytes, range_to_dto, region_from_dto, role_to_dto,
+    token_scope_to_dto,
 };
 
 pub struct HttpServerLink {
@@ -481,6 +493,70 @@ impl ServerLink for HttpServerLink {
         .await?;
         label_from_dto(&dto).map_err(|error| LinkError::InvalidResponse(error.to_string()))
     }
+    async fn fetch_export(
+        &self,
+        recording: Option<RecordingId>,
+        format: ExchangeFormat,
+    ) -> Result<String, LinkError> {
+        let path = match recording {
+            Some(recording) => {
+                RECORDING_EXPORT_PATH.replace("{id}", &recording.value().to_string())
+            }
+            None => EXPORT_PATH.to_owned(),
+        };
+        let url = format!("{}{}?format={}", self.base_url, path, format_name(format));
+        Self::account_call(self.get(url))
+            .await?
+            .text()
+            .await
+            .map_err(|error| LinkError::InvalidResponse(error.to_string()))
+    }
+
+    async fn send_import(
+        &self,
+        content: &str,
+        format: ExchangeFormat,
+        options: ImportOptions,
+    ) -> Result<ImportReport, LinkError> {
+        let url = format!(
+            "{}{}?dry_run={}&overwrite={}",
+            self.base_url, IMPORT_PATH, options.dry_run, options.overwrite
+        );
+        let request = self
+            .post(url)
+            .header(CONTENT_TYPE, content_type(format))
+            .body(content.to_owned());
+        let dto: ImportResultDto = Self::written(request).await?;
+        import_report_from_dto(&dto).map_err(LinkError::InvalidResponse)
+    }
+
+    async fn fetch_api_tokens(&self) -> Result<Vec<ApiToken>, LinkError> {
+        let dto: ApiTokenListDto =
+            Self::account_json(self.get(format!("{}{}", self.base_url, TOKENS_PATH))).await?;
+        Ok(dto.tokens.iter().map(api_token_from_dto).collect())
+    }
+
+    async fn create_api_token(
+        &self,
+        name: &str,
+        scope: TokenScope,
+    ) -> Result<CreatedApiToken, LinkError> {
+        let request =
+            self.post(format!("{}{}", self.base_url, TOKENS_PATH))
+                .json(&NewApiTokenDto {
+                    name: name.to_owned(),
+                    scope: token_scope_to_dto(scope),
+                });
+        let dto: CreatedApiTokenDto = Self::account_json(request).await?;
+        Ok(created_api_token_from_dto(&dto))
+    }
+
+    async fn revoke_api_token(&self, id: ApiTokenId) -> Result<(), LinkError> {
+        Self::account_call(self.delete(self.url(TOKEN_PATH, id.value())))
+            .await
+            .map(|_| ())
+    }
+
     async fn fetch_access_status(&self) -> Result<AccessStatus, LinkError> {
         let dto: StatusDto =
             Self::account_json(self.get(format!("{}{}", self.base_url, STATUS_PATH))).await?;
