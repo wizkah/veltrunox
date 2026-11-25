@@ -134,6 +134,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<(BigInt, BigInt)> dco_decode_list_record_u_64_u_64(dynamic raw);
+
+  @protected
   List<RecordingImportInfo> dco_decode_list_recording_import_info(dynamic raw);
 
   @protected
@@ -180,6 +183,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReasonInfo dco_decode_reason_info(dynamic raw);
+
+  @protected
+  (BigInt, BigInt) dco_decode_record_u_64_u_64(dynamic raw);
 
   @protected
   RecordingActionError dco_decode_recording_action_error(dynamic raw);
@@ -363,6 +369,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<(BigInt, BigInt)> sse_decode_list_record_u_64_u_64(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<RecordingImportInfo> sse_decode_list_recording_import_info(
     SseDeserializer deserializer,
   );
@@ -421,6 +432,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReasonInfo sse_decode_reason_info(SseDeserializer deserializer);
+
+  @protected
+  (BigInt, BigInt) sse_decode_record_u_64_u_64(SseDeserializer deserializer);
 
   @protected
   RecordingActionError sse_decode_recording_action_error(
@@ -665,6 +679,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_record_u_64_u_64(
+    List<(BigInt, BigInt)> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_recording_import_info(
     List<RecordingImportInfo> self,
     SseSerializer serializer,
@@ -738,6 +758,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_reason_info(ReasonInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_record_u_64_u_64(
+    (BigInt, BigInt) self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_recording_action_error(

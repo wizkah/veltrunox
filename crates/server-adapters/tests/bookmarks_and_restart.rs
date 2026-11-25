@@ -8,7 +8,7 @@ use veltrunox_client_adapters::HttpServerLink;
 use veltrunox_client_app::{
     ChannelEvent, LinkError, ServerEvent, add_label, add_region, convert_label_to_region,
     convert_region_to_label, delete_label, delete_region, edit_label, edit_region, load_bookmarks,
-    load_library,
+    load_library, merge_regions,
 };
 use veltrunox_core::{
     BookmarkName, Intent, KeyShift, Millis, RecordingId, Speed, TimeRange, Version,
@@ -140,6 +140,64 @@ async fn a_marker_changes_its_kind_in_one_step() {
     let found = load_bookmarks(&link, RECORDING).await.unwrap();
     assert!(found.regions.is_empty());
     assert_eq!(found.labels, vec![back]);
+}
+
+#[tokio::test]
+async fn regions_merge_into_one_or_not_at_all() {
+    let url = start_server(store_with_recording()).await;
+    let link = HttpServerLink::new(&url);
+    let name = |text: &str| BookmarkName::new(text).unwrap();
+    let span = |a, b| TimeRange::new(Millis::new(a), Millis::new(b)).unwrap();
+    let first = add_region(&link, RECORDING, &name("A"), span(1_000, 4_000))
+        .await
+        .unwrap();
+    let second = add_region(&link, RECORDING, &name("B"), span(6_000, 9_000))
+        .await
+        .unwrap();
+    let third = add_region(&link, RECORDING, &name("C"), span(20_000, 30_000))
+        .await
+        .unwrap();
+
+    // One of the regions is stale: nothing changes.
+    let stale = [(first.id, first.version), (second.id, Version::new(9))];
+    let refused = merge_regions(&link, RECORDING, &stale, &name("AB"), span(1_000, 9_000)).await;
+    assert!(matches!(refused, Err(LinkError::Conflict { .. })));
+    assert_eq!(
+        load_bookmarks(&link, RECORDING)
+            .await
+            .unwrap()
+            .regions
+            .len(),
+        3
+    );
+
+    // A region that does not exist: nothing changes either.
+    let missing = [
+        (first.id, first.version),
+        (veltrunox_core::BookmarkId::new(999), Version::FIRST),
+    ];
+    assert!(
+        merge_regions(&link, RECORDING, &missing, &name("AB"), span(1_000, 9_000))
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        load_bookmarks(&link, RECORDING)
+            .await
+            .unwrap()
+            .regions
+            .len(),
+        3
+    );
+
+    let seen = [(first.id, first.version), (second.id, second.version)];
+    let merged = merge_regions(&link, RECORDING, &seen, &name("AB"), span(1_000, 9_000))
+        .await
+        .unwrap();
+    let found = load_bookmarks(&link, RECORDING).await.unwrap();
+    assert_eq!(found.regions.len(), 2);
+    assert!(found.regions.contains(&merged));
+    assert!(found.regions.contains(&third));
 }
 
 #[tokio::test]

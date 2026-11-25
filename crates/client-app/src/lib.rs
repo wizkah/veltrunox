@@ -133,6 +133,14 @@ pub trait ServerLink {
         name: &BookmarkName,
         range: TimeRange,
     ) -> impl Future<Output = Result<Region, LinkError>>;
+    /// Replaces regions of a recording by one region in one step on the server.
+    fn regions_into_region(
+        &self,
+        recording: RecordingId,
+        regions: &[(BookmarkId, Version)],
+        name: &BookmarkName,
+        range: TimeRange,
+    ) -> impl Future<Output = Result<Region, LinkError>>;
     /// Replaces a region by a label in one step on the server.
     fn region_into_label(
         &self,
@@ -356,6 +364,18 @@ pub async fn convert_label_to_region(
     range: TimeRange,
 ) -> Result<Region, LinkError> {
     link.label_into_region(id, expected, name, range).await
+}
+
+/// Use case: replace regions by one region covering `range`; all or nothing on the server.
+pub async fn merge_regions(
+    link: &impl ServerLink,
+    recording: RecordingId,
+    regions: &[(BookmarkId, Version)],
+    name: &BookmarkName,
+    range: TimeRange,
+) -> Result<Region, LinkError> {
+    link.regions_into_region(recording, regions, name, range)
+        .await
 }
 
 /// Use case: turn a region into a label; the region is replaced atomically by a new label.

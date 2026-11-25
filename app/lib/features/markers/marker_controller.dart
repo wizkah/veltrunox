@@ -148,25 +148,21 @@ class MarkerController {
   );
 
   /// Replaces [regions] by one region named [title] over [startMs]–[endMs]
-  /// (destructive). The first region takes the new values, then the others are
-  /// deleted; a failure before that leaves everything as it was, a failed
-  /// deletion leaves the rest of the regions in place.
+  /// (destructive). The server does it in one step: all or nothing.
   Future<bool> combineRegions(
     List<RegionMarker> regions, {
     required String title,
     required int startMs,
     required int endMs,
-  }) => _attempt(() async {
-    await _source.updateRegion(
-      regions.first,
+  }) => _attempt(
+    () => _source.mergeRegions(
+      _recordingId,
+      regions,
       title: title,
       startMs: startMs,
       endMs: endMs,
-    );
-    for (final other in regions.skip(1)) {
-      await _source.deleteRegion(other);
-    }
-  });
+    ),
+  );
 
   Future<bool> delete(Marker marker) => _attempt(
     () => switch (marker) {

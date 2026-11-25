@@ -926,6 +926,33 @@ impl BookmarkRepository for SqliteStore {
         })
     }
 
+    fn merge_regions(
+        &self,
+        recording: RecordingId,
+        regions: &[(BookmarkId, Version)],
+        name: BookmarkName,
+        range: TimeRange,
+    ) -> Result<Region, BookmarkError> {
+        if regions.is_empty() {
+            return Err(BookmarkError::NotFound);
+        }
+        let mut connection = self.connection();
+        let transaction = connection.transaction().map_err(storage)?;
+        for &(id, expected) in regions {
+            let (owner, current) = stored_version(&transaction, Table::Regions, id)?;
+            if owner != recording {
+                return Err(BookmarkError::NotFound);
+            }
+            check_version(current, expected).map_err(|c| BookmarkError::Conflict(c.current))?;
+        }
+        for &(id, _) in regions {
+            delete_row(&transaction, Table::Regions, id)?;
+        }
+        let region = insert_region(&transaction, recording, name, range)?;
+        transaction.commit().map_err(storage)?;
+        Ok(region)
+    }
+
     fn convert_region_to_label(
         &self,
         id: BookmarkId,

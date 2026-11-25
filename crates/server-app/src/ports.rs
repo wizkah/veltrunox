@@ -183,6 +183,16 @@ pub trait BookmarkRepository: Send + Sync {
         name: BookmarkName,
         range: TimeRange,
     ) -> Result<Owned<Region>, BookmarkError>;
+    /// Replaces the given regions (with the versions seen) of a recording by one new region
+    /// in one step; the region gets a new id. If any of them is missing, belongs to another
+    /// recording or has changed, nothing changes.
+    fn merge_regions(
+        &self,
+        recording: RecordingId,
+        regions: &[(BookmarkId, Version)],
+        name: BookmarkName,
+        range: TimeRange,
+    ) -> Result<Region, BookmarkError>;
     /// Replaces a region by a new label in one step; the label gets a new id.
     fn convert_region_to_label(
         &self,

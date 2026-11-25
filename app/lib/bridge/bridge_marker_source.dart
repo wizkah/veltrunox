@@ -123,6 +123,27 @@ class BridgeMarkerSource implements MarkerSource {
   );
 
   @override
+  Future<void> mergeRegions(
+    int recordingId,
+    List<RegionMarker> regions, {
+    required String title,
+    required int startMs,
+    required int endMs,
+  }) => _write(
+    () => rust.mergeRegions(
+      serverUrl: serverUrl,
+      recordingId: BigInt.from(recordingId),
+      regions: [
+        for (final region in regions)
+          (BigInt.from(region.id), BigInt.from(region.version)),
+      ],
+      name: title,
+      startMs: BigInt.from(startMs),
+      endMs: BigInt.from(endMs),
+    ),
+  );
+
+  @override
   Future<void> labelToRegion(
     LabelMarker label, {
     required String title,

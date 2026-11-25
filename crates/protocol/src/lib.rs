@@ -101,6 +101,9 @@ pub const RECORDING_EXPORT_PATH: &str = "/api/v1/recordings/{id}/export";
 /// Path of one label or region; `{id}` is the bookmark id.
 pub const LABEL_PATH: &str = "/api/v1/labels/{id}";
 pub const REGION_PATH: &str = "/api/v1/regions/{id}";
+/// Replaces the listed regions of recording `{id}` by one new region (body:
+/// `MergeRegionsDto`, answer: `RegionDto`); all or nothing.
+pub const MERGE_REGIONS_PATH: &str = "/api/v1/recordings/{id}/regions/merge";
 /// Replaces the label `{id}` by a region (body: `UpdateRegionDto`, answer: `RegionDto`).
 pub const LABEL_TO_REGION_PATH: &str = "/api/v1/labels/{id}/to-region";
 /// Replaces the region `{id}` by a label (body: `UpdateLabelDto`, answer: `LabelDto`).
@@ -396,6 +399,21 @@ pub struct NewRegionDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpdateRegionDto {
     pub expected_version: u64,
+    pub name: String,
+    pub range: RangeDto,
+}
+
+/// A region with the version the client saw.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegionRefDto {
+    pub id: u64,
+    pub expected_version: u64,
+}
+
+/// Body that replaces `regions` by one new region.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MergeRegionsDto {
+    pub regions: Vec<RegionRefDto>,
     pub name: String,
     pub range: RangeDto,
 }

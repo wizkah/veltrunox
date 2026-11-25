@@ -144,6 +144,32 @@ class FakeMarkerSource implements MarkerSource {
   );
 
   @override
+  Future<void> mergeRegions(
+    int recordingId,
+    List<RegionMarker> regions, {
+    required String title,
+    required int startMs,
+    required int endMs,
+  }) async => _write(
+    'mergeRegions ${regions.map((r) => '${r.id}v${r.version}').join(',')} '
+    '$title $startMs $endMs',
+    () {
+      final ids = {for (final region in regions) region.id};
+      markers
+        ..removeWhere((marker) => ids.contains(marker.id))
+        ..add(
+          RegionMarker(
+            id: _nextId++,
+            version: 1,
+            title: title,
+            startMs: startMs,
+            endMs: endMs,
+          ),
+        );
+    },
+  );
+
+  @override
   Future<void> regionToLabel(
     RegionMarker region, {
     required String title,

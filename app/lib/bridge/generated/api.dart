@@ -180,6 +180,24 @@ Future<void> labelToRegion({
   endMs: endMs,
 );
 
+/// Replaces regions of a recording, each given as `(id, version seen)`, by one region in
+/// one step.
+Future<void> mergeRegions({
+  required String serverUrl,
+  required BigInt recordingId,
+  required List<(BigInt, BigInt)> regions,
+  required String name,
+  required BigInt startMs,
+  required BigInt endMs,
+}) => RustLib.instance.api.crateApiMergeRegions(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+  regions: regions,
+  name: name,
+  startMs: startMs,
+  endMs: endMs,
+);
+
 /// Replaces a region seen at `expected_version` by a label in one step.
 Future<void> regionToLabel({
   required String serverUrl,

@@ -5,6 +5,7 @@ import '../features/markers/marker.dart';
 import '../features/markers/marker_actions_sheet.dart';
 import '../features/markers/marker_controller.dart';
 import '../features/markers/marker_flows.dart';
+import '../features/markers/marker_selection.dart';
 import '../features/markers/marker_texts.dart';
 import '../features/player/player_controller.dart';
 import '../features/player/scrub_hold.dart';
@@ -196,6 +197,7 @@ class _PlayerWaveformState extends ConsumerState<PlayerWaveform> {
       onRegionResized: _resizeRegion,
       onMarkerContext: (marker) => _openActions(marker, loaded.lengthMs),
       activeRange: activeRange,
+      markedIds: ref.watch(markerSelectionProvider(recordingId)),
     );
   }
 }

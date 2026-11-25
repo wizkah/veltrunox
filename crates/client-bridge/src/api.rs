@@ -17,7 +17,7 @@ use veltrunox_client_app::{
     ScrubThrottle, ServerEvent, SessionView, ViewChange, WaveformCache, add_label, add_recording,
     add_region, analyse_again, convert_label_to_region, convert_region_to_label, delete_label,
     delete_recording, delete_region, edit_label, edit_region, load_bookmarks, load_library,
-    load_waveform, rename_recording,
+    load_waveform, merge_regions as merge_regions_use_case, rename_recording,
 };
 use veltrunox_client_app::{
     Credentials, ManagedUser, NewUser, Rights, SignedIn, UserChange, add_user, change_own_password,
@@ -454,6 +454,33 @@ pub async fn label_to_region(
         &link,
         BookmarkId::new(id),
         Version::new(expected_version),
+        &bookmark_name(&name)?,
+        range_of(start_ms, end_ms)?,
+    )
+    .await
+    .map(drop)
+    .map_err(|error| write_failure(&error))
+}
+
+/// Replaces regions of a recording, each given as `(id, version seen)`, by one region in
+/// one step.
+pub async fn merge_regions(
+    server_url: String,
+    recording_id: u64,
+    regions: Vec<(u64, u64)>,
+    name: String,
+    start_ms: u64,
+    end_ms: u64,
+) -> Result<(), String> {
+    let link = link(&server_url);
+    let regions: Vec<_> = regions
+        .into_iter()
+        .map(|(id, version)| (BookmarkId::new(id), Version::new(version)))
+        .collect();
+    merge_regions_use_case(
+        &link,
+        RecordingId::new(recording_id),
+        &regions,
         &bookmark_name(&name)?,
         range_of(start_ms, end_ms)?,
     )

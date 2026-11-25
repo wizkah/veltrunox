@@ -36,15 +36,16 @@ use veltrunox_protocol::{
     ANALYSIS_PATH, ApiTokenListDto, BOOKMARKS_PATH, BookmarksDto, ChangePasswordDto, ConflictDto,
     CreatedApiTokenDto, CredentialsDto, EXPORT_PATH, FILE_NAME_HEADER, GUEST_ACCESS_PATH,
     GuestAccessDto, IMPORT_PATH, IdentityDto, ImportResultDto, LABEL_PATH, LABEL_TO_REGION_PATH,
-    LABELS_PATH, LOGIN_PATH, LOGOUT_PATH, LabelDto, ME_PASSWORD_PATH, ME_PATH, NewApiTokenDto,
-    NewLabelDto, NewRegionDto, NewUserDto, PASSWORD_POLICY_PATH, RECORDING_EXPORT_PATH,
-    RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH, REGIONS_PATH, ReasonDto,
-    RecordingListDto, RegionDto, RenameRecordingDto, SETUP_PATH, STATUS_PATH, SessionDto,
-    SetPasswordPolicyDto, StatusDto, TOKEN_PATH, TOKENS_PATH, UPLOAD_ID_HEADER, USER_PATH,
-    USERS_PATH, UpdateLabelDto, UpdateRegionDto, UpdateUserDto, UploadedRecordingDto, UserDto,
-    WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_from_dto, label_from_dto,
-    library_entry_from_dto, password_policy_from_dto, password_policy_to_dto, peaks_from_bytes,
-    range_to_dto, region_from_dto, role_to_dto, token_scope_to_dto,
+    LABELS_PATH, LOGIN_PATH, LOGOUT_PATH, LabelDto, ME_PASSWORD_PATH, ME_PATH, MERGE_REGIONS_PATH,
+    MergeRegionsDto, NewApiTokenDto, NewLabelDto, NewRegionDto, NewUserDto, PASSWORD_POLICY_PATH,
+    RECORDING_EXPORT_PATH, RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH,
+    REGIONS_PATH, ReasonDto, RecordingListDto, RegionDto, RegionRefDto, RenameRecordingDto,
+    SETUP_PATH, STATUS_PATH, SessionDto, SetPasswordPolicyDto, StatusDto, TOKEN_PATH, TOKENS_PATH,
+    UPLOAD_ID_HEADER, USER_PATH, USERS_PATH, UpdateLabelDto, UpdateRegionDto, UpdateUserDto,
+    UploadedRecordingDto, UserDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto,
+    bookmarks_from_dto, label_from_dto, library_entry_from_dto, password_policy_from_dto,
+    password_policy_to_dto, peaks_from_bytes, range_to_dto, region_from_dto, role_to_dto,
+    token_scope_to_dto,
 };
 
 pub struct HttpServerLink {
@@ -468,6 +469,32 @@ impl ServerLink for HttpServerLink {
         };
         let dto: RegionDto = Self::written(
             self.post(self.url(LABEL_TO_REGION_PATH, id.value()))
+                .json(&body),
+        )
+        .await?;
+        region_from_dto(&dto).map_err(|error| LinkError::InvalidResponse(error.to_string()))
+    }
+
+    async fn regions_into_region(
+        &self,
+        recording: RecordingId,
+        regions: &[(BookmarkId, Version)],
+        name: &BookmarkName,
+        range: TimeRange,
+    ) -> Result<Region, LinkError> {
+        let body = MergeRegionsDto {
+            regions: regions
+                .iter()
+                .map(|(id, expected)| RegionRefDto {
+                    id: id.value(),
+                    expected_version: expected.value(),
+                })
+                .collect(),
+            name: name.as_str().to_owned(),
+            range: range_to_dto(range),
+        };
+        let dto: RegionDto = Self::written(
+            self.post(self.url(MERGE_REGIONS_PATH, recording.value()))
                 .json(&body),
         )
         .await?;

@@ -153,10 +153,9 @@ class MarkerPanel extends ConsumerWidget {
             kind: ActionKind.secondary,
             onPressed: several
                 ? () async {
-                    final number = all.whereType<RegionMarker>().length + 1;
                     if (await flows().addCovering(
                       regions,
-                      title: MarkerTexts.defaultRegionName(number),
+                      title: regions.map((r) => r.title).join(' + '),
                     )) {
                       selection.clear();
                     }

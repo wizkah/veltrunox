@@ -39,6 +39,16 @@ abstract interface class MarkerSource {
   });
   Future<void> deleteRegion(RegionMarker region);
 
+  /// Replaces [regions] by one new region in one step on the server; if any of
+  /// them changed meanwhile, nothing changes.
+  Future<void> mergeRegions(
+    int recordingId,
+    List<RegionMarker> regions, {
+    required String title,
+    required int startMs,
+    required int endMs,
+  });
+
   /// Replaces a label by a region in one step; a failure leaves the label.
   Future<void> labelToRegion(
     LabelMarker label, {

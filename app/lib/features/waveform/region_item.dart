@@ -19,6 +19,7 @@ class RegionItem extends StatelessWidget {
     required this.onSelect,
     required this.onContext,
     this.active = false,
+    this.marked = false,
     this.showSelectButton = true,
     super.key,
   });
@@ -28,6 +29,9 @@ class RegionItem extends StatelessWidget {
 
   /// The region is the one being played.
   final bool active;
+
+  /// The region is ticked in the marker list.
+  final bool marked;
   final int toneIndex;
   final VoidCallback onPlay;
   final VoidCallback onSelect;
@@ -43,8 +47,11 @@ class RegionItem extends StatelessWidget {
     final name = region.title.isEmpty
         ? WaveformTexts.fallbackRegion(region.id)
         : region.title;
-    final tone = selected || active
+    final chosen = selected || marked;
+    final tone = active
         ? AppColors.action
+        : chosen
+        ? AppColors.accentSoft
         : _tones[toneIndex % _tones.length];
     return Semantics(
       container: true,
@@ -56,10 +63,10 @@ class RegionItem extends StatelessWidget {
         // the text stays on a dark enough ground.
         decoration: BoxDecoration(
           color: Color.alphaBlend(
-            tone.withValues(alpha: active ? 0.6 : (selected ? 0.4 : 0.32)),
+            tone.withValues(alpha: active ? 0.6 : (chosen ? 0.4 : 0.32)),
             AppColors.surface,
           ),
-          border: Border.all(color: tone, width: selected || active ? 2 : 1),
+          border: Border.all(color: tone, width: chosen || active ? 2 : 1),
           borderRadius: BorderRadius.circular(AppRadius.small),
         ),
         child: Row(

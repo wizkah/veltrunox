@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -962629110;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1892216342;
 
 // Section: executor
 
@@ -870,6 +870,55 @@ fn wire__crate__api__list_users_impl(
                 transform_result_sse::<_, crate::api::AccessError>(
                     (move || async move {
                         let output_ok = crate::api::list_users(api_server_url).await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__merge_regions_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "merge_regions",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_server_url = <String>::sse_decode(&mut deserializer);
+            let api_recording_id = <u64>::sse_decode(&mut deserializer);
+            let api_regions = <Vec<(u64, u64)>>::sse_decode(&mut deserializer);
+            let api_name = <String>::sse_decode(&mut deserializer);
+            let api_start_ms = <u64>::sse_decode(&mut deserializer);
+            let api_end_ms = <u64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::merge_regions(
+                            api_server_url,
+                            api_recording_id,
+                            api_regions,
+                            api_name,
+                            api_start_ms,
+                            api_end_ms,
+                        )
+                        .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -2032,6 +2081,18 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Vec<(u64, u64)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<(u64, u64)>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::RecordingImportInfo> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2290,6 +2351,15 @@ impl SseDecode for crate::api::ReasonInfo {
             args: var_args,
             message: var_message,
         };
+    }
+}
+
+impl SseDecode for (u64, u64) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <u64>::sse_decode(deserializer);
+        let mut var_field1 = <u64>::sse_decode(deserializer);
+        return (var_field0, var_field1);
     }
 }
 
@@ -2628,27 +2698,28 @@ fn pde_ffi_dispatcher_primary_impl(
         18 => wire__crate__api__list_bookmarks_impl(port, ptr, rust_vec_len, data_len),
         19 => wire__crate__api__list_recordings_impl(port, ptr, rust_vec_len, data_len),
         20 => wire__crate__api__list_users_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__playback_position_ms_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__reanalyse_recording_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__recording_waveform_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__region_to_label_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__remove_label_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__remove_region_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__remove_user_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__rename_recording_to_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__resume_sign_in_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__revoke_api_token_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__scrub_to_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__send_command_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__set_up_admin_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__sign_in_with_password_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__sign_out_now_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__speed_for_target_bpm_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__switch_guest_access_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__switch_password_policy_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__tuning_supported_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__upload_recording_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__watch_session_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__merge_regions_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__playback_position_ms_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__reanalyse_recording_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__recording_waveform_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__region_to_label_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__remove_label_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__remove_region_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__remove_user_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__rename_recording_to_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__resume_sign_in_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__revoke_api_token_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__scrub_to_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__send_command_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__set_up_admin_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__sign_in_with_password_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__sign_out_now_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__speed_for_target_bpm_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__switch_guest_access_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__switch_password_policy_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__tuning_supported_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__upload_recording_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__watch_session_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -3682,6 +3753,16 @@ impl SseEncode for Vec<u8> {
     }
 }
 
+impl SseEncode for Vec<(u64, u64)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <(u64, u64)>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::RecordingImportInfo> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3900,6 +3981,14 @@ impl SseEncode for crate::api::ReasonInfo {
         <String>::sse_encode(self.code, serializer);
         <Vec<u64>>::sse_encode(self.args, serializer);
         <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for (u64, u64) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.0, serializer);
+        <u64>::sse_encode(self.1, serializer);
     }
 }
 

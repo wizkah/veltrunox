@@ -23,12 +23,12 @@ use veltrunox_core::{
 };
 use veltrunox_protocol::{
     ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, EVENTS_PATH, ExpectedVersionQuery,
-    LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto,
-    RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH, REGIONS_PATH, ReasonDto,
-    RecordingListDto, RegionDto, RenameRecordingDto, ReplaceBookmarksDto, UpdateLabelDto,
-    UpdateRegionDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_to_dto,
-    label_to_dto, library_entry_to_dto, new_bookmarks_from_dto, peaks_to_bytes, range_from_dto,
-    region_to_dto, waveform_info_to_dto,
+    LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH, LabelDto, MERGE_REGIONS_PATH, MergeRegionsDto,
+    NewLabelDto, NewRegionDto, RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH,
+    REGIONS_PATH, ReasonDto, RecordingListDto, RegionDto, RenameRecordingDto, ReplaceBookmarksDto,
+    UpdateLabelDto, UpdateRegionDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto,
+    bookmarks_to_dto, label_to_dto, library_entry_to_dto, new_bookmarks_from_dto, peaks_to_bytes,
+    range_from_dto, region_to_dto, waveform_info_to_dto,
 };
 use veltrunox_server_app::{AccountError, BookmarkError, PlaybackBroadcast, list_recordings};
 
@@ -49,6 +49,7 @@ pub fn router(app: AppState) -> Router {
         .route(REGIONS_PATH, post(add_region))
         .route(LABEL_PATH, put(update_label).delete(delete_label))
         .route(REGION_PATH, put(update_region).delete(delete_region))
+        .route(MERGE_REGIONS_PATH, post(merge_regions))
         .route(LABEL_TO_REGION_PATH, post(label_to_region))
         .route(REGION_TO_LABEL_PATH, post(region_to_label))
         .merge(accounts_http::routes())
@@ -406,6 +407,34 @@ async fn label_to_region(
         Ok(app
             .bookmarks
             .convert_label_to_region(BookmarkId::new(id), expected, name, range)?)
+    })
+    .await?;
+    Ok(Json(region_to_dto(&region)))
+}
+
+async fn merge_regions(
+    State(app): State<AppState>,
+    caller: Caller,
+    Path(recording): Path<u64>,
+    Json(body): Json<MergeRegionsDto>,
+) -> Result<Json<RegionDto>, ApiError> {
+    caller.require(Capability::EditBookmarks)?;
+    let name = BookmarkName::new(&body.name)?;
+    let range = range_from_dto(body.range)?;
+    let regions: Vec<_> = body
+        .regions
+        .iter()
+        .map(|region| {
+            (
+                BookmarkId::new(region.id),
+                Version::new(region.expected_version),
+            )
+        })
+        .collect();
+    let region = blocking(move || {
+        Ok(app
+            .bookmarks
+            .merge_regions(RecordingId::new(recording), &regions, name, range)?)
     })
     .await?;
     Ok(Json(region_to_dto(&region)))

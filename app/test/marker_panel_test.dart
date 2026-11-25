@@ -455,11 +455,8 @@ void main() {
       await tester.tap(find.text('Speichern'));
       await tester.pumpAndSettle();
 
-      expect(source.calls, [
-        'updateRegion 2 v3 Strophe 10000 90000',
-        'deleteRegion 3',
-      ]);
-      expect(source.markers.whereType<RegionMarker>().map((r) => r.id), [2]);
+      expect(source.calls, ['mergeRegions 2v3,3v1 Strophe 10000 90000']);
+      expect(source.markers.whereType<RegionMarker>().length, 1);
       expect(find.text('Refrain'), findsNothing);
       expect(find.text('2 ausgewählt'), findsNothing);
     });
@@ -471,6 +468,10 @@ void main() {
 
       await tester.tap(find.text('Neue Region aus Auswahl'));
       await tester.pumpAndSettle();
+      expect(
+        find.widgetWithText(TextField, 'Strophe + Refrain'),
+        findsOneWidget,
+      );
       await tester.enterText(_field('Name'), 'Alles');
       await tester.tap(find.text('Speichern'));
       await tester.pumpAndSettle();

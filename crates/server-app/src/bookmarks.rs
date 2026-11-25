@@ -169,6 +169,21 @@ impl BookmarkService {
         Ok(stored.item)
     }
 
+    /// Replaces regions of a recording by one region; all or nothing.
+    pub fn merge_regions(
+        &self,
+        recording: RecordingId,
+        regions: &[(BookmarkId, Version)],
+        name: BookmarkName,
+        range: TimeRange,
+    ) -> Result<Region, BookmarkError> {
+        let region = self
+            .repository
+            .merge_regions(recording, regions, name, range)?;
+        self.broadcast.bookmarks_changed(recording);
+        Ok(region)
+    }
+
     /// Turns a region into a label; the region disappears, the label has a new id.
     pub fn convert_region_to_label(
         &self,
