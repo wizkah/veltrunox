@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+import 'dart:ui' show PointMode;
+
 import 'package:material_ui/material_ui.dart';
 
 import '../../design/tokens/app_colors.dart';
@@ -144,16 +147,31 @@ class _PeakPainter extends CustomPainter {
         ..strokeWidth = 1,
     );
     final split = playedX ?? double.infinity;
+    // All columns of one colour go to the canvas in a single call: a call per
+    // column is too slow while zooming, most of all in a browser.
+    final lines = Float32List(columns.length * 4);
+    var used = 0;
+    var playedUsed = 0;
     for (var x = 0; x < columns.length; x++) {
       final low = columns.min[x];
       final high = columns.max[x];
       if (low == 0 && high == 0) continue;
-      canvas.drawLine(
-        Offset(x + 0.5, middle - high * scale),
-        Offset(x + 0.5, middle - low * scale),
-        x < split ? played : unplayed,
-      );
+      lines[used++] = x + 0.5;
+      lines[used++] = middle - high * scale;
+      lines[used++] = x + 0.5;
+      lines[used++] = middle - low * scale;
+      if (x < split) playedUsed = used;
     }
+    canvas.drawRawPoints(
+      PointMode.lines,
+      Float32List.sublistView(lines, 0, playedUsed),
+      played,
+    );
+    canvas.drawRawPoints(
+      PointMode.lines,
+      Float32List.sublistView(lines, playedUsed, used),
+      unplayed,
+    );
   }
 
   static Paint _paint(Rect bounds, double alpha) => Paint()

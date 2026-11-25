@@ -73,18 +73,26 @@ class _RegionLanesState extends State<RegionLanes> {
   LaneAssignment _assignment = LaneAssignment.empty;
   _HandleDrag? _drag;
 
+  /// The markers [_assignment] was made from; zooming leaves them as they are,
+  /// so the lanes are not laid out again then.
+  List<Marker>? _laidOut;
+
   @override
   void initState() {
     super.initState();
+    _layOut();
+  }
+
+  void _layOut() {
+    if (identical(_laidOut, widget.markers)) return;
+    _laidOut = widget.markers;
     _assignment = layoutRegionLanes(widget.regions);
   }
 
   @override
   void didUpdateWidget(RegionLanes old) {
     super.didUpdateWidget(old);
-    if (_drag == null) {
-      _assignment = layoutRegionLanes(widget.regions);
-    }
+    if (_drag == null) _layOut();
   }
 
   void _startDrag(RegionMarker region, RegionEdge edge) {

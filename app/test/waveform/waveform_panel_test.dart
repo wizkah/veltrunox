@@ -344,6 +344,30 @@ void main() {
       expect(after.msPerPx, closeTo(before.msPerPx, before.msPerPx * 0.05));
     });
 
+    testWidgets('the mouse wheel zooms around the pointer, not the page', (
+      tester,
+    ) async {
+      await pumpScene(tester);
+      final at = waveformOrigin(tester) + const Offset(250, 60);
+      final before = viewState(tester).viewport!;
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+
+      await tester.sendEventToBinding(pointer.hover(at));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, -100)));
+      await tester.pump();
+      final zoomed = viewState(tester).viewport!;
+      expect(zoomed.msPerPx, lessThan(before.msPerPx));
+      expect(zoomed.xToTime(250), closeTo(before.xToTime(250), 1));
+      expect(waveformOrigin(tester) + const Offset(250, 60), at);
+
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 100)));
+      await tester.pump();
+      expect(
+        viewState(tester).viewport!.msPerPx,
+        closeTo(before.msPerPx, 0.01),
+      );
+    });
+
     testWidgets('a sideways trackpad swipe pans, a pinch zooms', (
       tester,
     ) async {

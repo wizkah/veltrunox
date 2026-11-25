@@ -54,7 +54,7 @@ class _PinchZoomLayerState extends State<PinchZoomLayer> {
     final span = _span;
     final focal = _focalX;
     _fingers[event.pointer] = event.localPosition;
-    if (span > 0 && _span > 0) widget.onZoom(_span / span, _focalX);
+    if (span > 0 && _span > 0) widget.onZoom(_span / span, focal);
     widget.onPan(_focalX - focal);
   }
 

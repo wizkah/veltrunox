@@ -166,10 +166,20 @@ class _LayersState extends State<_Layers> {
 
   WaveformPanel get _panel => widget.panel;
 
-  List<LabelMarker> get _labels =>
-      _panel.markers.whereType<LabelMarker>().toList();
-  List<RegionMarker> get _regions =>
-      _panel.markers.whereType<RegionMarker>().toList();
+  /// What follows from the markers alone, kept while only the view changes.
+  List<Marker>? _sortedFrom;
+  List<LabelMarker> _labels = const [];
+  List<RegionMarker> _regions = const [];
+  int _laneCount = 0;
+
+  void _sortMarkers() {
+    final markers = _panel.markers;
+    if (identical(_sortedFrom, markers)) return;
+    _sortedFrom = markers;
+    _labels = markers.whereType<LabelMarker>().toList();
+    _regions = markers.whereType<RegionMarker>().toList();
+    _laneCount = layoutRegionLanes(_regions).laneCount;
+  }
 
   void _scrubTo(double ms) {
     final bounded = ms.clamp(0.0, _panel.durationMs.toDouble());
@@ -202,8 +212,9 @@ class _LayersState extends State<_Layers> {
     final viewport = widget.viewport;
     final view = widget.view;
     final controller = widget.controller;
+    _sortMarkers();
     final regions = _regions;
-    final laneCount = layoutRegionLanes(regions).laneCount;
+    final laneCount = _laneCount;
     final collapsible =
         widget.narrow && laneCount > WaveformGeometry.compactLanes;
     final maxLanes = collapsible && !view.showAllLanes
@@ -274,6 +285,7 @@ class _LayersState extends State<_Layers> {
                     ),
                     WaveformGestureLayer(
                       viewport: viewport,
+                      onZoom: controller.zoomAt,
                       onTapAt: (ms) {
                         if (_multiTouch) return;
                         controller.selectRegion(null);

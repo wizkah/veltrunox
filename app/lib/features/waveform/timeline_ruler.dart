@@ -46,6 +46,32 @@ class TimelineRuler extends StatelessWidget {
   );
 }
 
+/// Laid out labels, kept because laying text out anew on every zoom step is
+/// costly.
+final _labelPainters = <String, TextPainter>{};
+const _maxLabelPainters = 256;
+
+TextPainter _labelPainter(String label) {
+  final known = _labelPainters[label];
+  if (known != null) return known;
+  if (_labelPainters.length >= _maxLabelPainters) {
+    for (final painter in _labelPainters.values) {
+      painter.dispose();
+    }
+    _labelPainters.clear();
+  }
+  return _labelPainters[label] = TextPainter(
+    text: TextSpan(
+      text: label,
+      style: const TextStyle(
+        color: AppColors.textSecondary,
+        fontSize: AppTypography.sizeSmall,
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
+}
+
 class _RulerPainter extends CustomPainter {
   _RulerPainter(this.viewport) : ticks = computeRulerTicks(viewport);
 
@@ -60,17 +86,7 @@ class _RulerPainter extends CustomPainter {
     for (final tick in ticks) {
       final x = viewport.timeToX(tick.ms.toDouble());
       canvas.drawLine(Offset(x, size.height - 8), Offset(x, size.height), line);
-      final text = TextPainter(
-        text: TextSpan(
-          text: tick.label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: AppTypography.sizeSmall,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      text.paint(canvas, Offset(x + 4, 0));
+      _labelPainter(tick.label).paint(canvas, Offset(x + 4, 0));
     }
   }
 

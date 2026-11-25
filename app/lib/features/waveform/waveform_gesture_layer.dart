@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -7,15 +9,20 @@ import 'time_viewport.dart';
 /// perfectly still during a click.
 const _tapTravelPx = 10.0;
 
+/// How strongly the wheel zooms: one notch of a mouse (about 100 px) changes
+/// the scale by a good fifth, the small steps of a trackpad add up smoothly.
+const _wheelZoomPerPx = 0.002;
+
 /// Turns touches on the free waveform into view and position intents: a tap
-/// sets the position, one finger pans, and on a trackpad a sideways swipe
-/// pans. Pinching is handled around the whole timeline. Handles, the playhead,
+/// sets the position, one finger pans, the mouse wheel zooms, and a sideways
+/// swipe on a trackpad pans. Pinching is handled around the whole timeline. Handles, the playhead,
 /// labels and regions sit above and take their own touches.
 class WaveformGestureLayer extends StatefulWidget {
   const WaveformGestureLayer({
     required this.viewport,
     required this.onTapAt,
     required this.onPan,
+    required this.onZoom,
     required this.child,
     super.key,
   });
@@ -27,6 +34,9 @@ class WaveformGestureLayer extends StatefulWidget {
 
   /// The content moved sideways by this many pixels.
   final ValueChanged<double> onPan;
+
+  /// Zoom by a factor (above 1 zooms in) around a pixel position.
+  final void Function(double factor, double anchorX) onZoom;
   final Widget child;
 
   @override
@@ -53,16 +63,22 @@ class _WaveformGestureLayerState extends State<WaveformGestureLayer> {
 
   int _ms(double x) => widget.viewport.xToTime(x).round();
 
-  /// A trackpad or wheel: a mostly sideways swipe pans. Mostly vertical
-  /// scrolling is left to the page.
+  /// A wheel or a trackpad scroll over the waveform: mostly sideways pans,
+  /// mostly vertical zooms around the pointer (up zooms in).
   void _signalled(PointerSignalEvent event) {
-    if (event is PointerScrollEvent &&
-        event.scrollDelta.dx.abs() > event.scrollDelta.dy.abs()) {
-      GestureBinding.instance.pointerSignalResolver.register(
-        event,
-        (_) => widget.onPan(-event.scrollDelta.dx),
-      );
-    }
+    if (event is! PointerScrollEvent) return;
+    final delta = event.scrollDelta;
+    if (delta == Offset.zero) return;
+    GestureBinding.instance.pointerSignalResolver.register(event, (_) {
+      if (delta.dx.abs() > delta.dy.abs()) {
+        widget.onPan(-delta.dx);
+      } else {
+        widget.onZoom(
+          math.exp(-delta.dy * _wheelZoomPerPx),
+          event.localPosition.dx,
+        );
+      }
+    });
   }
 
   @override

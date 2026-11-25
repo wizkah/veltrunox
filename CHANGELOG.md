@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Waveform: the mouse wheel over the waveform zooms around the pointer (the page does not scroll then; a sideways swipe still pans). A pinch keeps the time under the fingers in place while they move. Less work per zoom step: the peaks are drawn in two calls instead of one per pixel column, ruler labels and the region lane layout are reused.
 - Marker list: tick boxes appear only after “Edit” (“Done” leaves it and drops the ticks); the highlighted row is no longer shifted. A region can be duplicated and split at the playhead (row menu and long press in the waveform). Splitting is one server call, `POST /api/v1/regions/{id}/split`.
 - Dragging the position of a stopped recording still previews it, also while resting, but the play button keeps showing “stopped” and letting go leaves the position where it was let go, stopped.
 - The space bar plays and pauses on the player page unless a text input has the focus.
