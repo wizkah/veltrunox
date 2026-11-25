@@ -145,13 +145,16 @@ class LibraryScreen extends ConsumerWidget {
               AppSpace.s4,
               0,
             ),
-            child: Wrap(
-              spacing: AppSpace.s3,
-              runSpacing: AppSpace.s2,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            // The upload bar keeps the full width it always had: it shows the
+            // progress of a running upload, which must not be squeezed.
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (ref.watch(rightsProvider)?.canUpload ?? false)
-                  const UploadBar(),
+                Expanded(
+                  child: (ref.watch(rightsProvider)?.canUpload ?? false)
+                      ? const UploadBar()
+                      : const SizedBox.shrink(),
+                ),
                 ?exchange,
               ],
             ),

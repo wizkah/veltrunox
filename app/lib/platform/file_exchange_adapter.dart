@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../features/exchange/file_exchange.dart';
 
@@ -38,6 +39,8 @@ class SystemFileSaver implements FileSaver {
       bytes: Uint8List.fromList(utf8.encode(content)),
       mimeType: mimeType,
     );
-    return saved != null;
+    // A browser downloads the file at once and never says where to, so there
+    // is nothing to tell a save from a cancel; the download has happened.
+    return kIsWeb || saved != null;
   }
 }

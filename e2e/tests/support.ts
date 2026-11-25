@@ -10,7 +10,7 @@ export async function enableAccessibility(page: Page) {
 
 // Flutter reads text from real key presses; setting the value of the page's input element
 // does not always reach the text field.
-async function typeInto(page: Page, label: string, text: string, exact = false) {
+export async function typeInto(page: Page, label: string, text: string, exact = false) {
   const field = page.getByRole('textbox', { name: label, exact });
   await field.dispatchEvent('click');
   await field.focus();

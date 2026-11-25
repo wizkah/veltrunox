@@ -269,3 +269,25 @@ Environment: macOS (Apple silicon), debug builds, headless Chromium (Playwright)
 | Playwright, 10 runs: a 20 MB file sent through a throttled connection (Chromium network emulation, 5 MB/s upload) shows "Wird hochgeladen: … – n %" in the browser, then "Hochgeladen" | Pass |
 
 Limits: the percentage counts bytes the server has received, not bytes the browser has handed to the network, so it follows the real transfer only as closely as the server's reads do. Not checked: an upload to the Pi over Wi-Fi, several clients uploading at once, a file larger than the browser's memory allows (reading the file into memory is unchanged).
+
+## Bookmark exchange and API tokens (2026-11-25)
+
+Environment: macOS (Apple silicon), debug builds, headless Chromium (Playwright, browser language German) with the web app rebuilt by `scripts/build-web.sh`, real server on a temporary data directory. Not on the Raspberry Pi, not with a real MCP client or LLM.
+
+| Check | Result |
+|---|---|
+| Rust workspace tests, Clippy, `wasm32` build of the client core and the bridge | Pass |
+| Server (integration tests over real endpoints): replace all bookmarks of a recording in one transaction, with all-or-nothing validation and the check against a known length; library and per-recording export as JSON and CSV; import as JSON and CSV with preview, conflicts by version, overwrite, per-recording outcome and a file that cannot be read; the import schema; API tokens (made once, listed without their text, reach cut to the user's rights and to reading or editing bookmarks, accepted on HTTP and on the real-time channel, ended by revoking, deactivating or deleting the user) | Pass |
+| Bookmark ids are not used twice: a bookmark made after the last one was deleted gets a new id; stored bookmarks keep id and version through the migration | Pass (unit tests) |
+| `veltrunox-mcp`: protocol and tools against a fake server (15 tests) and the real program against a real server with real tokens (4 tests: read and write, read-only token refused, wrong token, no token) | Pass |
+| Client core against the real server (5 tests): export, preview, apply, conflict, overwrite, unreadable files, token flow | Pass |
+| Flutter (310 tests, 37 new): export controller and file names, import controller (preview first, overwrite refresh, apply, close), exchange menu and preview dialog, rights hide the import, token dialog (list, make with the text shown once and copy, revoke after a confirmation naming the token, refusals), no token entry for a guest; `flutter analyze`; `flutter build web` | Pass |
+| Playwright, new file `z-exchange.spec.ts` (6 tests): library export as JSON and CSV downloads with the right file names and content; export of one recording from the player; import with preview that writes nothing, cancel, apply; conflict and overwrite; an unreadable file; making, copying, using and revoking an API token | Pass: 6 of 6 in 8 runs of the file, and the whole suite (16 tests) in 4 runs in a row |
+
+Found by the browser run: a browser saves a file by download and `file_picker` then reports no location, which the app took for a cancelled save, so no "Saved" notice appeared; in a browser a download counts as saved now.
+
+Limits:
+
+- The slow-upload test (`upload.spec.ts`, upload progress) failed in about one of three whole-suite runs while the run of the file alone passed; it fails the same way with the exchange menu removed, so it is not caused by this work. Likewise the sentences of two live regions (the import summary and the reason of an unreadable file) did not always reach the page in the first runs; the new tests therefore check what the dialog ends in and what the server holds, and the sentences themselves are checked by the widget tests only. The accessibility layer also names the new-token field but does not carry the token text; the text is read from the clipboard in the test.
+- The player export test selects a recording on the shared server, so the file is named to run last: the shared-player tests expect that none is selected.
+- Not checked: the Raspberry Pi, other browsers, the look on a device, the language switch in the new dialogs, an import file above 2 MB (the server's body limit), the MCP program with Claude Desktop or Claude Code and with a language model that works out regions, transport over TLS (the token travels unencrypted until ADR-008 is in use).
