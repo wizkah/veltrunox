@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Design specification: every signed-in account can change its own password from the account menu (new section 9.7, decision D-27); the admin's password dialog asks for the new password twice. Not implemented yet.
 - Bookmark ids are never used again: `labels` and `regions` are `AUTOINCREMENT` (migration 7, stored bookmarks keep their ids and versions). Before, a bookmark made after the last one was deleted could get the id of the deleted one, so an id and version in an old export file could name another bookmark and hide a conflict.
 - Saving an export in a browser now counts as saved: a browser downloads the file and `file_picker` reports no place, which the app took for a cancelled save, so the notice "Saved" did not appear.
 - API tokens in the interface: the account menu of a signed-in account (not of a guest) opens a dialog that lists the person's tokens with reach, creation and last use, makes a token from a name and a reach (“Read only” or “Read and edit bookmarks”) and revokes one after a confirmation that names it. The text of a new token is shown once, with a copy action, and is removed from the screen when hidden or when the dialog closes.

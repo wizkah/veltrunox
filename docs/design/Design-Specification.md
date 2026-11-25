@@ -159,10 +159,11 @@ Administration of users and guest access: later phase, not in the v0.1 navigatio
 | Export bookmarks (one recording or the library) | yes | yes | yes |
 | Import bookmarks | yes | yes | yes |
 | Make and revoke own API tokens | yes | yes | no |
+| Change own password | yes | yes | no |
 | Manage recordings (rename, metadata, delete) | no | yes | no |
 | Manage users, switch guest access | no | yes | no |
 
-A guest has the rights of a user without signing in and exists only while the admin has enabled guest access. The rows "manage recordings", "export bookmarks", "import bookmarks" and "API tokens" are [V] (the product rules do not name them); importing needs the same right as editing labels and regions, and a guest has no account to hold tokens. The UI receives **effective capabilities**; disallowed actions do not appear. Real authorization is outside this document.
+A guest has the rights of a user without signing in and exists only while the admin has enabled guest access. The rows "manage recordings", "export bookmarks", "import bookmarks", "API tokens" and "change own password" are [V] (the product rules do not name them); importing needs the same right as editing labels and regions, and a guest has no account to hold tokens or a password. The UI receives **effective capabilities**; disallowed actions do not appear. Real authorization is outside this document.
 
 ## 5. Player
 
@@ -470,6 +471,8 @@ Rename, edit metadata, delete with confirmation. The confirmation names the **re
 
 Create users, change role, change password, deactivate, delete; switch guest access on and off. Visible to the admin only. [V] Critical changes get a confirmation or a clearly visible success/error message; ordinary field changes need no extra confirmation. Not part of the v0.1 navigation.
 
+[V] The password dialog for another user and the field for a first password ask for the new password **twice** and offer a show/hide toggle; the success notice says that the user is signed out everywhere. A person changes their **own** password in the dialog of section 9.7, not here.
+
 ### 9.5 Bookmark exchange [B for the behaviour, V for the arrangement]
 
 Labels and regions can be taken out of the app as a file and brought back, for example to work them out with a spreadsheet or an LLM. The **exchange menu** has the two actions "Export" and "Import"; it sits in the marker panel (section 6.7) and in the library's toolbar (section 8.4). It is a menu or button, not a screen of its own, and not part of the navigation.
@@ -501,6 +504,17 @@ An API token lets a script or an LLM read and, if allowed, edit bookmarks withou
 - **Revoke:** with a confirmation that names the token; afterwards the token no longer works.
 - A token reaches at most what its owner may do and never more than reading and editing bookmarks; the dialog says so next to the choice of reach.
 - The token text is not written to logs, the address bar or local storage.
+
+### 9.7 Change own password [B for the behaviour, V for the arrangement]
+
+Every signed-in account, admin or not, can change its own password. The dialog opens from the account menu, between "API tokens" and "Sign out"; it is not part of the navigation. A guest has no account and no such entry.
+
+- **Fields:** "Current password", "New password" and "Repeat new password", each with a show/hide toggle. Below the new password the rule of the active password policy is shown (section 9.4 and the sign-in forms use the same wording).
+- **Current password is required**, so that an unattended signed-in device cannot take over the account. An admin changing another person's password (section 9.4) does not need it.
+- **Validation:** an empty field, a new password that breaks the policy and a repeat that differs are reported at the field they concern before anything is sent. A wrong current password and any other refusal by the server are reported in words **inside the dialog**, at the current-password field where it applies; the dialog stays open and keeps the new password.
+- **Before confirming** the dialog states that the person is signed out everywhere, on this device too, and signs in again with the new password.
+- **After success** the person is signed out [V] (D-27) and lands on the sign-in screen, which says that the password was changed. API tokens keep working.
+- Passwords are never shown permanently, written to logs, the address bar or local storage.
 
 ## 10. System states and errors
 
@@ -647,6 +661,10 @@ Scenarios for UI acceptance tests; test data suffices, no real audio or server i
 | UI-AC-28 | Make an API token | The token text is shown once with "Copy"; the list afterwards shows name, reach and last use but not the text |
 | UI-AC-29 | Revoke an API token | A confirmation names the token; afterwards it is gone from the list |
 | UI-AC-30 | Open the account menu as a guest | No entry for API tokens |
+| UI-AC-31 | Open the account menu as a user, as an admin and as a guest | User and admin see "Change password"; the guest does not |
+| UI-AC-32 | Submit the password dialog with an empty field, a new password that breaks the policy, or a differing repeat | The problem is named at its field; nothing is sent |
+| UI-AC-33 | Enter a wrong current password | A message in the dialog names the current-password field; the dialog stays open |
+| UI-AC-34 | Change the own password successfully | The person is signed out and sees the sign-in screen with the note; the new password signs in, the old one does not |
 
 These are target criteria, not statements about existing code.
 
@@ -680,6 +698,7 @@ These are target criteria, not statements about existing code.
 - **D-24:** a new label is named "Label N" (N = number of labels plus one) without a name prompt; the name is editable afterwards. The same applies to regions ("Region N").
 - **D-25:** bookmarks leave and enter the app as files (JSON and CSV); an import replaces all labels and regions of each recording it lists and always goes through a preview that shows what is added, changed and removed (section 9.5).
 - **D-26:** API tokens are made, listed and revoked in a dialog of the account menu; the token text is shown exactly once (section 9.6).
+- **D-27:** every account changes its own password in a dialog of the account menu, with its current password; afterwards the person is signed out everywhere, this device included, and signs in with the new password (section 9.7).
 
 ### 15.2 Proposals to validate [V]
 
@@ -702,6 +721,6 @@ Two isolated layers, first without server and audio:
 1. Foundations from `design-tokens.json` and the visual base components (button, slider, input, status, modal) with all states.
 2. `WaveformViewport` and `RegionLaneLayout` with deterministic test data: three overlapping regions, two labels, one marker group, region creation, handles, pan/zoom/scrub, direct play intent.
 3. Compose the library and the player from the same components.
-4. Responsive, contrast and touch tests against UI-AC-01 to UI-AC-30.
+4. Responsive, contrast and touch tests against UI-AC-01 to UI-AC-34.
 5. Bookmark exchange (section 9.5) and API tokens (section 9.6) on top of the library and the marker list.
 6. Carry validated numbers and behaviour into the next version; close open points with an explicit decision.
