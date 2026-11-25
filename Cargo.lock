@@ -2074,7 +2074,9 @@ checksum = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "futures-channel",
  "futures-core",
+ "futures-util",
  "http",
  "http-body",
  "http-body-util",
@@ -3120,6 +3122,22 @@ name = "veltrunox-core"
 version = "0.0.0"
 dependencies = [
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "veltrunox-mcp"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "veltrunox-core",
+ "veltrunox-protocol",
+ "veltrunox-server-adapters",
+ "veltrunox-server-app",
 ]
 
 [[package]]

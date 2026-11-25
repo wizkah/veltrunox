@@ -66,6 +66,26 @@ The result lands in `dist/veltrunox-server-<target>/`. Copy the Pi folder to the
 
 Without the `embedded-web` feature (the default for `cargo run`), the server serves a built web app only if `web_dir` is set (for example `web_dir = "app/build/web"`); `address` sets address and port, and the app uses the address it was loaded from, so nothing needs rebuilding. An app served from elsewhere (for example `flutter run`) needs `--dart-define=VELTRUNOX_SERVER_URL=...` and `allowed_origin = "<origin of the web app>"` in the configuration.
 
+## Bookmarks with an LLM
+
+The server exports and imports bookmarks (labels and regions) as JSON or CSV, and a small program lets an LLM do it through the Model Context Protocol (MCP). Make an API token as a signed-in user (`POST /api/v1/tokens` with `{"name": "llm", "scope": "edit_bookmarks"}`; `read_only` only reads), then register `veltrunox-mcp` with the MCP client, for example in a `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "veltrunox": {
+      "command": "/path/to/veltrunox-mcp",
+      "env": {
+        "VELTRUNOX_URL": "http://raspberrypi.local:8080",
+        "VELTRUNOX_TOKEN": "vxt_..."
+      }
+    }
+  }
+}
+```
+
+The tools are `list_recordings`, `get_recording`, `get_bookmarks` and `set_bookmarks` (replaces all bookmarks of a recording; `dry_run` shows what would change). Without MCP, `GET /api/v1/export` and `POST /api/v1/import?dry_run=true` do the same with files; `GET /api/v1/import/schema` describes the format. The token is sent unencrypted until transport encryption is in use.
+
 ## Documentation
 
 | Path | Content |

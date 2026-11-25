@@ -1,0 +1,23 @@
+[package]
+name = "veltrunox-mcp"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+veltrunox-protocol.workspace = true
+serde.workspace = true
+serde_json = "1"
+thiserror.workspace = true
+reqwest = { workspace = true, features = ["blocking"] }
+
+[dev-dependencies]
+veltrunox-core.workspace = true
+veltrunox-server-adapters.workspace = true
+veltrunox-server-app.workspace = true
+axum.workspace = true
+tokio.workspace = true

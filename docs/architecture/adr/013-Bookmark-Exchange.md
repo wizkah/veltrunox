@@ -32,7 +32,7 @@ Labels and regions are created one by one in the interface and through the per-i
 
 **Interface.** Editing labels and regions stays as it is. The interface only gains export and import (file choice, then the preview with its errors and conflicts before anything is applied). The design specification is extended on the owner's instruction before this is built.
 
-**MCP, later.** A small separate MCP server calls the HTTP API with an API token. Tools: `list_recordings`, `get_recording`, `get_bookmarks`, `set_bookmarks`. It is not part of the server and not needed for the file-based path (export, edit with the LLM, import with preview).
+**MCP.** A small separate program (`veltrunox-mcp`, standard input and output) calls the HTTP API with an API token. Tools: `list_recordings`, `get_recording`, `get_bookmarks`, `set_bookmarks`; the last one goes through the import (one recording, optional `dry_run`), so it has the same checks and conflict detection. It is not part of the server and not needed for the file-based path (export, edit with the LLM, import with preview).
 
 ## Alternatives considered
 
