@@ -214,6 +214,27 @@ String? _text(ServerReason reason) => switch (reason.code) {
     'Der Name darf nicht leer sein.',
     'The name must not be empty.',
   ),
+  'name_too_long' => tr('Der Name ist zu lang.', 'The name is too long.'),
+  'outside_recording' => tr(
+    'Der Eintrag liegt hinter dem Ende der Aufnahme.',
+    'The entry lies beyond the end of the recording.',
+  ),
+  'import_malformed' => tr(
+    'Die Datei ließ sich nicht lesen.',
+    'The file could not be read.',
+  ),
+  'import_format_unsupported' => tr(
+    'Diese Version des Dateiformats wird nicht unterstützt.',
+    'This version of the file format is not supported.',
+  ),
+  'csv_invalid' => tr(
+    'Die Tabelle ist in Zeile ${_number(reason, 0)} fehlerhaft.',
+    'The table has an error in line ${_number(reason, 0)}.',
+  ),
+  'export_format_unknown' => tr(
+    'Dieses Exportformat gibt es nicht.',
+    'There is no such export format.',
+  ),
   'empty_title' => tr(
     'Der Titel darf nicht leer sein.',
     'The title must not be empty.',

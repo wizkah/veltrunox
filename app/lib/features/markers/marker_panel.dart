@@ -23,6 +23,7 @@ class MarkerPanel extends ConsumerWidget {
     required this.lengthMs,
     required this.readPlayhead,
     required this.onPlay,
+    this.exchange,
     super.key,
   });
 
@@ -34,6 +35,9 @@ class MarkerPanel extends ConsumerWidget {
   /// The current playback position, for the start of a new region.
   final Future<int?> Function() readPlayhead;
   final ValueChanged<Marker> onPlay;
+
+  /// What the caller offers beside "Add region", for example the exchange menu.
+  final Widget? exchange;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,15 +80,21 @@ class MarkerPanel extends ConsumerWidget {
       children: [
         Text(MarkerTexts.title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: AppSpace.s3),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: ActionButton(
-            label: MarkerTexts.addRegion,
-            icon: Icons.add,
-            kind: ActionKind.secondary,
-            onPressed: () async =>
-                flows().addRegion(playheadMs: await readPlayhead() ?? 0),
-          ),
+        // A narrow panel puts the exchange menu under the button.
+        Wrap(
+          spacing: AppSpace.s2,
+          runSpacing: AppSpace.s2,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ActionButton(
+              label: MarkerTexts.addRegion,
+              icon: Icons.add,
+              kind: ActionKind.secondary,
+              onPressed: () async =>
+                  flows().addRegion(playheadMs: await readPlayhead() ?? 0),
+            ),
+            ?exchange,
+          ],
         ),
         const SizedBox(height: AppSpace.s3),
         MarkerFilterBar(

@@ -27,6 +27,7 @@ class LibraryScreen extends ConsumerWidget {
     required this.onOpenInPlayer,
     required this.onPlay,
     this.previewBuilder,
+    this.exchange,
     super.key,
   });
 
@@ -37,6 +38,9 @@ class LibraryScreen extends ConsumerWidget {
 
   /// Builds the picture of a recording shown above its details.
   final Widget Function(RecordingSummary recording)? previewBuilder;
+
+  /// What the caller offers beside the upload, for example the exchange menu.
+  final Widget? exchange;
 
   /// From this width the details stand beside the list.
   static const _detailsBesideMin = AppBreakpoint.desktopMin;
@@ -133,15 +137,24 @@ class LibraryScreen extends ConsumerWidget {
             onFilter: queryController.filterBy,
           ),
         ),
-        if (ref.watch(rightsProvider)?.canUpload ?? false)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
+        if ((ref.watch(rightsProvider)?.canUpload ?? false) || exchange != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
               AppSpace.s4,
               AppSpace.s3,
               AppSpace.s4,
               0,
             ),
-            child: UploadBar(),
+            child: Wrap(
+              spacing: AppSpace.s3,
+              runSpacing: AppSpace.s2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (ref.watch(rightsProvider)?.canUpload ?? false)
+                  const UploadBar(),
+                ?exchange,
+              ],
+            ),
           ),
         const SizedBox(height: AppSpace.s2),
         Expanded(

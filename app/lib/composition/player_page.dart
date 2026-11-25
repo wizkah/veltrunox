@@ -10,6 +10,7 @@ import '../features/markers/marker_sheet_button.dart';
 import '../features/player/player_controller.dart';
 import '../features/player/player_screen.dart';
 import '../features/waveform/waveform_view_controller.dart';
+import 'bookmark_exchange.dart';
 import 'loaded_recording.dart';
 import 'player_waveform.dart';
 
@@ -31,6 +32,7 @@ class PlayerPage extends ConsumerWidget {
     final player = ref.read(playerControllerProvider);
     Widget panel() => MarkerPanel(
       recordingId: recordingId!,
+      exchange: BookmarkExchangeMenu(recordingId: recordingId),
       lengthMs: lengthMs,
       readPlayhead: ref.read(playerSourceProvider).position,
       onPlay: (marker) {

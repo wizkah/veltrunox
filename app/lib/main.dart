@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'bridge/bridge_access_source.dart';
 import 'bridge/bridge_connection_source.dart';
+import 'bridge/bridge_exchange_source.dart';
 import 'bridge/bridge_marker_source.dart';
 import 'bridge/bridge_player_source.dart';
 import 'bridge/bridge_recording_source.dart';
@@ -15,6 +16,8 @@ import 'bridge/bridge_waveform_source.dart';
 import 'bridge/generated/frb_generated.dart';
 import 'features/access/access_controller.dart';
 import 'features/connection/connection_controller.dart';
+import 'features/exchange/exchange_source.dart';
+import 'features/exchange/file_exchange.dart';
 import 'features/language/language_controller.dart';
 import 'features/library/audio_file_picker.dart';
 import 'features/library/library_controller.dart';
@@ -22,6 +25,7 @@ import 'features/markers/marker_controller.dart';
 import 'features/player/player_controller.dart';
 import 'features/users/users_controller.dart';
 import 'features/waveform/waveform_source.dart';
+import 'platform/file_exchange_adapter.dart';
 import 'platform/file_picker_adapter.dart';
 import 'shared_ui/app_language.dart';
 import 'storage/shared_preferences_language_store.dart';
@@ -72,6 +76,11 @@ Future<void> main() async {
           BridgeWaveformSource(serverUrl: serverUrl),
         ),
         audioFilePickerProvider.overrideWithValue(SystemAudioFilePicker()),
+        exchangeSourceProvider.overrideWithValue(
+          BridgeExchangeSource(serverUrl: serverUrl),
+        ),
+        textFilePickerProvider.overrideWithValue(SystemTextFilePicker()),
+        fileSaverProvider.overrideWithValue(SystemFileSaver()),
         recordingSourceProvider.overrideWithValue(
           BridgeRecordingSource(serverUrl: serverUrl, session: session),
         ),
