@@ -1,6 +1,6 @@
 # ADR-013 – Bookmark exchange and automation access
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-11-25
 
 ## Context
