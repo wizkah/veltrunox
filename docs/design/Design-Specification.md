@@ -156,10 +156,13 @@ Administration of users and guest access: later phase, not in the v0.1 navigatio
 | Create and edit labels / regions | yes | yes | yes |
 | Tempo / pitch / volume | yes | yes | yes |
 | Upload a recording | yes | yes | yes |
+| Export bookmarks (one recording or the library) | yes | yes | yes |
+| Import bookmarks | yes | yes | yes |
+| Make and revoke own API tokens | yes | yes | no |
 | Manage recordings (rename, metadata, delete) | no | yes | no |
 | Manage users, switch guest access | no | yes | no |
 
-A guest has the rights of a user without signing in and exists only while the admin has enabled guest access. The row "manage recordings" is [V] (the product rules do not name it). The UI receives **effective capabilities**; disallowed actions do not appear. Real authorization is outside this document.
+A guest has the rights of a user without signing in and exists only while the admin has enabled guest access. The rows "manage recordings", "export bookmarks", "import bookmarks" and "API tokens" are [V] (the product rules do not name them); importing needs the same right as editing labels and regions, and a guest has no account to hold tokens. The UI receives **effective capabilities**; disallowed actions do not appear. Real authorization is outside this document.
 
 ## 5. Player
 
@@ -358,6 +361,7 @@ The region form creates a region from a name, a start and an end time, and edits
 - Edit/rename/delete are visible only with the matching capabilities.
 - [V] Filter "All | Labels | Regions"; ties in the chronological order are broken stably by type and id.
 - Opening a region from the list makes it visible in the waveform without changing the global position merely by highlighting it [V].
+- The marker panel offers the **exchange menu** (section 9.5) with "Export" for the selected recording and "Import" [V]. Import appears only with the right to edit labels and regions.
 
 ## 7. Shared state and feedback
 
@@ -439,6 +443,7 @@ The library is a large, searchable song list. Each recording shows at least its 
 | Upload | Progress and errors shown | [B] |
 | Metadata / rename | Only where permitted (section 4.3) | [B] |
 | Delete | Confirm; name the recording being deleted | [B] |
+| Export / import bookmarks | The exchange menu (section 9.5) for the whole library | [V] |
 
 A recording is playable while its analysis runs (D-20). Until the analysis delivers a waveform, the player shows an empty waveform with a hint that the analysis is still running. The UI always shows the analysis state.
 
@@ -464,6 +469,38 @@ Rename, edit metadata, delete with confirmation. The confirmation names the **re
 ### 9.4 User administration [B, later phase]
 
 Create users, change role, change password, deactivate, delete; switch guest access on and off. Visible to the admin only. [V] Critical changes get a confirmation or a clearly visible success/error message; ordinary field changes need no extra confirmation. Not part of the v0.1 navigation.
+
+### 9.5 Bookmark exchange [B for the behaviour, V for the arrangement]
+
+Labels and regions can be taken out of the app as a file and brought back, for example to work them out with a spreadsheet or an LLM. The **exchange menu** has the two actions "Export" and "Import"; it sits in the marker panel (section 6.7) and in the library's toolbar (section 8.4). It is a menu or button, not a screen of its own, and not part of the navigation.
+
+**Export** [B]
+- The person chooses the format, **JSON** (labels and regions with ids and versions, the details of the recording) or **CSV** (one row per label or region, for spreadsheets).
+- From the marker panel the export covers the **selected recording**; from the library it covers **all recordings** [V].
+- The device saves a file named after the recording (`<title>.bookmarks.json` or `.csv`) or, for the library, `veltrunox-bookmarks.json` or `.csv` [V]. A failure is reported in words (section 10); there is no half-written file.
+- Every signed-in person and guest may export.
+
+**Import** [B]
+- The person chooses a `.json` or `.csv` file on the device. The file decides which recordings are affected, wherever the import was started; the dialog says so.
+- Nothing is written before the person has seen the **import preview** and confirmed. The preview is a dialog (`ImportPreviewDialog`) with one row per recording of the file:
+  - the title of the recording (or its id if the server does not know it), and a status: **ready**, **conflict** (an entry carries the id and version of a bookmark that was changed or deleted meanwhile), **invalid** (entries the server refuses) or **unknown recording**;
+  - for a ready recording the numbers of **new**, **changed**, **unchanged** and **removed** bookmarks;
+  - for every other status the issues, each with its place in the file ("Label 3", "Region 1") and a reason in words, in the language of the interface.
+- An import **replaces all labels and regions** of a recording it lists. The number of **removed** bookmarks is therefore always visible before confirming and is highlighted when above zero [B].
+- Actions: "Apply" (available when at least one recording is ready) and "Cancel". Recordings that are not ready are left as they are, also after "Apply"; the dialog says so. If conflicts exist, an option "Also overwrite entries that were changed meanwhile" is offered, off by default [V]; switching it on refreshes the preview.
+- After applying, a notice states how many recordings were updated and how many were left as they were [V]; the bookmarks everywhere (list, waveform, other clients) update through the shared state as after any other edit.
+- A file that cannot be read at all (not JSON, a CSV with a wrong column, an unsupported format version) shows one understandable error and no preview.
+- Import is hidden without the right to edit labels and regions (section 4.3).
+
+### 9.6 API tokens [B for the behaviour, V for the arrangement]
+
+An API token lets a script or an LLM read and, if allowed, edit bookmarks without a password. It is made and managed by the signed-in person for themselves, in a dialog opened from the account menu; it is not part of the navigation. A guest has no account and no such entry.
+
+- The dialog lists the person's tokens with name, reach ("Read only" or "Read and edit bookmarks"), creation date and last use ("never" until used). The token text is never listed.
+- **Make:** a name and the reach; after confirming, the dialog shows the **token text once**, with a "Copy" action and the plain statement that it cannot be shown again. Closing the notice removes the text from the screen.
+- **Revoke:** with a confirmation that names the token; afterwards the token no longer works.
+- A token reaches at most what its owner may do and never more than reading and editing bookmarks; the dialog says so next to the choice of reach.
+- The token text is not written to logs, the address bar or local storage.
 
 ## 10. System states and errors
 
@@ -513,6 +550,11 @@ Rules [V]:
 | `MarkerList` | all/labels/regions | shared chronological list |
 | `ContextActions` | label/region, permissions | context actions |
 | `ConfirmDialog` | destructive | explicit confirmation of deletion |
+| `ExchangeMenu` | closed/open/import hidden | export and import entry in the marker panel and the library |
+| `ImportPreviewDialog` | reading/ready/applying/done/error | preview of an import with per-recording outcome and the confirmation |
+| `ImportOutcomeRow` | ready/conflict/invalid/unknown | one recording of the preview with counts or issues |
+| `TokenDialog` | list/making/secret shown/error | API tokens of the signed-in person |
+| `TokenSecretNotice` | shown | the new token text once, with copy action |
 | `ToastNotice` | info/success/warning/error | non-blocking feedback |
 
 ### 11.1 Component contract form [V]
@@ -596,6 +638,15 @@ Scenarios for UI acceptance tests; test data suffices, no real audio or server i
 | UI-AC-18 | Delete a recording (admin) | Confirmation with the concrete title and a destructive action |
 | UI-AC-19 | Cycle the play mode and play a region | "To end" continues after the region end; "to region end" stops there; "loop" repeats |
 | UI-AC-20 | Change the volume on one client | All clients show the new value without reloading |
+| UI-AC-22 | Export the bookmarks of the selected recording as JSON and as CSV | A file with the expected name is saved; it holds every label and region, in JSON with id and version |
+| UI-AC-23 | Choose an import file | The preview appears first; no bookmark changes before "Apply" |
+| UI-AC-24 | Import a file with one recording that is ready, one in conflict, one invalid and one unknown | Four rows with their status; issues name the place and a reason in words; "Apply" changes only the ready recording |
+| UI-AC-25 | Import a file that leaves out stored bookmarks | The removed count is visible and highlighted before "Apply" |
+| UI-AC-26 | Switch on "Also overwrite entries that were changed meanwhile" in a preview with a conflict | The preview is refreshed; the formerly conflicting recording is ready |
+| UI-AC-27 | Open the exchange menu without the right to edit labels and regions | "Export" is there, "Import" is not |
+| UI-AC-28 | Make an API token | The token text is shown once with "Copy"; the list afterwards shows name, reach and last use but not the text |
+| UI-AC-29 | Revoke an API token | A confirmation names the token; afterwards it is gone from the list |
+| UI-AC-30 | Open the account menu as a guest | No entry for API tokens |
 
 These are target criteria, not statements about existing code.
 
@@ -627,6 +678,8 @@ These are target criteria, not statements about existing code.
 - **D-22:** while the server is not connected, the UI warns that nothing is processed; locally changed values are reset to the shared state.
 - **D-23:** no stored view preferences; zoom and scroll are local and temporary.
 - **D-24:** a new label is named "Label N" (N = number of labels plus one) without a name prompt; the name is editable afterwards. The same applies to regions ("Region N").
+- **D-25:** bookmarks leave and enter the app as files (JSON and CSV); an import replaces all labels and regions of each recording it lists and always goes through a preview that shows what is added, changed and removed (section 9.5).
+- **D-26:** API tokens are made, listed and revoked in a dialog of the account menu; the token text is shown exactly once (section 9.6).
 
 ### 15.2 Proposals to validate [V]
 
@@ -649,5 +702,6 @@ Two isolated layers, first without server and audio:
 1. Foundations from `design-tokens.json` and the visual base components (button, slider, input, status, modal) with all states.
 2. `WaveformViewport` and `RegionLaneLayout` with deterministic test data: three overlapping regions, two labels, one marker group, region creation, handles, pan/zoom/scrub, direct play intent.
 3. Compose the library and the player from the same components.
-4. Responsive, contrast and touch tests against UI-AC-01 to UI-AC-21.
-5. Carry validated numbers and behaviour into the next version; close open points with an explicit decision.
+4. Responsive, contrast and touch tests against UI-AC-01 to UI-AC-30.
+5. Bookmark exchange (section 9.5) and API tokens (section 9.6) on top of the library and the marker list.
+6. Carry validated numbers and behaviour into the next version; close open points with an explicit decision.
