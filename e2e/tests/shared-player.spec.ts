@@ -38,7 +38,7 @@ test('two browser clients share the playback state', async ({ browser }) => {
   await open(first);
   await open(second);
   await showPlayer(second);
-  await expect(second.getByText('Keine Aufnahme gewählt')).toBeVisible();
+  await expect(second.getByRole('group', { name: /^Keine Aufnahme gewählt/ })).toBeVisible();
 
   await select(first, 'Soundcheck');
   await expect(second.getByRole('button', { name: 'Abspielen', exact: true })).toBeVisible();
