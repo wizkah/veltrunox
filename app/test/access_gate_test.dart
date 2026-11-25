@@ -38,7 +38,9 @@ Future<_Setup> _pump(
           builder: (_) => Scaffold(
             appBar: AppBar(
               title: const Text('Drinnen'),
-              actions: [AccountMenu(onManageUsers: () {})],
+              actions: [
+                AccountMenu(onManageUsers: () {}, onManageTokens: () {}),
+              ],
             ),
           ),
         ),
@@ -234,6 +236,25 @@ void main() {
       await tester.tap(find.byTooltip('Konto'));
       await tester.pumpAndSettle();
       expect(find.text('Benutzer verwalten'), findsNothing);
+    });
+
+    testWidgets('an account sees its API tokens', (tester) async {
+      await _pump(tester, savedToken: 'saved');
+      await tester.tap(find.byTooltip('Konto'));
+      await tester.pumpAndSettle();
+      expect(find.text('API-Tokens'), findsOneWidget);
+    });
+
+    testWidgets('a guest has no entry for API tokens', (tester) async {
+      final source = FakeAccessSource(
+        guestEnabled: true,
+        rights: const Rights(role: UserRole.guest),
+      );
+      await _pump(tester, source: source, savedToken: 'saved');
+      await tester.tap(find.byTooltip('Konto'));
+      await tester.pumpAndSettle();
+      expect(find.text('Angemeldet als Gast'), findsOneWidget);
+      expect(find.text('API-Tokens'), findsNothing);
     });
 
     testWidgets('the admin opens the user administration', (tester) async {

@@ -235,6 +235,10 @@ String? _text(ServerReason reason) => switch (reason.code) {
     'Dieses Exportformat gibt es nicht.',
     'There is no such export format.',
   ),
+  'token_not_found' => tr(
+    'Das Token gibt es nicht (mehr).',
+    'The token does not exist (any more).',
+  ),
   'empty_title' => tr(
     'Der Titel darf nicht leer sein.',
     'The title must not be empty.',

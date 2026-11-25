@@ -8,9 +8,16 @@ import 'access_texts.dart';
 /// The person's menu in the top bar: who they are, administration for the
 /// admin, and signing out. Nothing while nobody is signed in.
 class AccountMenu extends ConsumerWidget {
-  const AccountMenu({required this.onManageUsers, super.key});
+  const AccountMenu({
+    required this.onManageUsers,
+    required this.onManageTokens,
+    super.key,
+  });
 
   final VoidCallback onManageUsers;
+
+  /// Opens the person's API tokens; offered to accounts, not to guests.
+  final VoidCallback onManageTokens;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,6 +29,7 @@ class AccountMenu extends ConsumerWidget {
       icon: const Icon(Icons.account_circle_outlined),
       onSelected: (choice) => switch (choice) {
         _Choice.users => onManageUsers(),
+        _Choice.tokens => onManageTokens(),
         _Choice.signOut => controller.signOut(),
       },
       itemBuilder: (_) => [
@@ -31,6 +39,11 @@ class AccountMenu extends ConsumerWidget {
         ),
         if (rights.canManageUsers)
           PopupMenuItem(value: _Choice.users, child: Text(AccessTexts.users)),
+        if (!rights.isGuest)
+          PopupMenuItem(
+            value: _Choice.tokens,
+            child: Text(AccessTexts.apiTokens),
+          ),
         PopupMenuItem(value: _Choice.signOut, child: Text(AccessTexts.signOut)),
       ],
     );
@@ -40,4 +53,4 @@ class AccountMenu extends ConsumerWidget {
       rights.userName ?? AccessTexts.guestName;
 }
 
-enum _Choice { users, signOut }
+enum _Choice { users, tokens, signOut }

@@ -37,6 +37,7 @@ abstract final class AccessTexts {
   static String get accountMenu => tr('Konto', 'Account');
   static String get signOut => tr('Abmelden', 'Sign out');
   static String get users => tr('Benutzer verwalten', 'Manage users');
+  static String get apiTokens => tr('API-Tokens', 'API tokens');
   static String get guestName => tr('Gast', 'Guest');
 
   /// What a password must be like, as a hint under the field.
