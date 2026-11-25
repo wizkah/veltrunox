@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use veltrunox_core::{
     BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, KeyMode, KeyShift, Label, Millis,
-    MusicalKey, Peak, PitchClass, PlaybackSettings, Recording, RecordingAnalysis, RecordingId,
-    RecordingTitle, Region, Speed, TimeRange, TuningHz, Version, Waveform, WaveformLevel,
-    check_version,
+    MusicalKey, NewBookmarks, Peak, PitchClass, PlaybackSettings, Recording, RecordingAnalysis,
+    RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version, Waveform,
+    WaveformLevel, check_version,
 };
 use veltrunox_server_app::{
     AnalysisRepository, BookmarkError, BookmarkRepository, MediaCatalog, Owned,
@@ -664,6 +664,59 @@ impl BookmarkRepository for SqliteStore {
         let labels = read_labels(&transaction, recording_id)?;
         let regions = read_regions(&transaction, recording_id)?;
         Ok(Bookmarks { labels, regions })
+    }
+
+    fn replace_all(
+        &self,
+        recording: RecordingId,
+        bookmarks: &NewBookmarks,
+    ) -> Result<Bookmarks, BookmarkError> {
+        let mut connection = self.connection();
+        let transaction = connection.transaction().map_err(storage)?;
+        Self::require_recording(&transaction, recording)?;
+        let recording_id = sql_int(recording.value())?;
+        let first_version = sql_int(Version::FIRST.value())?;
+        for table in ["labels", "regions"] {
+            transaction
+                .execute(
+                    &format!("DELETE FROM {table} WHERE recording_id = ?1"),
+                    params![recording_id],
+                )
+                .map_err(storage)?;
+        }
+        for label in &bookmarks.labels {
+            transaction
+                .execute(
+                    "INSERT INTO labels (recording_id, name, position_ms, version) VALUES (?1, ?2, ?3, ?4)",
+                    params![
+                        recording_id,
+                        label.name.as_str(),
+                        sql_int(label.position.value())?,
+                        first_version
+                    ],
+                )
+                .map_err(storage)?;
+        }
+        for region in &bookmarks.regions {
+            transaction
+                .execute(
+                    "INSERT INTO regions (recording_id, name, start_ms, end_ms, version) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        recording_id,
+                        region.name.as_str(),
+                        sql_int(region.range.start().value())?,
+                        sql_int(region.range.end().value())?,
+                        first_version
+                    ],
+                )
+                .map_err(storage)?;
+        }
+        let stored = Bookmarks {
+            labels: read_labels(&transaction, recording_id)?,
+            regions: read_regions(&transaction, recording_id)?,
+        };
+        transaction.commit().map_err(storage)?;
+        Ok(stored)
     }
 
     fn add_label(

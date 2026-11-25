@@ -2,15 +2,15 @@
 
 use crate::{
     AnalysisProgressDto, AnalysisResultDto, BookmarksDto, ClientMessageDto, LabelDto, PlayModeDto,
-    PlaybackStateDto, RangeDto, RecordingSummaryDto, RegionDto, WaveformInfoDto,
-    WaveformLevelInfoDto,
+    PlaybackStateDto, RangeDto, RecordingSummaryDto, RegionDto, ReplaceBookmarksDto,
+    WaveformInfoDto, WaveformLevelInfoDto,
 };
 use veltrunox_core::{
     AnalysisInfo, AnalysisProgress, BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, Intent,
     InvalidRecording, InvalidValue, KeyMode, KeyShift, Label, LibraryEntry, Millis, MusicalKey,
-    Peak, PitchClass, PlayMode, PlaybackSettings, PlaybackState, PositionReference, Recording,
-    RecordingAnalysis, RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version,
-    Volume, Waveform,
+    NewBookmarks, NewLabel, NewRegion, Peak, PitchClass, PlayMode, PlaybackSettings, PlaybackState,
+    PositionReference, Recording, RecordingAnalysis, RecordingId, RecordingTitle, Region, Speed,
+    TimeRange, TuningHz, Version, Volume, Waveform,
 };
 
 /// Describes the levels of a waveform without their peaks.
@@ -326,6 +326,32 @@ pub fn bookmarks_from_dto(dto: &BookmarksDto) -> Result<Bookmarks, InvalidValue>
     })
 }
 
+/// Validates the names, positions and ranges of a replacement set received from outside.
+pub fn new_bookmarks_from_dto(dto: &ReplaceBookmarksDto) -> Result<NewBookmarks, InvalidValue> {
+    Ok(NewBookmarks {
+        labels: dto
+            .labels
+            .iter()
+            .map(|label| {
+                Ok(NewLabel {
+                    name: BookmarkName::new(&label.name)?,
+                    position: Millis::position(label.position_ms)?,
+                })
+            })
+            .collect::<Result<_, InvalidValue>>()?,
+        regions: dto
+            .regions
+            .iter()
+            .map(|region| {
+                Ok(NewRegion {
+                    name: BookmarkName::new(&region.name)?,
+                    range: range_from_dto(region.range)?,
+                })
+            })
+            .collect::<Result<_, InvalidValue>>()?,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -506,6 +532,39 @@ mod tests {
         assert_eq!(
             bookmarks_from_dto(&bookmarks_to_dto(&bookmarks)),
             Ok(bookmarks)
+        );
+    }
+
+    #[test]
+    fn a_replacement_set_is_validated_as_a_whole() {
+        let valid = ReplaceBookmarksDto {
+            labels: vec![crate::NewLabelDto {
+                name: " Verse ".into(),
+                position_ms: 5,
+            }],
+            regions: vec![crate::NewRegionDto {
+                name: "Chorus".into(),
+                range: RangeDto {
+                    start_ms: 10,
+                    end_ms: 20,
+                },
+            }],
+        };
+        let converted = new_bookmarks_from_dto(&valid).unwrap();
+        assert_eq!(converted.labels[0].name.as_str(), "Verse");
+        assert_eq!(converted.regions[0].range.end(), Millis::new(20));
+
+        let mut backwards = valid.clone();
+        backwards.regions[0].range.end_ms = 10;
+        assert_eq!(
+            new_bookmarks_from_dto(&backwards),
+            Err(InvalidValue::EmptyRange)
+        );
+        let mut unnamed = valid;
+        unnamed.labels[0].name = " ".into();
+        assert_eq!(
+            new_bookmarks_from_dto(&unnamed),
+            Err(InvalidValue::EmptyName)
         );
     }
 

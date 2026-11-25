@@ -2,9 +2,9 @@
 
 use std::path::{Path, PathBuf};
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Label, Millis, PasswordPolicy, PlaybackSettings,
-    PlaybackState, Recording, RecordingAnalysis, RecordingId, RecordingTitle, Region, Role,
-    TimeRange, UserId, UserName, Version, Waveform,
+    BookmarkId, BookmarkName, Bookmarks, InvalidValue, Label, Millis, NewBookmarks, PasswordPolicy,
+    PlaybackSettings, PlaybackState, Recording, RecordingAnalysis, RecordingId, RecordingTitle,
+    Region, Role, TimeRange, UserId, UserName, Version, Waveform,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -105,6 +105,8 @@ pub enum BookmarkError {
     #[error("bookmark was changed meanwhile; current version is {}", .0.value())]
     Conflict(Version),
     #[error(transparent)]
+    Invalid(#[from] InvalidValue),
+    #[error(transparent)]
     Storage(#[from] StorageError),
 }
 
@@ -116,6 +118,7 @@ impl veltrunox_core::Refusal for BookmarkError {
             Self::Conflict(version) => {
                 Reason::with_args(self, "bookmark_conflict", vec![version.value()])
             }
+            Self::Invalid(error) => error.reason(),
             Self::Storage(_) => Reason::new(self, "storage_failed"),
         }
     }
@@ -131,6 +134,13 @@ pub struct Owned<T> {
 /// Port: bookmarks with per-record versions. Writes state the version they saw.
 pub trait BookmarkRepository: Send + Sync {
     fn list(&self, recording: RecordingId) -> Result<Bookmarks, BookmarkError>;
+    /// Replaces all labels and regions of the recording in one transaction: either the new
+    /// set is stored as it is (with new ids and first versions) or nothing changes.
+    fn replace_all(
+        &self,
+        recording: RecordingId,
+        bookmarks: &NewBookmarks,
+    ) -> Result<Bookmarks, BookmarkError>;
     fn add_label(
         &self,
         recording: RecordingId,

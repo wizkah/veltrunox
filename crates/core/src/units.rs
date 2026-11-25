@@ -56,6 +56,8 @@ pub enum InvalidValue {
     KeyTonicOutOfRange,
     #[error("a name must not be empty")]
     EmptyName,
+    #[error("a bookmark lies outside the recording")]
+    OutsideRecording,
 }
 
 impl crate::Refusal for InvalidValue {
@@ -70,6 +72,7 @@ impl crate::Refusal for InvalidValue {
             Self::TempoNotPositive => "tempo_not_positive",
             Self::KeyTonicOutOfRange => "key_tonic_out_of_range",
             Self::EmptyName => "empty_name",
+            Self::OutsideRecording => "outside_recording",
         };
         crate::Reason::new(self, code)
     }

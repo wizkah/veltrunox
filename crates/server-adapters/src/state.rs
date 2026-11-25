@@ -101,11 +101,11 @@ impl AppState {
         let playback = Arc::new(PlaybackService::new(
             initial,
             store.clone(),
-            lengths,
+            lengths.clone(),
             clock.clone(),
             broadcast,
         ));
-        let bookmarks = Arc::new(BookmarkService::new(store.clone(), hub.clone()));
+        let bookmarks = Arc::new(BookmarkService::new(store.clone(), hub.clone(), lengths));
         let analysis = Arc::new(AnalysisService::new(
             store.clone(),
             store.clone(),

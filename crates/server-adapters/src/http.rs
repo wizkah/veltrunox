@@ -20,12 +20,14 @@ use veltrunox_core::{
     Version,
 };
 use veltrunox_protocol::{
-    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, EVENTS_PATH, ExpectedVersionQuery,
-    LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto,
+    ANALYSIS_PATH, BOOKMARKS_PATH, BookmarksDto, ConflictDto, EVENTS_PATH, EXPORT_FORMAT_VERSION,
+    EXPORT_PATH, ExpectedVersionQuery, ExportDto, ExportedRecordingDto, LABEL_PATH,
+    LABEL_TO_REGION_PATH, LABELS_PATH, LabelDto, NewLabelDto, NewRegionDto, RECORDING_EXPORT_PATH,
     RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH, REGIONS_PATH, ReasonDto,
-    RecordingListDto, RegionDto, RenameRecordingDto, UpdateLabelDto, UpdateRegionDto,
-    WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_to_dto, label_to_dto,
-    library_entry_to_dto, peaks_to_bytes, range_from_dto, region_to_dto, waveform_info_to_dto,
+    RecordingListDto, RegionDto, RenameRecordingDto, ReplaceBookmarksDto, UpdateLabelDto,
+    UpdateRegionDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto, bookmarks_to_dto,
+    label_to_dto, library_entry_to_dto, new_bookmarks_from_dto, peaks_to_bytes, range_from_dto,
+    region_to_dto, waveform_info_to_dto,
 };
 use veltrunox_server_app::{AccountError, BookmarkError, PlaybackBroadcast, list_recordings};
 
@@ -41,7 +43,9 @@ pub fn router(app: AppState) -> Router {
         .route(ANALYSIS_PATH, post(analyse_again))
         .route(WAVEFORM_PATH, get(waveform_info))
         .route(WAVEFORM_LEVEL_PATH, get(waveform_level))
-        .route(BOOKMARKS_PATH, get(bookmarks))
+        .route(BOOKMARKS_PATH, get(bookmarks).put(replace_bookmarks))
+        .route(EXPORT_PATH, get(export_library))
+        .route(RECORDING_EXPORT_PATH, get(export_recording))
         .route(LABELS_PATH, post(add_label))
         .route(REGIONS_PATH, post(add_region))
         .route(LABEL_PATH, put(update_label).delete(delete_label))
@@ -73,6 +77,9 @@ impl IntoResponse for ApiError {
             Self::Refused(status, reason) => refusal(status, &reason),
             Self::Bookmark(BookmarkError::NotFound) | Self::NotFound => {
                 StatusCode::NOT_FOUND.into_response()
+            }
+            Self::Bookmark(BookmarkError::Invalid(error)) => {
+                refusal(StatusCode::BAD_REQUEST, &error.reason())
             }
             Self::Bookmark(BookmarkError::Conflict(current)) => (
                 StatusCode::CONFLICT,
@@ -266,6 +273,77 @@ async fn bookmarks(
     let _ = &caller;
     let found = blocking(move || Ok(app.bookmarks.list(RecordingId::new(recording))?)).await?;
     Ok(Json(bookmarks_to_dto(&found)))
+}
+
+/// Replaces all labels and regions of a recording, or none of them.
+async fn replace_bookmarks(
+    State(app): State<AppState>,
+    caller: Caller,
+    Path(recording): Path<u64>,
+    Json(body): Json<ReplaceBookmarksDto>,
+) -> Result<Json<BookmarksDto>, ApiError> {
+    caller.require(Capability::EditBookmarks)?;
+    let replacement = new_bookmarks_from_dto(&body)?;
+    let stored = blocking(move || {
+        Ok(app
+            .bookmarks
+            .replace_all(RecordingId::new(recording), &replacement)?)
+    })
+    .await?;
+    Ok(Json(bookmarks_to_dto(&stored)))
+}
+
+/// Every recording with its details and bookmarks.
+async fn export_library(
+    State(app): State<AppState>,
+    caller: Caller,
+) -> Result<Json<ExportDto>, ApiError> {
+    let _ = &caller;
+    let recordings = blocking(move || exported_recordings(&app, None)).await?;
+    Ok(Json(ExportDto {
+        format_version: EXPORT_FORMAT_VERSION,
+        recordings,
+    }))
+}
+
+/// One recording with its details and bookmarks.
+async fn export_recording(
+    State(app): State<AppState>,
+    caller: Caller,
+    Path(recording): Path<u64>,
+) -> Result<Json<ExportDto>, ApiError> {
+    let _ = &caller;
+    let id = RecordingId::new(recording);
+    let recordings = blocking(move || exported_recordings(&app, Some(id))).await?;
+    if recordings.is_empty() {
+        return Err(ApiError::NotFound);
+    }
+    Ok(Json(ExportDto {
+        format_version: EXPORT_FORMAT_VERSION,
+        recordings,
+    }))
+}
+
+fn exported_recordings(
+    app: &AppState,
+    only: Option<RecordingId>,
+) -> Result<Vec<ExportedRecordingDto>, ApiError> {
+    let mut listed = list_recordings(app.recordings.as_ref()).map_err(|_| ApiError::Internal)?;
+    listed.retain(|recording| only.is_none_or(|id| recording.id == id));
+    let entries = app
+        .analysis
+        .entries(listed)
+        .map_err(|_| ApiError::Internal)?;
+    entries
+        .iter()
+        .map(|entry| {
+            let bookmarks = app.bookmarks.list(entry.recording.id)?;
+            Ok(ExportedRecordingDto {
+                recording: library_entry_to_dto(entry),
+                bookmarks: bookmarks_to_dto(&bookmarks),
+            })
+        })
+        .collect()
 }
 
 async fn add_label(

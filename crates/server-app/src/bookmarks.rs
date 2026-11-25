@@ -1,30 +1,49 @@
 //! Use cases: edit the bookmarks of a recording and tell the clients.
 
-use crate::ports::{BookmarkError, BookmarkRepository, PlaybackBroadcast};
+use crate::ports::{BookmarkError, BookmarkRepository, PlaybackBroadcast, RecordingLengths};
 use std::sync::Arc;
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Label, Millis, RecordingId, Region, TimeRange, Version,
+    BookmarkId, BookmarkName, Bookmarks, Label, Millis, NewBookmarks, RecordingId, Region,
+    TimeRange, Version,
 };
 
 /// Each successful change sends a notice so connected clients reload the bookmarks.
 pub struct BookmarkService {
     repository: Arc<dyn BookmarkRepository>,
     broadcast: Arc<dyn PlaybackBroadcast>,
+    lengths: Arc<dyn RecordingLengths>,
 }
 
 impl BookmarkService {
     pub fn new(
         repository: Arc<dyn BookmarkRepository>,
         broadcast: Arc<dyn PlaybackBroadcast>,
+        lengths: Arc<dyn RecordingLengths>,
     ) -> Self {
         Self {
             repository,
             broadcast,
+            lengths,
         }
     }
 
     pub fn list(&self, recording: RecordingId) -> Result<Bookmarks, BookmarkError> {
         self.repository.list(recording)
+    }
+
+    /// Replaces all bookmarks of the recording by `bookmarks`, or changes nothing. As long as
+    /// the length of the recording is not known, only the shape of the data is checked.
+    pub fn replace_all(
+        &self,
+        recording: RecordingId,
+        bookmarks: &NewBookmarks,
+    ) -> Result<Bookmarks, BookmarkError> {
+        if let Some(length) = self.lengths.length(recording) {
+            bookmarks.check_within(length)?;
+        }
+        let stored = self.repository.replace_all(recording, bookmarks)?;
+        self.broadcast.bookmarks_changed(recording);
+        Ok(stored)
     }
 
     pub fn add_label(

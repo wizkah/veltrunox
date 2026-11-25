@@ -14,9 +14,9 @@ pub use accounts::{
 pub use convert::{
     InvalidEntry, analysis_from_dto, analysis_to_dto, bookmarks_from_dto, bookmarks_to_dto,
     intent_from_message, intent_to_message, label_from_dto, label_to_dto, library_entry_from_dto,
-    library_entry_to_dto, peaks_from_bytes, peaks_to_bytes, play_mode_from_dto, play_mode_to_dto,
-    range_from_dto, range_to_dto, region_from_dto, region_to_dto, state_from_dto, state_to_dto,
-    waveform_info_to_dto,
+    library_entry_to_dto, new_bookmarks_from_dto, peaks_from_bytes, peaks_to_bytes,
+    play_mode_from_dto, play_mode_to_dto, range_from_dto, range_to_dto, region_from_dto,
+    region_to_dto, state_from_dto, state_to_dto, waveform_info_to_dto,
 };
 
 use serde::{Deserialize, Serialize};
@@ -90,6 +90,10 @@ pub const PROTOCOL_VERSION: u32 = 1;
 pub const BOOKMARKS_PATH: &str = "/api/v1/recordings/{id}/bookmarks";
 pub const LABELS_PATH: &str = "/api/v1/recordings/{id}/labels";
 pub const REGIONS_PATH: &str = "/api/v1/recordings/{id}/regions";
+/// Path of the export of the whole library: every recording with details and bookmarks.
+pub const EXPORT_PATH: &str = "/api/v1/export";
+/// Path of the export of one recording; `{id}` is the recording id.
+pub const RECORDING_EXPORT_PATH: &str = "/api/v1/recordings/{id}/export";
 /// Path of one label or region; `{id}` is the bookmark id.
 pub const LABEL_PATH: &str = "/api/v1/labels/{id}";
 pub const REGION_PATH: &str = "/api/v1/regions/{id}";
@@ -228,6 +232,33 @@ pub struct RegionDto {
 pub struct BookmarksDto {
     pub labels: Vec<LabelDto>,
     pub regions: Vec<RegionDto>,
+}
+
+/// Body that replaces all bookmarks of a recording (`PUT` to `BOOKMARKS_PATH`; answer:
+/// `BookmarksDto` with the new ids).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReplaceBookmarksDto {
+    #[serde(default)]
+    pub labels: Vec<NewLabelDto>,
+    #[serde(default)]
+    pub regions: Vec<NewRegionDto>,
+}
+
+/// One recording with its details and bookmarks, as exchanged by export.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExportedRecordingDto {
+    pub recording: RecordingSummaryDto,
+    pub bookmarks: BookmarksDto,
+}
+
+/// Version of the export format; it rises when the format changes incompatibly.
+pub const EXPORT_FORMAT_VERSION: u32 = 1;
+
+/// Recordings with details and bookmarks (`GET` of `EXPORT_PATH` or `RECORDING_EXPORT_PATH`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExportDto {
+    pub format_version: u32,
+    pub recordings: Vec<ExportedRecordingDto>,
 }
 
 /// Body to create a label.

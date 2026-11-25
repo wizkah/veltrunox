@@ -77,6 +77,43 @@ pub struct Bookmarks {
     pub regions: Vec<Region>,
 }
 
+/// A label that is not stored yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewLabel {
+    pub name: BookmarkName,
+    pub position: Millis,
+}
+
+/// A region that is not stored yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewRegion {
+    pub name: BookmarkName,
+    pub range: TimeRange,
+}
+
+/// The complete set of bookmarks a recording is to have; it replaces what is stored.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NewBookmarks {
+    pub labels: Vec<NewLabel>,
+    pub regions: Vec<NewRegion>,
+}
+
+impl NewBookmarks {
+    /// Every label must lie inside the recording and every region must end within it.
+    pub fn check_within(&self, length: Millis) -> Result<(), InvalidValue> {
+        let labels_inside = self.labels.iter().all(|label| label.position <= length);
+        let regions_inside = self
+            .regions
+            .iter()
+            .all(|region| region.range.end() <= length);
+        if labels_inside && regions_inside {
+            Ok(())
+        } else {
+            Err(InvalidValue::OutsideRecording)
+        }
+    }
+}
+
 /// Outcome of a write whose expected version did not match the stored one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VersionConflict {
@@ -111,6 +148,37 @@ mod tests {
             Err(VersionConflict {
                 current: Version::new(4)
             })
+        );
+    }
+
+    fn set(label_at: u64, region_end: u64) -> NewBookmarks {
+        NewBookmarks {
+            labels: vec![NewLabel {
+                name: BookmarkName::new("A").unwrap(),
+                position: Millis::new(label_at),
+            }],
+            regions: vec![NewRegion {
+                name: BookmarkName::new("B").unwrap(),
+                range: TimeRange::new(Millis::new(0), Millis::new(region_end)).unwrap(),
+            }],
+        }
+    }
+
+    #[test]
+    fn bookmarks_up_to_the_end_of_the_recording_are_inside() {
+        assert_eq!(set(1_000, 1_000).check_within(Millis::new(1_000)), Ok(()));
+    }
+
+    #[test]
+    fn a_label_or_a_region_past_the_end_is_refused() {
+        let length = Millis::new(1_000);
+        assert_eq!(
+            set(1_001, 500).check_within(length),
+            Err(InvalidValue::OutsideRecording)
+        );
+        assert_eq!(
+            set(500, 1_001).check_within(length),
+            Err(InvalidValue::OutsideRecording)
         );
     }
 

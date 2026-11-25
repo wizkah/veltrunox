@@ -16,7 +16,8 @@ pub use analysis::{
 };
 pub use auth::{Capability, InvalidUser, PasswordPolicy, Role, UserId, UserName};
 pub use bookmark::{
-    BookmarkId, BookmarkName, Bookmarks, Label, Region, Version, VersionConflict, check_version,
+    BookmarkId, BookmarkName, Bookmarks, Label, NewBookmarks, NewLabel, NewRegion, Region, Version,
+    VersionConflict, check_version,
 };
 pub use playback::{
     Intent, PlayMode, PlaybackSettings, PlaybackState, PositionReference, TransportError,

@@ -12,7 +12,7 @@ Labels and regions are created one by one in the interface and through the per-i
 **One rule set.** Import, export and the editor use the existing server operations and the domain validation of labels and regions. Nothing else writes bookmarks.
 
 **Read.**
-- `GET /api/v1/recordings` and the per-recording analysis stay the source for recording details. The bookmark count is added to each list entry.
+- `GET /api/v1/recordings` and the per-recording analysis stay the source for recording details. The list does not carry bookmark counts; the export carries the bookmarks themselves.
 - `GET /api/v1/export` returns every recording with its details (id, title, length, tempo, key, analysis sections where known) and its labels and regions in one JSON document. `GET /api/v1/recordings/{id}/export` returns the same for one recording. Both need no right beyond signing in.
 
 **Write.**
