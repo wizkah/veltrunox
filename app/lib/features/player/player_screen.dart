@@ -9,7 +9,10 @@ import 'player_analysis.dart';
 import 'player_controller.dart';
 import 'player_controls.dart';
 import 'player_texts.dart';
+import 'player_state.dart';
 import 'recording_header.dart';
+import 'scrub_preview.dart';
+import 'space_toggles_playback.dart';
 
 /// The player page: the loaded recording with its controls and its markers.
 /// What the markers look like is passed in, so the player knows no marker
@@ -72,6 +75,17 @@ class PlayerScreen extends ConsumerWidget {
     if (loaded.recordingId == null) {
       return NoRecordingNotice(onChoose: onChooseRecording);
     }
+    final running = ref.watch(shownRunningProvider);
+    return SpaceTogglesPlayback(
+      onToggle: connected
+          ? () =>
+                ref.read(playerControllerProvider).togglePlay(running: running)
+          : null,
+      child: _page(loaded),
+    );
+  }
+
+  Widget _page(PlayerState loaded) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final beside = constraints.maxWidth >= _markersBesideMin;

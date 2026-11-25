@@ -4,20 +4,18 @@ import '../../design/tokens/app_geometry.dart';
 import 'library_query.dart';
 import 'library_texts.dart';
 
-/// Search, sort order and filter of the library.
+/// Search and sort order of the library.
 class LibraryToolbar extends StatelessWidget {
   const LibraryToolbar({
     required this.query,
     required this.onSearch,
     required this.onSort,
-    required this.onFilter,
     super.key,
   });
 
   final LibraryQuery query;
   final ValueChanged<String> onSearch;
   final ValueChanged<LibrarySort> onSort;
-  final ValueChanged<LibraryFilter> onFilter;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -39,28 +37,8 @@ class LibraryToolbar extends StatelessWidget {
           _SortMenu(selected: query.sort, onSelected: onSort),
         ],
       ),
-      const SizedBox(height: AppSpace.s2),
-      Wrap(
-        spacing: AppSpace.s2,
-        runSpacing: AppSpace.s2,
-        children: [
-          for (final filter in LibraryFilter.values)
-            ChoiceChip(
-              label: Text(_filterLabel(filter)),
-              selected: query.filter == filter,
-              onSelected: (_) => onFilter(filter),
-            ),
-        ],
-      ),
     ],
   );
-
-  static String _filterLabel(LibraryFilter filter) => switch (filter) {
-    LibraryFilter.all => LibraryTexts.filterAll,
-    LibraryFilter.analysed => LibraryTexts.filterAnalysed,
-    LibraryFilter.analysing => LibraryTexts.filterAnalysing,
-    LibraryFilter.failed => LibraryTexts.filterFailed,
-  };
 }
 
 class _SortMenu extends StatelessWidget {

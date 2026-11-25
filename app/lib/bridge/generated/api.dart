@@ -198,6 +198,23 @@ Future<void> mergeRegions({
   endMs: endMs,
 );
 
+/// Splits a region seen at `expected_version` into two that meet at `position_ms`.
+Future<void> splitRegion({
+  required String serverUrl,
+  required BigInt id,
+  required BigInt expectedVersion,
+  required BigInt positionMs,
+  required String firstName,
+  required String secondName,
+}) => RustLib.instance.api.crateApiSplitRegion(
+  serverUrl: serverUrl,
+  id: id,
+  expectedVersion: expectedVersion,
+  positionMs: positionMs,
+  firstName: firstName,
+  secondName: secondName,
+);
+
 /// Replaces a region seen at `expected_version` by a label in one step.
 Future<void> regionToLabel({
   required String serverUrl,

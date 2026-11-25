@@ -73,6 +73,7 @@ class MarkerPanel extends ConsumerWidget {
     MarkerFilter filter, {
     required bool scrolling,
   }) {
+    final selecting = ref.watch(markerSelectingProvider(recordingId));
     final content = markers.when(
       data: (all) => _list(ref, all, filter, flows),
       loading: _loading,
@@ -97,6 +98,14 @@ class MarkerPanel extends ConsumerWidget {
               kind: ActionKind.secondary,
               onPressed: () async =>
                   flows().addRegion(playheadMs: await readPlayhead() ?? 0),
+            ),
+            ActionButton(
+              label: selecting ? MarkerTexts.done : MarkerTexts.edit,
+              icon: selecting ? Icons.check : Icons.checklist,
+              kind: ActionKind.secondary,
+              onPressed: ref
+                  .read(markerSelectingProvider(recordingId).notifier)
+                  .toggle,
             ),
             ?exchange,
           ],
@@ -187,6 +196,7 @@ class MarkerPanel extends ConsumerWidget {
       );
     }
     final ticked = ref.watch(markerSelectionProvider(recordingId));
+    final selecting = ref.watch(markerSelectingProvider(recordingId));
     return Column(
       children: [
         for (final marker in shown)
@@ -194,7 +204,7 @@ class MarkerPanel extends ConsumerWidget {
             key: ValueKey('${marker.runtimeType}-${marker.id}'),
             marker: marker,
             active: marker is RegionMarker && marker.isActiveIn(activeRange),
-            selected: marker is RegionMarker
+            selected: selecting && marker is RegionMarker
                 ? ticked.contains(marker.id)
                 : null,
             onToggleSelected: () => ref
@@ -203,6 +213,14 @@ class MarkerPanel extends ConsumerWidget {
             onPlay: () => onPlay(marker),
             onEdit: () => flows().edit(marker),
             onDelete: () => flows().delete(marker),
+            onDuplicate: () {
+              if (marker is RegionMarker) flows().duplicate(marker);
+            },
+            onSplit: () async {
+              if (marker is! RegionMarker) return;
+              final position = await readPlayhead();
+              if (position != null) await flows().split(marker, position);
+            },
           ),
       ],
     );

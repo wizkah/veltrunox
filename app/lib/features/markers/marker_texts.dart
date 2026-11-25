@@ -54,6 +54,15 @@ abstract final class MarkerTexts {
         'The server\'s state stands.',
   );
 
+  static String get done => tr('Fertig', 'Done');
+  static String get duplicate => tr('Duplizieren', 'Duplicate');
+  static String get splitAtPlayhead =>
+      tr('Am Abspielkopf teilen', 'Split at playhead');
+  static String get playheadOutsideRegion => tr(
+    'Der Abspielkopf liegt nicht in dieser Region.',
+    'The playhead is not inside this region.',
+  );
+  static String copyName(String name) => tr('$name (Kopie)', '$name (copy)');
   static String get combineRegions =>
       tr('Regionen kombinieren', 'Combine regions');
   static String get regionFromSelection =>

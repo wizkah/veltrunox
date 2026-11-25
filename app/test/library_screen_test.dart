@@ -171,7 +171,7 @@ void main() {
     expect(find.text('Zurück zur Liste'), findsNothing);
   });
 
-  testWidgets('search, filter and order narrow down the list', (tester) async {
+  testWidgets('search narrows down the list', (tester) async {
     await tester.pumpWidget(
       _app(
         _FakeSource(
@@ -197,12 +197,6 @@ void main() {
     await tester.enterText(find.byType(TextField), 'xyz');
     await _pumpFrames(tester);
     expect(find.text('Keine Aufnahme passt zur Suche.'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField), '');
-    await tester.tap(find.text('Wird analysiert'));
-    await _pumpFrames(tester);
-    expect(find.text('Ballade'), findsOneWidget);
-    expect(find.text('Blues'), findsNothing);
   });
 
   testWidgets('a lost connection is announced and can be reopened', (

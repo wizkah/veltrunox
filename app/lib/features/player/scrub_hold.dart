@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 /// What happens when a position is dragged: moving it scrubs (a short piece is
 /// heard), holding it still for [holdDelay] lets the recording play on from
@@ -21,7 +20,7 @@ class ScrubHold {
   final void Function(int positionMs) onHold;
 
   /// The position is let go after it rested.
-  final VoidCallback onHoldEnd;
+  final void Function(int positionMs) onHoldEnd;
   final Duration holdDelay;
 
   Timer? _hold;
@@ -45,7 +44,7 @@ class ScrubHold {
   void released(int positionMs) {
     _hold?.cancel();
     if (_playingOn) {
-      onHoldEnd();
+      onHoldEnd(positionMs);
     } else {
       onScrubEnd(positionMs);
     }

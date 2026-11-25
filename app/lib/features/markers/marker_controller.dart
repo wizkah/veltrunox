@@ -164,6 +164,18 @@ class MarkerController {
     ),
   );
 
+  /// Replaces [region] by two regions that meet at [positionMs], in one step
+  /// on the server.
+  Future<bool> splitRegion(RegionMarker region, {required int positionMs}) =>
+      _attempt(
+        () => _source.splitRegion(
+          region,
+          positionMs: positionMs,
+          firstTitle: '${region.title} (1)',
+          secondTitle: '${region.title} (2)',
+        ),
+      );
+
   Future<bool> delete(Marker marker) => _attempt(
     () => switch (marker) {
       LabelMarker() => _source.deleteLabel(marker),

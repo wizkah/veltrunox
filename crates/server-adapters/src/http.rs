@@ -26,9 +26,9 @@ use veltrunox_protocol::{
     LABEL_PATH, LABEL_TO_REGION_PATH, LABELS_PATH, LabelDto, MERGE_REGIONS_PATH, MergeRegionsDto,
     NewLabelDto, NewRegionDto, RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH,
     REGIONS_PATH, ReasonDto, RecordingListDto, RegionDto, RenameRecordingDto, ReplaceBookmarksDto,
-    UpdateLabelDto, UpdateRegionDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto,
-    bookmarks_to_dto, label_to_dto, library_entry_to_dto, new_bookmarks_from_dto, peaks_to_bytes,
-    range_from_dto, region_to_dto, waveform_info_to_dto,
+    SPLIT_REGION_PATH, SplitRegionDto, UpdateLabelDto, UpdateRegionDto, WAVEFORM_LEVEL_PATH,
+    WAVEFORM_PATH, WaveformInfoDto, bookmarks_to_dto, label_to_dto, library_entry_to_dto,
+    new_bookmarks_from_dto, peaks_to_bytes, range_from_dto, region_to_dto, waveform_info_to_dto,
 };
 use veltrunox_server_app::{AccountError, BookmarkError, PlaybackBroadcast, list_recordings};
 
@@ -50,6 +50,7 @@ pub fn router(app: AppState) -> Router {
         .route(LABEL_PATH, put(update_label).delete(delete_label))
         .route(REGION_PATH, put(update_region).delete(delete_region))
         .route(MERGE_REGIONS_PATH, post(merge_regions))
+        .route(SPLIT_REGION_PATH, post(split_region))
         .route(LABEL_TO_REGION_PATH, post(label_to_region))
         .route(REGION_TO_LABEL_PATH, post(region_to_label))
         .merge(accounts_http::routes())
@@ -410,6 +411,29 @@ async fn label_to_region(
     })
     .await?;
     Ok(Json(region_to_dto(&region)))
+}
+
+async fn split_region(
+    State(app): State<AppState>,
+    caller: Caller,
+    Path(id): Path<u64>,
+    Json(body): Json<SplitRegionDto>,
+) -> Result<Json<Vec<RegionDto>>, ApiError> {
+    caller.require(Capability::EditBookmarks)?;
+    let names = [
+        BookmarkName::new(&body.first_name)?,
+        BookmarkName::new(&body.second_name)?,
+    ];
+    let parts = blocking(move || {
+        Ok(app.bookmarks.split_region(
+            BookmarkId::new(id),
+            Version::new(body.expected_version),
+            names,
+            Millis::new(body.position_ms),
+        )?)
+    })
+    .await?;
+    Ok(Json(parts.iter().map(region_to_dto).collect()))
 }
 
 async fn merge_regions(

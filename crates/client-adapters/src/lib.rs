@@ -40,12 +40,12 @@ use veltrunox_protocol::{
     MergeRegionsDto, NewApiTokenDto, NewLabelDto, NewRegionDto, NewUserDto, PASSWORD_POLICY_PATH,
     RECORDING_EXPORT_PATH, RECORDING_PATH, RECORDINGS_PATH, REGION_PATH, REGION_TO_LABEL_PATH,
     REGIONS_PATH, ReasonDto, RecordingListDto, RegionDto, RegionRefDto, RenameRecordingDto,
-    SETUP_PATH, STATUS_PATH, SessionDto, SetPasswordPolicyDto, StatusDto, TOKEN_PATH, TOKENS_PATH,
-    UPLOAD_ID_HEADER, USER_PATH, USERS_PATH, UpdateLabelDto, UpdateRegionDto, UpdateUserDto,
-    UploadedRecordingDto, UserDto, WAVEFORM_LEVEL_PATH, WAVEFORM_PATH, WaveformInfoDto,
-    bookmarks_from_dto, label_from_dto, library_entry_from_dto, password_policy_from_dto,
-    password_policy_to_dto, peaks_from_bytes, range_to_dto, region_from_dto, role_to_dto,
-    token_scope_to_dto,
+    SETUP_PATH, SPLIT_REGION_PATH, STATUS_PATH, SessionDto, SetPasswordPolicyDto, SplitRegionDto,
+    StatusDto, TOKEN_PATH, TOKENS_PATH, UPLOAD_ID_HEADER, USER_PATH, USERS_PATH, UpdateLabelDto,
+    UpdateRegionDto, UpdateUserDto, UploadedRecordingDto, UserDto, WAVEFORM_LEVEL_PATH,
+    WAVEFORM_PATH, WaveformInfoDto, bookmarks_from_dto, label_from_dto, library_entry_from_dto,
+    password_policy_from_dto, password_policy_to_dto, peaks_from_bytes, range_to_dto,
+    region_from_dto, role_to_dto, token_scope_to_dto,
 };
 
 pub struct HttpServerLink {
@@ -473,6 +473,27 @@ impl ServerLink for HttpServerLink {
         )
         .await?;
         region_from_dto(&dto).map_err(|error| LinkError::InvalidResponse(error.to_string()))
+    }
+
+    async fn split_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        names: [&BookmarkName; 2],
+        position: Millis,
+    ) -> Result<(), LinkError> {
+        let body = SplitRegionDto {
+            expected_version: expected.value(),
+            position_ms: position.value(),
+            first_name: names[0].as_str().to_owned(),
+            second_name: names[1].as_str().to_owned(),
+        };
+        let _: Vec<RegionDto> = Self::written(
+            self.post(self.url(SPLIT_REGION_PATH, id.value()))
+                .json(&body),
+        )
+        .await?;
+        Ok(())
     }
 
     async fn regions_into_region(

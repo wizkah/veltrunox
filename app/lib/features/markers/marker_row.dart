@@ -4,9 +4,8 @@ import '../../design/tokens/app_colors.dart';
 import '../../shared_ui/app_icon_button.dart';
 import '../../shared_ui/clock_format.dart';
 import 'marker.dart';
+import 'marker_actions_sheet.dart';
 import 'marker_texts.dart';
-
-enum _MarkerAction { edit, delete }
 
 /// One marker in the list: type icon, name, time, a direct play button and a
 /// menu with the other actions.
@@ -16,6 +15,8 @@ class MarkerRow extends StatelessWidget {
     required this.onPlay,
     required this.onEdit,
     required this.onDelete,
+    required this.onDuplicate,
+    required this.onSplit,
     this.active = false,
     this.selected,
     this.onToggleSelected,
@@ -27,6 +28,10 @@ class MarkerRow extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
+  /// Offered for regions only.
+  final VoidCallback onDuplicate;
+  final VoidCallback onSplit;
+
   /// The region is the one being played.
   final bool active;
 
@@ -37,9 +42,13 @@ class MarkerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListTile(
     tileColor: active ? AppColors.action.withValues(alpha: 0.18) : null,
-    shape: active
-        ? const Border(left: BorderSide(color: AppColors.action, width: 4))
-        : null,
+    // Every row reserves the bar, so the active one is not shifted by it.
+    shape: Border(
+      left: BorderSide(
+        color: active ? AppColors.action : Colors.transparent,
+        width: 4,
+      ),
+    ),
     leading: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -74,21 +83,17 @@ class MarkerRow extends StatelessWidget {
           icon: Icons.play_arrow,
           onPressed: onPlay,
         ),
-        PopupMenuButton<_MarkerAction>(
+        PopupMenuButton<MarkerAction>(
           tooltip: MarkerTexts.moreFor(marker.title),
           onSelected: (action) => switch (action) {
-            _MarkerAction.edit => onEdit(),
-            _MarkerAction.delete => onDelete(),
+            MarkerAction.edit => onEdit(),
+            MarkerAction.duplicate => onDuplicate(),
+            MarkerAction.split => onSplit(),
+            MarkerAction.delete => onDelete(),
           },
           itemBuilder: (_) => [
-            PopupMenuItem(
-              value: _MarkerAction.edit,
-              child: Text(MarkerTexts.edit),
-            ),
-            PopupMenuItem(
-              value: _MarkerAction.delete,
-              child: Text(MarkerTexts.delete),
-            ),
+            for (final action in MarkerAction.of(marker))
+              PopupMenuItem(value: action, child: Text(action.label)),
           ],
         ),
       ],

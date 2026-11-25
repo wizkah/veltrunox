@@ -45,7 +45,7 @@ class _PlayerWaveformState extends ConsumerState<PlayerWaveform> {
       position,
       running: ref.read(playerStateProvider).value?.running ?? false,
     ),
-    onHoldEnd: () => _player.endHold(),
+    onHoldEnd: (position) => _player.endHold(position),
   );
 
   /// The region just drawn, to be selected once it shows up in the list.
@@ -136,6 +136,12 @@ class _PlayerWaveformState extends ConsumerState<PlayerWaveform> {
     switch (action) {
       case MarkerAction.edit:
         await flows.edit(marker);
+      case MarkerAction.duplicate:
+        if (marker is RegionMarker) await flows.duplicate(marker);
+      case MarkerAction.split:
+        if (marker is! RegionMarker) return;
+        final position = await ref.read(playerSourceProvider).position();
+        if (position != null && mounted) await flows.split(marker, position);
       case MarkerAction.delete:
         await flows.delete(marker);
     }

@@ -29,9 +29,14 @@ class RecordingList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (recordings.isEmpty) {
-      return StateNotice(
-        message: narrowed ? LibraryTexts.noMatch : LibraryTexts.empty,
-        icon: narrowed ? Icons.search_off : Icons.library_music_outlined,
+      // It scrolls where little height is left for the list.
+      return Center(
+        child: SingleChildScrollView(
+          child: StateNotice(
+            message: narrowed ? LibraryTexts.noMatch : LibraryTexts.empty,
+            icon: narrowed ? Icons.search_off : Icons.library_music_outlined,
+          ),
+        ),
       );
     }
     return ListView.builder(

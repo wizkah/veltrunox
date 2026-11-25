@@ -134,6 +134,13 @@ pub trait ServerLink {
         range: TimeRange,
     ) -> impl Future<Output = Result<Region, LinkError>>;
     /// Replaces regions of a recording by one region in one step on the server.
+    fn split_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        names: [&BookmarkName; 2],
+        position: Millis,
+    ) -> impl Future<Output = Result<(), LinkError>>;
     fn regions_into_region(
         &self,
         recording: RecordingId,
@@ -376,6 +383,17 @@ pub async fn merge_regions(
 ) -> Result<Region, LinkError> {
     link.regions_into_region(recording, regions, name, range)
         .await
+}
+
+/// Use case: split a region in two at `position`; all or nothing on the server.
+pub async fn split_region(
+    link: &impl ServerLink,
+    id: BookmarkId,
+    expected: Version,
+    names: [&BookmarkName; 2],
+    position: Millis,
+) -> Result<(), LinkError> {
+    link.split_region(id, expected, names, position).await
 }
 
 /// Use case: turn a region into a label; the region is replaced atomically by a new label.

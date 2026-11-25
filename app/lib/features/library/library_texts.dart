@@ -28,10 +28,6 @@ abstract final class LibraryTexts {
   static String get sortTitle => tr('Titel', 'Title');
   static String get sortTempo => tr('Tempo', 'Tempo');
   static String get sortKey => tr('Tonart', 'Key');
-  static String get filterAll => tr('Alle', 'All');
-  static String get filterAnalysed => tr('Analysiert', 'Analysed');
-  static String get filterAnalysing => tr('Wird analysiert', 'Being analysed');
-  static String get filterFailed => tr('Fehlgeschlagen', 'Failed');
   static String get loaded => tr('Im Player geladen', 'Loaded in the player');
   static String get openInPlayer =>
       tr('Im Player öffnen', 'Open in the player');

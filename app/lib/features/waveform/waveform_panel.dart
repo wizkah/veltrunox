@@ -8,6 +8,7 @@ import '../markers/marker.dart';
 import 'label_clusters.dart';
 import 'label_layer.dart';
 import 'label_group_dialog.dart';
+import 'pinch_zoom_layer.dart';
 import 'playhead.dart';
 import 'region_lane_layout.dart';
 import 'region_lanes.dart';
@@ -157,6 +158,9 @@ class _LayersState extends State<_Layers> {
   /// confirmed; `null` while it shows the shared position.
   double? _scrubMs;
 
+  /// The current touch has had two fingers: it pinches and does nothing else.
+  bool _multiTouch = false;
+
   /// Room kept for the button that shows all regions on a narrow screen.
   static const _collapseButtonHeight = 48.0;
 
@@ -246,77 +250,84 @@ class _LayersState extends State<_Layers> {
         SizedBox(
           width: viewport.widthPx,
           height: totalHeight,
-          child: Stack(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: WaveformGeometry.timeRowHeight),
-                  TimelineRuler(
-                    viewport: viewport,
-                    onScrub: _scrubTo,
-                    onScrubEnd: _scrubEnd,
-                  ),
-                  LabelLayer(
-                    labels: _labels,
-                    viewport: viewport,
-                    onPlay: (label) => _panel.onPlayFrom(label.positionMs),
-                    onOpenGroup: (cluster) => _openGroup(context, cluster),
-                    onContext: _panel.onMarkerContext,
-                  ),
-                  WaveformGestureLayer(
-                    viewport: viewport,
-                    onTapAt: (ms) {
-                      controller.selectRegion(null);
-                      _panel.onSeek(ms.clamp(0, _panel.durationMs));
-                    },
-                    onPan: controller.panByPixels,
-                    onZoom: controller.zoomAt,
-                    child: WaveformRenderer(
-                      data: _panel.data,
+          child: PinchZoomLayer(
+            onZoom: controller.zoomAt,
+            onPan: controller.panByPixels,
+            onMultiTouch: (value) => _multiTouch = value,
+            child: Stack(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: WaveformGeometry.timeRowHeight),
+                    TimelineRuler(
                       viewport: viewport,
-                      height: waveformHeight,
-                      playedMs: shownMs,
+                      onScrub: _scrubTo,
+                      onScrubEnd: _scrubEnd,
                     ),
-                  ),
-                  _scrollIf(
-                    scrolling,
-                    shownLanesHeight,
-                    RegionLanes(
-                      regions: regions,
-                      markers: _panel.markers,
+                    LabelLayer(
+                      labels: _labels,
                       viewport: viewport,
-                      selectedId: view.selectedRegionId,
-                      activeRange: _panel.activeRange,
-                      markedIds: _panel.markedIds,
-                      maxLanes: maxLanes,
-                      snapEnabled: view.snapEnabled,
-                      onPlay: _panel.onPlayRegion,
-                      onSelect: (region) => controller.selectRegion(
-                        region.id == view.selectedRegionId ? null : region.id,
-                      ),
+                      onPlay: (label) => _panel.onPlayFrom(label.positionMs),
+                      onOpenGroup: (cluster) => _openGroup(context, cluster),
                       onContext: _panel.onMarkerContext,
-                      onResized: _panel.onRegionResized,
-                      onDeselect: () => controller.selectRegion(null),
                     ),
-                  ),
-                ],
-              ),
-              Playhead(
-                shownMs: shownMs,
-                viewport: viewport,
-                height: totalHeight,
-                hitTop: waveformTop,
-                hitHeight: waveformHeight,
-                dragging: _scrubMs != null,
-                onDragStart: () =>
-                    setState(() => _scrubMs = _panel.positionMs.toDouble()),
-                onDragUpdate: (dx) =>
-                    _scrubTo((_scrubMs ?? shownMs) + dx * viewport.msPerPx),
-                onDragEnd: _scrubEnd,
-              ),
-              PlayheadTime(shownMs: shownMs, viewport: viewport),
-            ],
+                    WaveformGestureLayer(
+                      viewport: viewport,
+                      onTapAt: (ms) {
+                        if (_multiTouch) return;
+                        controller.selectRegion(null);
+                        _panel.onSeek(ms.clamp(0, _panel.durationMs));
+                      },
+                      onPan: (dx) {
+                        if (!_multiTouch) controller.panByPixels(dx);
+                      },
+                      child: WaveformRenderer(
+                        data: _panel.data,
+                        viewport: viewport,
+                        height: waveformHeight,
+                        playedMs: shownMs,
+                      ),
+                    ),
+                    _scrollIf(
+                      scrolling,
+                      shownLanesHeight,
+                      RegionLanes(
+                        regions: regions,
+                        markers: _panel.markers,
+                        viewport: viewport,
+                        selectedId: view.selectedRegionId,
+                        activeRange: _panel.activeRange,
+                        markedIds: _panel.markedIds,
+                        maxLanes: maxLanes,
+                        snapEnabled: view.snapEnabled,
+                        onPlay: _panel.onPlayRegion,
+                        onSelect: (region) => controller.selectRegion(
+                          region.id == view.selectedRegionId ? null : region.id,
+                        ),
+                        onContext: _panel.onMarkerContext,
+                        onResized: _panel.onRegionResized,
+                        onDeselect: () => controller.selectRegion(null),
+                      ),
+                    ),
+                  ],
+                ),
+                Playhead(
+                  shownMs: shownMs,
+                  viewport: viewport,
+                  height: totalHeight,
+                  hitTop: waveformTop,
+                  hitHeight: waveformHeight,
+                  dragging: _scrubMs != null,
+                  onDragStart: () =>
+                      setState(() => _scrubMs = _panel.positionMs.toDouble()),
+                  onDragUpdate: (dx) =>
+                      _scrubTo((_scrubMs ?? shownMs) + dx * viewport.msPerPx),
+                  onDragEnd: _scrubEnd,
+                ),
+                PlayheadTime(shownMs: shownMs, viewport: viewport),
+              ],
+            ),
           ),
         ),
         if (collapsible)

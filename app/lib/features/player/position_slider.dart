@@ -37,7 +37,7 @@ class PositionSlider extends StatefulWidget {
   final ValueChanged<int> onHold;
 
   /// The handle is let go after it rested.
-  final VoidCallback onHoldEnd;
+  final ValueChanged<int> onHoldEnd;
 
   /// How long the handle must rest before the recording plays on.
   final Duration holdDelay;
@@ -51,7 +51,7 @@ class _PositionSliderState extends State<PositionSlider> {
     onScrub: (position) => widget.onScrub(position),
     onScrubEnd: (position) => widget.onScrubEnd(position),
     onHold: (position) => widget.onHold(position),
-    onHoldEnd: () => widget.onHoldEnd(),
+    onHoldEnd: (position) => widget.onHoldEnd(position),
     holdDelay: widget.holdDelay,
   );
 

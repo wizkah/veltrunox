@@ -8,7 +8,7 @@ use veltrunox_client_adapters::HttpServerLink;
 use veltrunox_client_app::{
     ChannelEvent, LinkError, ServerEvent, add_label, add_region, convert_label_to_region,
     convert_region_to_label, delete_label, delete_region, edit_label, edit_region, load_bookmarks,
-    load_library, merge_regions,
+    load_library, merge_regions, split_region,
 };
 use veltrunox_core::{
     BookmarkName, Intent, KeyShift, Millis, RecordingId, Speed, TimeRange, Version,
@@ -198,6 +198,46 @@ async fn regions_merge_into_one_or_not_at_all() {
     assert_eq!(found.regions.len(), 2);
     assert!(found.regions.contains(&merged));
     assert!(found.regions.contains(&third));
+}
+
+#[tokio::test]
+async fn a_region_is_split_in_two_or_not_at_all() {
+    let url = start_server(store_with_recording()).await;
+    let link = HttpServerLink::new(&url);
+    let name = |text: &str| BookmarkName::new(text).unwrap();
+    let range = TimeRange::new(Millis::new(1_000), Millis::new(9_000)).unwrap();
+    let region = add_region(&link, RECORDING, &name("A"), range)
+        .await
+        .unwrap();
+    let (one, two) = (name("A (1)"), name("A (2)"));
+    let split =
+        |version, at| split_region(&link, region.id, version, [&one, &two], Millis::new(at));
+
+    // Stale, or outside the region: nothing changes.
+    assert!(matches!(
+        split(Version::new(9), 4_000).await,
+        Err(LinkError::Conflict { .. })
+    ));
+    assert!(split(region.version, 1_000).await.is_err());
+    assert!(split(region.version, 9_500).await.is_err());
+    assert_eq!(
+        load_bookmarks(&link, RECORDING).await.unwrap().regions,
+        std::slice::from_ref(&region)
+    );
+
+    split(region.version, 4_000).await.unwrap();
+    let found = load_bookmarks(&link, RECORDING).await.unwrap().regions;
+    let spans: Vec<_> = found
+        .iter()
+        .map(|r| {
+            (
+                r.name.as_str(),
+                r.range.start().value(),
+                r.range.end().value(),
+            )
+        })
+        .collect();
+    assert_eq!(spans, [("A (1)", 1_000, 4_000), ("A (2)", 4_000, 9_000)]);
 }
 
 #[tokio::test]

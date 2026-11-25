@@ -27,6 +27,7 @@ class UploadBar extends ConsumerWidget {
         ActionButton(
           label: LibraryTexts.upload,
           icon: Icons.upload_file,
+          kind: ActionKind.secondary,
           onPressed: state is UploadSending ? null : controller.chooseAndUpload,
         ),
         ..._status(state, controller.dismiss),

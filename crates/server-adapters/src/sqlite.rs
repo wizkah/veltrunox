@@ -953,6 +953,35 @@ impl BookmarkRepository for SqliteStore {
         Ok(region)
     }
 
+    fn split_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        names: [BookmarkName; 2],
+        position: Millis,
+    ) -> Result<Owned<[Region; 2]>, BookmarkError> {
+        self.write_versioned(Table::Regions, id, expected, |transaction, recording, _| {
+            let (start, end) = transaction
+                .query_row(
+                    "SELECT start_ms, end_ms FROM regions WHERE id = ?1",
+                    params![sql_int(id.value())?],
+                    |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+                )
+                .map_err(storage)?;
+            let before = TimeRange::new(Millis::new(unsigned(start)?), position)?;
+            let after = TimeRange::new(position, Millis::new(unsigned(end)?))?;
+            let [first, second] = names;
+            delete_row(transaction, Table::Regions, id)?;
+            Ok(Owned {
+                recording,
+                item: [
+                    insert_region(transaction, recording, first, before)?,
+                    insert_region(transaction, recording, second, after)?,
+                ],
+            })
+        })
+    }
+
     fn convert_region_to_label(
         &self,
         id: BookmarkId,

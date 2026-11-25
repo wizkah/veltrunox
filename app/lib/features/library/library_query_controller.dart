@@ -8,7 +8,6 @@ class LibraryQueryNotifier extends Notifier<LibraryQuery> {
 
   void search(String text) => state = state.copyWith(search: text);
   void sortBy(LibrarySort sort) => state = state.copyWith(sort: sort);
-  void filterBy(LibraryFilter filter) => state = state.copyWith(filter: filter);
 }
 
 /// What the user asked of the list; local to this client.

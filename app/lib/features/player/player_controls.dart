@@ -7,6 +7,7 @@ import 'player_analysis.dart';
 import 'player_controller.dart';
 import 'player_state.dart';
 import 'position_slider.dart';
+import 'scrub_preview.dart';
 import 'settings_controls.dart';
 import 'transport_clock.dart';
 import 'transport_controls.dart';
@@ -61,6 +62,7 @@ class PlayerControls extends ConsumerWidget {
     final controller = ref.watch(playerControllerProvider);
     final position = ref.watch(playerPositionProvider).value ?? 0;
     final length = lengthMs;
+    final running = ref.watch(scrubPreviewProvider) ? false : state.running;
     final transport = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -82,9 +84,9 @@ class PlayerControls extends ConsumerWidget {
           runSpacing: AppSpace.s2,
           children: [
             TransportControls(
-              running: state.running,
+              running: running,
               playMode: state.playMode,
-              onTogglePlay: () => controller.togglePlay(running: state.running),
+              onTogglePlay: () => controller.togglePlay(running: running),
               onRestart: controller.restart,
               onPlayMode: () => controller.setPlayMode(state.playMode.next),
             ),

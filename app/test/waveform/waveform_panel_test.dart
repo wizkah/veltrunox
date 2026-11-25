@@ -296,6 +296,30 @@ void main() {
       expect(viewport.msPerPx, lessThan(72936 / 1000 / 2));
     });
 
+    testWidgets('pinching works after the first finger already moved', (
+      tester,
+    ) async {
+      await pumpScene(tester);
+      final origin = waveformOrigin(tester);
+      final first = await tester.startGesture(
+        origin + const Offset(450, 60),
+        pointer: 1,
+      );
+      await first.moveBy(const Offset(-40, 0));
+      // The second finger lands above the waveform, on the ruler.
+      final second = await tester.startGesture(
+        origin + const Offset(550, -60),
+        pointer: 2,
+      );
+      await first.moveBy(const Offset(-100, 0));
+      await second.moveBy(const Offset(100, 0));
+      await tester.pump();
+      await first.up();
+      await second.up();
+
+      expect(viewState(tester).viewport!.isFitted, isFalse);
+    });
+
     testWidgets('moving two fingers together pans the waveform', (
       tester,
     ) async {

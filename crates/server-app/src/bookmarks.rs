@@ -184,6 +184,21 @@ impl BookmarkService {
         Ok(region)
     }
 
+    /// Replaces a region by two that meet at `position`.
+    pub fn split_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        names: [BookmarkName; 2],
+        position: Millis,
+    ) -> Result<[Region; 2], BookmarkError> {
+        let stored = self
+            .repository
+            .split_region(id, expected, names, position)?;
+        self.broadcast.bookmarks_changed(stored.recording);
+        Ok(stored.item)
+    }
+
     /// Turns a region into a label; the region disappears, the label has a new id.
     pub fn convert_region_to_label(
         &self,

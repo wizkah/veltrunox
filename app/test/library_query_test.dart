@@ -79,17 +79,8 @@ void main() {
     expect(find('zug dur'), isEmpty);
   });
 
-  test('filters by the state of the analysis', () {
-    List<String> find(LibraryFilter filter) =>
-        _titles(applyQuery(recordings, LibraryQuery(filter: filter)));
-    expect(find(LibraryFilter.analysed), ['blues', 'Zugabe']);
-    expect(find(LibraryFilter.analysing), ['Ballade']);
-    expect(find(LibraryFilter.failed), ['Kaputt']);
-  });
-
   test('knows whether the user narrowed the list down', () {
     expect(const LibraryQuery().narrows, isFalse);
     expect(const LibraryQuery(search: ' x').narrows, isTrue);
-    expect(const LibraryQuery(filter: LibraryFilter.failed).narrows, isTrue);
   });
 }

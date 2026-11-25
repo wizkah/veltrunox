@@ -115,6 +115,28 @@ class MarkerFlows {
     return accepted;
   }
 
+  /// Adds a second region with the same times.
+  Future<void> duplicate(RegionMarker region) async => _report(
+    await controller.addRegion(
+      title: MarkerTexts.copyName(region.title),
+      startMs: region.startMs,
+      endMs: region.endMs,
+    ),
+  );
+
+  /// Replaces [region] by the parts before and after [positionMs].
+  Future<void> split(RegionMarker region, int positionMs) async {
+    if (positionMs <= region.startMs || positionMs >= region.endMs) {
+      ToastNotice.show(
+        context,
+        kind: ToastKind.error,
+        message: MarkerTexts.playheadOutsideRegion,
+      );
+      return;
+    }
+    _report(await controller.splitRegion(region, positionMs: positionMs));
+  }
+
   Future<void> delete(Marker marker) async {
     final confirmed = await ConfirmDialog.ask(
       context,

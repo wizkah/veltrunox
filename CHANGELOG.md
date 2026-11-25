@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Marker list: tick boxes appear only after “Edit” (“Done” leaves it and drops the ticks); the highlighted row is no longer shifted. A region can be duplicated and split at the playhead (row menu and long press in the waveform). Splitting is one server call, `POST /api/v1/regions/{id}/split`.
+- Dragging the position of a stopped recording still previews it, also while resting, but the play button keeps showing “stopped” and letting go leaves the position where it was let go, stopped.
+- The space bar plays and pauses on the player page unless a text input has the focus.
+- Pinching works over the whole timeline (ruler, labels, playhead, regions), also when the first finger already moved.
+- Library: the analysis state filters are gone; “Upload recordings” is styled like “Add region”.
 - The title bar shows when the web app was built (set by `scripts/build-web.sh`), next to the connection status (not on a phone). Copying an API token in a browser now copies directly on the click.
 - Regions in the marker list can be ticked. With two or more ticked, “Combine regions” replaces them by one region over their whole span (earliest start to latest end, gaps included; destructive) and “New region from selection” adds that region, named after the ticked ones (“A + B”), and keeps the originals; both ask for name and times first. Combining is one server call, `POST /api/v1/recordings/{id}/regions/merge` (body: the regions with the versions seen, name, range): in one transaction the listed regions are deleted and one new region (new id, first version) is created; a missing region, one of another recording or a stale version refuses the request and changes nothing. The region being played is highlighted in orange in the list (bar, equaliser icon) and in its lane in the waveform; it is recognised by its start and end matching the shared play range. Ticked regions and the region selected for editing are drawn in the soft teal, so orange means only “playing”.
 - Copying a new API token works in a browser on a page served over plain HTTP from a host other than localhost: there the browser has no clipboard API and copying failed; the app now falls back to the legacy copy command.

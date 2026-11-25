@@ -18,7 +18,7 @@ import 'recording_flows.dart';
 import 'recording_list.dart';
 import 'recording_summary.dart';
 
-/// The library: a large song list with search, order and filter. On a wide
+/// The library: a large song list with search and order. On a wide
 /// screen the details of a recording stand beside the list; on a narrow one
 /// they replace it. Opening or playing a recording is left to the caller.
 class LibraryScreen extends ConsumerWidget {
@@ -134,7 +134,6 @@ class LibraryScreen extends ConsumerWidget {
             query: query,
             onSearch: queryController.search,
             onSort: queryController.sortBy,
-            onFilter: queryController.filterBy,
           ),
         ),
         if ((ref.watch(rightsProvider)?.canUpload ?? false) || exchange != null)

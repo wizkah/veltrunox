@@ -7,6 +7,7 @@ import 'player_source.dart';
 import 'remote_change_detector.dart';
 import 'player_state.dart';
 import 'position_display.dart';
+import 'scrub_preview.dart';
 import 'target_tempo.dart';
 import '../../shared_ui/server_reason.dart';
 
@@ -27,15 +28,12 @@ final playerPositionProvider = StreamProvider<int?>((ref) {
   final source = ref.watch(playerSourceProvider);
   final pending = ref.watch(pendingPositionProvider);
   // Only what changes the timing; a changed volume must not restart the reading.
-  final (recording, running, speed) = ref.watch(
+  final (recording, speed) = ref.watch(
     playerStateProvider.select(
-      (state) => (
-        state.value?.recordingId,
-        state.value?.running ?? false,
-        state.value?.speed ?? 1.0,
-      ),
+      (state) => (state.value?.recordingId, state.value?.speed ?? 1.0),
     ),
   );
+  final running = ref.watch(shownRunningProvider);
   final controller = StreamController<int?>();
   if (recording == null) {
     controller.add(null);
@@ -86,11 +84,14 @@ final playerControllerProvider = Provider<PlayerController>(
     ref.watch(playerSourceProvider),
     ref.watch(remoteChangeDetectorProvider),
     ref.watch(pendingPositionProvider),
+    ref.watch(scrubPreviewProvider.notifier),
   ),
 );
 
 class PlayerController {
-  PlayerController(this._source, this._changes, this._pending);
+  PlayerController(this._source, this._changes, this._pending, this._preview);
+
+  final ScrubPreview _preview;
 
   final PlayerSource _source;
 
@@ -153,30 +154,34 @@ class PlayerController {
     return _source.scrub(positionMs);
   }
 
-  Future<void> endScrub(int positionMs) {
+  /// The dragged position is let go at `positionMs`. A preview started by
+  /// [hold] is stopped first, so the position stays where it was let go.
+  Future<void> endScrub(int positionMs) async {
     _changes.ownAction();
     _pending.expect(positionMs);
-    return _source.endScrub(positionMs);
+    if (_preview.held) {
+      _preview.release();
+      await _source.pause();
+    }
+    await _source.endScrub(positionMs);
   }
 
-  /// Whether the recording was stopped and plays only while the handle rests.
-  bool _playsOnlyWhileHeld = false;
-
-  /// The handle rests at `positionMs`: the recording plays on from there, also
-  /// if it was stopped; letting go ([endHold]) stops it again.
+  /// The handle rests at `positionMs`: the recording plays on from there. If it
+  /// was stopped, that is only a preview, which letting go ends.
   Future<void> hold(int positionMs, {required bool running}) async {
-    _playsOnlyWhileHeld = !running;
+    // While a preview plays, `running` is its own doing.
+    final preview = _preview.held || !running;
+    if (preview) _preview.start();
     _changes.ownAction();
     _pending.expect(positionMs);
     await _source.endScrub(positionMs);
-    if (_playsOnlyWhileHeld) await _source.play();
+    if (preview && _preview.held) await _source.play();
   }
 
-  /// The handle is let go after [hold].
-  Future<void> endHold() async {
-    if (!_playsOnlyWhileHeld) return;
-    _playsOnlyWhileHeld = false;
-    await _source.pause();
+  /// The handle is let go at `positionMs` after it rested. A recording that
+  /// was playing plays on.
+  Future<void> endHold(int positionMs) async {
+    if (_preview.held) await endScrub(positionMs);
   }
 
   /// Sets the tuning. `false` if it is outside the supported range.

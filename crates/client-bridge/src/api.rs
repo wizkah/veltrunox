@@ -18,6 +18,7 @@ use veltrunox_client_app::{
     add_region, analyse_again, convert_label_to_region, convert_region_to_label, delete_label,
     delete_recording, delete_region, edit_label, edit_region, load_bookmarks, load_library,
     load_waveform, merge_regions as merge_regions_use_case, rename_recording,
+    split_region as split_region_use_case,
 };
 use veltrunox_client_app::{
     Credentials, ManagedUser, NewUser, Rights, SignedIn, UserChange, add_user, change_own_password,
@@ -486,6 +487,27 @@ pub async fn merge_regions(
     )
     .await
     .map(drop)
+    .map_err(|error| write_failure(&error))
+}
+
+/// Splits a region seen at `expected_version` into two that meet at `position_ms`.
+pub async fn split_region(
+    server_url: String,
+    id: u64,
+    expected_version: u64,
+    position_ms: u64,
+    first_name: String,
+    second_name: String,
+) -> Result<(), String> {
+    let link = link(&server_url);
+    split_region_use_case(
+        &link,
+        BookmarkId::new(id),
+        Version::new(expected_version),
+        [&bookmark_name(&first_name)?, &bookmark_name(&second_name)?],
+        Millis::new(position_ms),
+    )
+    .await
     .map_err(|error| write_failure(&error))
 }
 

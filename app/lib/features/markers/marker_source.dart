@@ -49,6 +49,15 @@ abstract interface class MarkerSource {
     required int endMs,
   });
 
+  /// Replaces [region] by one from its start to [positionMs] and one from
+  /// there to its end, in one step on the server.
+  Future<void> splitRegion(
+    RegionMarker region, {
+    required int positionMs,
+    required String firstTitle,
+    required String secondTitle,
+  });
+
   /// Replaces a label by a region in one step; a failure leaves the label.
   Future<void> labelToRegion(
     LabelMarker label, {

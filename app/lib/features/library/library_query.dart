@@ -1,37 +1,21 @@
 import 'analysis_format.dart';
-import 'analysis_info.dart';
 import 'recording_summary.dart';
 
 /// How the list is ordered.
 enum LibrarySort { title, tempo, key }
 
-/// Which recordings the list shows, by the state of their analysis.
-enum LibraryFilter { all, analysed, analysing, failed }
-
-/// What the user asked of the list: a search text, an order and a filter.
+/// What the user asked of the list: a search text and an order.
 class LibraryQuery {
-  const LibraryQuery({
-    this.search = '',
-    this.sort = LibrarySort.title,
-    this.filter = LibraryFilter.all,
-  });
+  const LibraryQuery({this.search = '', this.sort = LibrarySort.title});
 
   final String search;
   final LibrarySort sort;
-  final LibraryFilter filter;
 
-  LibraryQuery copyWith({
-    String? search,
-    LibrarySort? sort,
-    LibraryFilter? filter,
-  }) => LibraryQuery(
-    search: search ?? this.search,
-    sort: sort ?? this.sort,
-    filter: filter ?? this.filter,
-  );
+  LibraryQuery copyWith({String? search, LibrarySort? sort}) =>
+      LibraryQuery(search: search ?? this.search, sort: sort ?? this.sort);
 
   /// Whether the user narrowed the list down (so an empty result is a miss, not an empty library).
-  bool get narrows => search.trim().isNotEmpty || filter != LibraryFilter.all;
+  bool get narrows => search.trim().isNotEmpty;
 }
 
 /// The recordings that fit the [query], in its order.
@@ -45,10 +29,7 @@ List<RecordingSummary> applyQuery(
       .where((word) => word.isNotEmpty)
       .toList();
   final shown = recordings
-      .where(
-        (recording) =>
-            _passes(recording, query.filter) && _matches(recording, words),
-      )
+      .where((recording) => _matches(recording, words))
       .toList();
   shown.sort((a, b) {
     final byOrder = switch (query.sort) {
@@ -62,17 +43,6 @@ List<RecordingSummary> applyQuery(
     return byOrder != 0 ? byOrder : _compareTitle(a, b);
   });
   return shown;
-}
-
-bool _passes(RecordingSummary recording, LibraryFilter filter) {
-  final status = recording.analysis.status;
-  return switch (filter) {
-    LibraryFilter.all => true,
-    LibraryFilter.analysed => status == AnalysisStatus.done,
-    LibraryFilter.analysing =>
-      status == AnalysisStatus.queued || status == AnalysisStatus.running,
-    LibraryFilter.failed => status == AnalysisStatus.failed,
-  };
 }
 
 /// Every word of the search must be found in the title or in the key and tempo.

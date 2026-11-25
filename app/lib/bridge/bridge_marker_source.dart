@@ -144,6 +144,23 @@ class BridgeMarkerSource implements MarkerSource {
   );
 
   @override
+  Future<void> splitRegion(
+    RegionMarker region, {
+    required int positionMs,
+    required String firstTitle,
+    required String secondTitle,
+  }) => _write(
+    () => rust.splitRegion(
+      serverUrl: serverUrl,
+      id: BigInt.from(region.id),
+      expectedVersion: BigInt.from(region.version),
+      positionMs: BigInt.from(positionMs),
+      firstName: firstTitle,
+      secondName: secondTitle,
+    ),
+  );
+
+  @override
   Future<void> labelToRegion(
     LabelMarker label, {
     required String title,

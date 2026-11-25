@@ -170,6 +170,34 @@ class FakeMarkerSource implements MarkerSource {
   );
 
   @override
+  Future<void> splitRegion(
+    RegionMarker region, {
+    required int positionMs,
+    required String firstTitle,
+    required String secondTitle,
+  }) async => _write('splitRegion ${region.id} v${region.version} $positionMs '
+      '$firstTitle $secondTitle', () {
+    markers
+      ..removeWhere((marker) => marker.id == region.id)
+      ..addAll([
+        RegionMarker(
+          id: _nextId++,
+          version: 1,
+          title: firstTitle,
+          startMs: region.startMs,
+          endMs: positionMs,
+        ),
+        RegionMarker(
+          id: _nextId++,
+          version: 1,
+          title: secondTitle,
+          startMs: positionMs,
+          endMs: region.endMs,
+        ),
+      ]);
+  });
+
+  @override
   Future<void> regionToLabel(
     RegionMarker region, {
     required String title,

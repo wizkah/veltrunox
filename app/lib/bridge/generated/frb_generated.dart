@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1892216342;
+  int get rustContentHash => -1564821491;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -270,6 +270,15 @@ abstract class RustLibApi extends BaseApi {
   Future<TargetTempo> crateApiSpeedForTargetBpm({
     required double targetBpm,
     required double recordingBpm,
+  });
+
+  Future<void> crateApiSplitRegion({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+    required BigInt positionMs,
+    required String firstName,
+    required String secondName,
   });
 
   Future<void> crateApiSwitchGuestAccess({
@@ -1606,6 +1615,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiSplitRegion({
+    required String serverUrl,
+    required BigInt id,
+    required BigInt expectedVersion,
+    required BigInt positionMs,
+    required String firstName,
+    required String secondName,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(serverUrl, serializer);
+          sse_encode_u_64(id, serializer);
+          sse_encode_u_64(expectedVersion, serializer);
+          sse_encode_u_64(positionMs, serializer);
+          sse_encode_String(firstName, serializer);
+          sse_encode_String(secondName, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 38,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSplitRegionConstMeta,
+        argValues: [
+          serverUrl,
+          id,
+          expectedVersion,
+          positionMs,
+          firstName,
+          secondName,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSplitRegionConstMeta => const TaskConstMeta(
+    debugName: "split_region",
+    argNames: [
+      "serverUrl",
+      "id",
+      "expectedVersion",
+      "positionMs",
+      "firstName",
+      "secondName",
+    ],
+  );
+
+  @override
   Future<void> crateApiSwitchGuestAccess({
     required String serverUrl,
     required bool enabled,
@@ -1619,7 +1684,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1653,7 +1718,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1684,7 +1749,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1722,7 +1787,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1755,7 +1820,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 42,
+              funcId: 43,
               port: port_,
             );
           },

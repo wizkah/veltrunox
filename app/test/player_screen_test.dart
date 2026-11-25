@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -19,6 +20,15 @@ import 'package:veltrunox_app/shared_ui/server_reason.dart';
 const _loaded = PlayerState(
   recordingId: 1,
   running: false,
+  speed: 1,
+  tuningHz: 440,
+  keyShiftSemitones: 0,
+  volumePercent: 100,
+);
+
+const _running = PlayerState(
+  recordingId: 1,
+  running: true,
   speed: 1,
   tuningHz: 440,
   keyShiftSemitones: 0,
@@ -576,11 +586,46 @@ void main() {
         );
         expect(player.calls.last, 'play');
 
+        player.states.add(_running);
+        await tester.pump();
+        await tester.pump();
+        // The preview does not show as playing.
+        expect(find.byTooltip('Abspielen'), findsOneWidget);
+
         await gesture.up();
         await tester.pump();
-        expect(player.calls.last, 'pause');
+        expect(player.calls.sublist(player.calls.length - 2), [
+          'pause',
+          startsWith('endScrub '),
+        ]);
       },
     );
+
+    testWidgets('letting go while moving also ends the preview', (
+      tester,
+    ) async {
+      final player = await _pumpBar(
+        tester,
+        state: _loaded,
+        analysis: _analysis,
+      );
+      final gesture = await tester.startGesture(
+        tester.getCenter(_sliderOf('Position')),
+      );
+      await gesture.moveBy(const Offset(40, 0));
+      await tester.pump(const Duration(milliseconds: 200));
+      player.states.add(_running);
+      await tester.pump();
+      await gesture.moveBy(const Offset(40, 0));
+      await tester.pump(const Duration(milliseconds: 200));
+      await gesture.moveBy(const Offset(40, 0));
+      await gesture.up();
+      await tester.pump();
+      expect(player.calls.sublist(player.calls.length - 2), [
+        'pause',
+        startsWith('endScrub '),
+      ]);
+    });
 
     testWidgets('moving again after the rest scrubs again', (tester) async {
       final player = await _pumpBar(
@@ -603,6 +648,30 @@ void main() {
       await gesture.up();
       await tester.pump();
       expect(player.calls.last, startsWith('endScrub '));
+    });
+  });
+
+  group('space bar', () {
+    testWidgets('plays and pauses', (tester) async {
+      final player = await _pumpBar(tester, state: _loaded);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      player.states.add(_running);
+      await tester.pump();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      expect(player.calls, ['play', 'pause']);
+    });
+
+    testWidgets('stays with a focused text input', (tester) async {
+      final player = await _pumpBar(
+        tester,
+        state: _loaded,
+        analysis: _analysis,
+      );
+      await tester.tap(find.byType(TextField).first);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      expect(player.calls, isNot(contains('play')));
     });
   });
 

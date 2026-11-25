@@ -191,7 +191,7 @@ void main() {
       await _pump(tester, source);
       await tester.tap(find.byTooltip('Weitere Aktionen: Strophe'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bearbeiten'));
+      await tester.tap(find.text('Bearbeiten').last);
       await tester.pumpAndSettle();
 
       await tester.enterText(_field('Name'), 'Strophe 1');
@@ -216,7 +216,7 @@ void main() {
       await _pump(tester, source);
       await tester.tap(find.byTooltip('Weitere Aktionen: Fein'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bearbeiten'));
+      await tester.tap(find.text('Bearbeiten').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Speichern'));
       await tester.pumpAndSettle();
@@ -230,7 +230,7 @@ void main() {
     await _pump(tester, source);
     await tester.tap(find.byTooltip('Weitere Aktionen: Einsatz'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Bearbeiten'));
+    await tester.tap(find.text('Bearbeiten').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Markierung bearbeiten'), findsOneWidget);
@@ -246,7 +246,7 @@ void main() {
     Future<void> openEdit(WidgetTester tester, String name) async {
       await tester.tap(find.byTooltip('Weitere Aktionen: $name'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bearbeiten'));
+      await tester.tap(find.text('Bearbeiten').last);
       await tester.pumpAndSettle();
     }
 
@@ -417,20 +417,44 @@ void main() {
       endMs: 90000,
     );
 
+    Future<void> startTicking(WidgetTester tester) async {
+      await tester.tap(find.text('Bearbeiten'));
+      await tester.pumpAndSettle();
+    }
+
     Future<FakeMarkerSource> pumpTicked(WidgetTester tester) async {
       final source = FakeMarkerSource([_label, _region, other]);
       await _pump(tester, source);
+      await startTicking(tester);
       await tester.tap(find.byType(Checkbox).first);
       await tester.tap(find.byType(Checkbox).last);
       await tester.pumpAndSettle();
       return source;
     }
 
+    testWidgets('the highlighted region keeps its tick box in line', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        FakeMarkerSource([_region, other]),
+        activeRange: (startMs: 10000, endMs: 67000),
+      );
+      await startTicking(tester);
+      final boxes = find.byType(Checkbox);
+      expect(
+        tester.getTopLeft(boxes.first).dx,
+        tester.getTopLeft(boxes.last).dx,
+      );
+    });
+
     testWidgets('labels cannot be ticked, the bar needs two regions', (
       tester,
     ) async {
       final source = FakeMarkerSource([_label, _region, other]);
       await _pump(tester, source);
+      expect(find.byType(Checkbox), findsNothing);
+      await startTicking(tester);
       expect(find.byType(Checkbox), findsNWidgets(2));
       expect(find.text('Regionen kombinieren'), findsNothing);
 
@@ -492,6 +516,48 @@ void main() {
 
       expect(source.calls, isEmpty);
       expect(find.text('2 ausgewählt'), findsOneWidget);
+    });
+  });
+
+  group('duplicate and split', () {
+    Future<(FakeMarkerSource, _Harness)> choose(
+      WidgetTester tester,
+      String action, {
+      int playhead = 42000,
+    }) async {
+      final source = FakeMarkerSource([_region]);
+      final harness = await _pump(tester, source);
+      harness.playhead = playhead;
+      await tester.tap(find.byTooltip('Weitere Aktionen: Strophe'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(action));
+      await tester.pumpAndSettle();
+      return (source, harness);
+    }
+
+    testWidgets('a duplicate has the same times', (tester) async {
+      final (source, _) = await choose(tester, 'Duplizieren');
+      expect(source.calls, ['addRegion Strophe (Kopie) 10000 67000']);
+    });
+
+    testWidgets('splitting at the playhead makes two parts', (tester) async {
+      final (source, _) = await choose(tester, 'Am Abspielkopf teilen');
+      expect(source.calls, ['splitRegion 2 v3 42000 Strophe (1) Strophe (2)']);
+    });
+
+    testWidgets('a playhead outside the region splits nothing', (tester) async {
+      final (source, _) = await choose(
+        tester,
+        'Am Abspielkopf teilen',
+        playhead: 5000,
+      );
+      expect(source.calls, isEmpty);
+      expect(
+        find.text('Der Abspielkopf liegt nicht in dieser Region.'),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 10));
+      await tester.pumpAndSettle();
     });
   });
 }

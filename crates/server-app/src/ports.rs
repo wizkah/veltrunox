@@ -193,6 +193,15 @@ pub trait BookmarkRepository: Send + Sync {
         name: BookmarkName,
         range: TimeRange,
     ) -> Result<Region, BookmarkError>;
+    /// Replaces a region by two that meet at `position` in one step; both get new ids.
+    /// The position must lie inside the region.
+    fn split_region(
+        &self,
+        id: BookmarkId,
+        expected: Version,
+        names: [BookmarkName; 2],
+        position: Millis,
+    ) -> Result<Owned<[Region; 2]>, BookmarkError>;
     /// Replaces a region by a new label in one step; the label gets a new id.
     fn convert_region_to_label(
         &self,

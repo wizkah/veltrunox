@@ -20,6 +20,25 @@ final markerSelectionProvider =
       (recordingId) => MarkerSelection(),
     );
 
+/// Whether the list offers to tick regions; local to this client.
+class MarkerSelecting extends Notifier<bool> {
+  MarkerSelecting(this.recordingId);
+
+  final int recordingId;
+
+  @override
+  bool build() => false;
+
+  /// Switches ticking on or off; switching it off drops what was ticked.
+  void toggle() {
+    state = !state;
+    if (!state) ref.read(markerSelectionProvider(recordingId).notifier).clear();
+  }
+}
+
+final markerSelectingProvider =
+    NotifierProvider.family<MarkerSelecting, bool, int>(MarkerSelecting.new);
+
 /// The ticked regions that still exist, in time order.
 List<RegionMarker> selectedRegions(List<Marker> all, Set<int> ids) =>
     (all.whereType<RegionMarker>().where((r) => ids.contains(r.id)).toList()

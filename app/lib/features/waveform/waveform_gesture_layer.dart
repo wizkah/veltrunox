@@ -2,22 +2,20 @@ import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'time_viewport.dart';
-import 'two_finger_recognizer.dart';
 
 /// Moving less than this still counts as a tap: a mouse or finger rarely stays
 /// perfectly still during a click.
 const _tapTravelPx = 10.0;
 
 /// Turns touches on the free waveform into view and position intents: a tap
-/// sets the position, one finger pans, two fingers pinch (zoom) and pan, and
-/// on a trackpad a sideways swipe pans and a pinch zooms. Handles, the playhead,
+/// sets the position, one finger pans, and on a trackpad a sideways swipe
+/// pans. Pinching is handled around the whole timeline. Handles, the playhead,
 /// labels and regions sit above and take their own touches.
 class WaveformGestureLayer extends StatefulWidget {
   const WaveformGestureLayer({
     required this.viewport,
     required this.onTapAt,
     required this.onPan,
-    required this.onZoom,
     required this.child,
     super.key,
   });
@@ -29,9 +27,6 @@ class WaveformGestureLayer extends StatefulWidget {
 
   /// The content moved sideways by this many pixels.
   final ValueChanged<double> onPan;
-
-  /// Zoom by a factor (above 1 zooms in) around a pixel position.
-  final void Function(double factor, double anchorX) onZoom;
   final Widget child;
 
   @override
@@ -58,18 +53,14 @@ class _WaveformGestureLayerState extends State<WaveformGestureLayer> {
 
   int _ms(double x) => widget.viewport.xToTime(x).round();
 
-  /// A trackpad or wheel: a mostly sideways swipe pans, a pinch (the browser
-  /// reports it as a scale) zooms. Mostly vertical scrolling is left to the
-  /// page.
+  /// A trackpad or wheel: a mostly sideways swipe pans. Mostly vertical
+  /// scrolling is left to the page.
   void _signalled(PointerSignalEvent event) {
-    final resolver = GestureBinding.instance.pointerSignalResolver;
     if (event is PointerScrollEvent &&
         event.scrollDelta.dx.abs() > event.scrollDelta.dy.abs()) {
-      resolver.register(event, (_) => widget.onPan(-event.scrollDelta.dx));
-    } else if (event is PointerScaleEvent) {
-      resolver.register(
+      GestureBinding.instance.pointerSignalResolver.register(
         event,
-        (_) => widget.onZoom(event.scale, event.localPosition.dx),
+        (_) => widget.onPan(-event.scrollDelta.dx),
       );
     }
   }
@@ -95,14 +86,6 @@ class _WaveformGestureLayerState extends State<WaveformGestureLayer> {
                 ..onStart = _start
                 ..onUpdate = _update
                 ..onEnd = _end,
-            ),
-        TwoFingerRecognizer:
-            GestureRecognizerFactoryWithHandlers<TwoFingerRecognizer>(
-              TwoFingerRecognizer.new,
-              (twoFingers) => twoFingers.onUpdate = (factor, focalX, panDx) {
-                widget.onZoom(factor, focalX);
-                widget.onPan(panDx);
-              },
             ),
       },
       child: widget.child,
