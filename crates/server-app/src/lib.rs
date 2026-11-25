@@ -10,7 +10,7 @@ mod testing;
 
 pub use accounts::{AccessStatus, AccountError, AccountService, Identity, Session};
 pub use analysis::AnalysisService;
-pub use bookmarks::BookmarkService;
+pub use bookmarks::{BookmarkService, ImportMode, ImportOutcome};
 pub use playback::{IntentError, PlaybackService};
 pub use ports::{
     AnalysisFailure, AnalysisRepository, BookmarkError, BookmarkRepository, Clock, HashFailure,

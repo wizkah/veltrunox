@@ -98,15 +98,35 @@ pub struct NewBookmarks {
     pub regions: Vec<NewRegion>,
 }
 
+/// Points at one entry of a set of bookmarks by its index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryRef {
+    Label(usize),
+    Region(usize),
+}
+
 impl NewBookmarks {
-    /// Every label must lie inside the recording and every region must end within it.
-    pub fn check_within(&self, length: Millis) -> Result<(), InvalidValue> {
-        let labels_inside = self.labels.iter().all(|label| label.position <= length);
-        let regions_inside = self
+    /// The entries that lie outside a recording of `length`: a label past its end, a region
+    /// ending after it.
+    pub fn entries_outside(&self, length: Millis) -> Vec<EntryRef> {
+        let labels = self
+            .labels
+            .iter()
+            .enumerate()
+            .filter(|(_, label)| label.position > length)
+            .map(|(index, _)| EntryRef::Label(index));
+        let regions = self
             .regions
             .iter()
-            .all(|region| region.range.end() <= length);
-        if labels_inside && regions_inside {
+            .enumerate()
+            .filter(|(_, region)| region.range.end() > length)
+            .map(|(index, _)| EntryRef::Region(index));
+        labels.chain(regions).collect()
+    }
+
+    /// Every label must lie inside the recording and every region must end within it.
+    pub fn check_within(&self, length: Millis) -> Result<(), InvalidValue> {
+        if self.entries_outside(length).is_empty() {
             Ok(())
         } else {
             Err(InvalidValue::OutsideRecording)

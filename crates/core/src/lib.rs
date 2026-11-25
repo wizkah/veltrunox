@@ -3,6 +3,7 @@
 mod analysis;
 mod auth;
 mod bookmark;
+mod bookmark_import;
 mod playback;
 mod reason;
 mod recording;
@@ -16,8 +17,12 @@ pub use analysis::{
 };
 pub use auth::{Capability, InvalidUser, PasswordPolicy, Role, UserId, UserName};
 pub use bookmark::{
-    BookmarkId, BookmarkName, Bookmarks, Label, NewBookmarks, NewLabel, NewRegion, Region, Version,
-    VersionConflict, check_version,
+    BookmarkId, BookmarkName, Bookmarks, EntryRef, Label, NewBookmarks, NewLabel, NewRegion,
+    Region, Version, VersionConflict, check_version,
+};
+pub use bookmark_import::{
+    ConflictKind, ImportConflict, ImportDiff, ImportedBookmarks, ImportedLabel, ImportedRegion,
+    KnownEntry, plan_import,
 };
 pub use playback::{
     Intent, PlayMode, PlaybackSettings, PlaybackState, PositionReference, TransportError,

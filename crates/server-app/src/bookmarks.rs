@@ -3,9 +3,29 @@
 use crate::ports::{BookmarkError, BookmarkRepository, PlaybackBroadcast, RecordingLengths};
 use std::sync::Arc;
 use veltrunox_core::{
-    BookmarkId, BookmarkName, Bookmarks, Label, Millis, NewBookmarks, RecordingId, Region,
-    TimeRange, Version,
+    BookmarkId, BookmarkName, Bookmarks, EntryRef, ImportConflict, ImportDiff, ImportedBookmarks,
+    Label, Millis, NewBookmarks, RecordingId, Region, TimeRange, Version, plan_import,
 };
+
+/// How an import is carried out.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ImportMode {
+    /// Report what would change and write nothing.
+    pub dry_run: bool,
+    /// Do not stop at entries whose stored original changed or is gone.
+    pub overwrite: bool,
+}
+
+/// What an import of one recording came to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImportOutcome {
+    /// The change; `applied` is false for a dry run.
+    Done { diff: ImportDiff, applied: bool },
+    /// Entries of the import lie outside the recording; nothing was written.
+    Outside(Vec<EntryRef>),
+    /// An entry's stored original changed or is gone; nothing was written.
+    Conflict(ImportConflict),
+}
 
 /// Each successful change sends a notice so connected clients reload the bookmarks.
 pub struct BookmarkService {
@@ -44,6 +64,36 @@ impl BookmarkService {
         let stored = self.repository.replace_all(recording, bookmarks)?;
         self.broadcast.bookmarks_changed(recording);
         Ok(stored)
+    }
+
+    /// Imports the bookmarks of one recording: checks them against its length and against what
+    /// is stored, and, unless it is a dry run, replaces the stored set. The stored set is read
+    /// before it is replaced, so a change in between is not noticed.
+    pub fn import(
+        &self,
+        recording: RecordingId,
+        incoming: &ImportedBookmarks,
+        mode: ImportMode,
+    ) -> Result<ImportOutcome, BookmarkError> {
+        let stored = self.repository.list(recording)?;
+        let replacement = incoming.to_new();
+        if let Some(length) = self.lengths.length(recording) {
+            let outside = replacement.entries_outside(length);
+            if !outside.is_empty() {
+                return Ok(ImportOutcome::Outside(outside));
+            }
+        }
+        let diff = match plan_import(&stored, incoming, mode.overwrite) {
+            Ok(diff) => diff,
+            Err(conflict) => return Ok(ImportOutcome::Conflict(conflict)),
+        };
+        if !mode.dry_run {
+            self.replace_all(recording, &replacement)?;
+        }
+        Ok(ImportOutcome::Done {
+            diff,
+            applied: !mode.dry_run,
+        })
     }
 
     pub fn add_label(

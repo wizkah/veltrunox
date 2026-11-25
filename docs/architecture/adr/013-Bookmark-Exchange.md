@@ -22,7 +22,8 @@ Labels and regions are created one by one in the interface and through the per-i
 
 **Format.**
 - JSON is the exchange format, with a published schema (`format_version`, recordings, labels, regions). Times are numbers in milliseconds, as everywhere in the API.
-- CSV is a convenience for spreadsheets: one flat table of bookmarks, columns `recording_id,type,name,start_ms,end_ms` (`end_ms` empty for a label). It has the same preview, validation and conflict rules and is converted to the JSON model on the server. The recording list with details is not offered as CSV.
+- The JSON schema of an import is served at `GET /api/v1/import/schema`; an export file is a valid import.
+- CSV is a convenience for spreadsheets: one flat table of bookmarks, columns `recording_id,type,name,start_ms,end_ms` (`end_ms` empty for a label) and, as exported, `id,version` (optional on import). Export as CSV is `?format=csv`; a recording without a row is not part of a CSV import. It has the same preview, validation and conflict rules and is converted to the JSON model on the server. The recording list with details is not offered as CSV.
 
 **Access for scripts and LLMs.**
 - A user can create named API tokens (`POST /api/v1/tokens`, list, revoke), stored like sessions (only the hash) but without the 30-day expiry and with a role limited to `read` or `read + edit_bookmarks`; they never carry upload, management or user administration. The token is shown once. A token's rights are the intersection of the user's rights and its limit.

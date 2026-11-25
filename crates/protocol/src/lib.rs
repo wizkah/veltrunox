@@ -12,13 +12,15 @@ pub use accounts::{
 };
 
 pub use convert::{
-    InvalidEntry, analysis_from_dto, analysis_to_dto, bookmarks_from_dto, bookmarks_to_dto,
-    intent_from_message, intent_to_message, label_from_dto, label_to_dto, library_entry_from_dto,
-    library_entry_to_dto, new_bookmarks_from_dto, peaks_from_bytes, peaks_to_bytes,
-    play_mode_from_dto, play_mode_to_dto, range_from_dto, range_to_dto, region_from_dto,
-    region_to_dto, state_from_dto, state_to_dto, waveform_info_to_dto,
+    EntryIssue, InvalidEntry, analysis_from_dto, analysis_to_dto, bookmarks_from_dto,
+    bookmarks_to_dto, entry_path, imported_bookmarks_from_dto, intent_from_message,
+    intent_to_message, label_from_dto, label_to_dto, library_entry_from_dto, library_entry_to_dto,
+    new_bookmarks_from_dto, peaks_from_bytes, peaks_to_bytes, play_mode_from_dto, play_mode_to_dto,
+    range_from_dto, range_to_dto, region_from_dto, region_to_dto, state_from_dto, state_to_dto,
+    waveform_info_to_dto,
 };
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Why a request or an intent was refused. The `code` is stable and meant for
@@ -130,7 +132,7 @@ pub enum PlayModeDto {
     Loop,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RangeDto {
     pub start_ms: u64,
     pub end_ms: u64,
@@ -212,7 +214,7 @@ pub enum ClientMessageDto {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct LabelDto {
     pub id: u64,
     pub version: u64,
@@ -220,7 +222,7 @@ pub struct LabelDto {
     pub position_ms: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RegionDto {
     pub id: u64,
     pub version: u64,
@@ -228,7 +230,7 @@ pub struct RegionDto {
     pub range: RangeDto,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct BookmarksDto {
     pub labels: Vec<LabelDto>,
     pub regions: Vec<RegionDto>,
@@ -245,7 +247,7 @@ pub struct ReplaceBookmarksDto {
 }
 
 /// One recording with its details and bookmarks, as exchanged by export.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ExportedRecordingDto {
     pub recording: RecordingSummaryDto,
     pub bookmarks: BookmarksDto,
@@ -255,10 +257,117 @@ pub struct ExportedRecordingDto {
 pub const EXPORT_FORMAT_VERSION: u32 = 1;
 
 /// Recordings with details and bookmarks (`GET` of `EXPORT_PATH` or `RECORDING_EXPORT_PATH`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ExportDto {
     pub format_version: u32,
     pub recordings: Vec<ExportedRecordingDto>,
+}
+
+/// Path of the import of bookmarks (`POST`; JSON as `ImportDto` or CSV with the content type
+/// `text/csv`; query `dry_run` and `overwrite`; answer `ImportResultDto`).
+pub const IMPORT_PATH: &str = "/api/v1/import";
+/// Path of the JSON schema of `ImportDto`.
+pub const IMPORT_SCHEMA_PATH: &str = "/api/v1/import/schema";
+
+/// Reference to a recording in an import; an export file carries more fields, which are ignored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RecordingRefDto {
+    pub id: u64,
+}
+
+/// A label of an import. `id` and `version` as exported tie it to a stored label; without
+/// them the label is new.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ImportLabelDto {
+    #[serde(default)]
+    pub id: Option<u64>,
+    #[serde(default)]
+    pub version: Option<u64>,
+    pub name: String,
+    pub position_ms: u64,
+}
+
+/// A region of an import; see `ImportLabelDto`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ImportRegionDto {
+    #[serde(default)]
+    pub id: Option<u64>,
+    #[serde(default)]
+    pub version: Option<u64>,
+    pub name: String,
+    pub range: RangeDto,
+}
+
+/// The bookmarks a recording is to have after the import.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ImportBookmarksDto {
+    #[serde(default)]
+    pub labels: Vec<ImportLabelDto>,
+    #[serde(default)]
+    pub regions: Vec<ImportRegionDto>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ImportRecordingDto {
+    pub recording: RecordingRefDto,
+    pub bookmarks: ImportBookmarksDto,
+}
+
+/// What an import contains: per recording the complete set of bookmarks it is to have. An
+/// export file is a valid import.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ImportDto {
+    #[serde(default = "export_format_version")]
+    pub format_version: u32,
+    pub recordings: Vec<ImportRecordingDto>,
+}
+
+/// The JSON schema of `ImportDto`, for people and programs that prepare an import.
+pub fn import_schema() -> schemars::Schema {
+    schemars::schema_for!(ImportDto)
+}
+
+fn export_format_version() -> u32 {
+    EXPORT_FORMAT_VERSION
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImportStatusDto {
+    /// Applied, or, for a dry run, would be applied.
+    Ok,
+    /// An entry's stored original changed or is gone.
+    Conflict,
+    /// Entries are invalid; see `issues`.
+    Invalid,
+    UnknownRecording,
+}
+
+/// A problem with one entry of an import; `entry` reads like `labels[2]`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImportIssueDto {
+    pub entry: String,
+    pub reason: ReasonDto,
+}
+
+/// The outcome for one recording; the counts are as in `ImportDiff` and zero unless the status is `ok`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImportOutcomeDto {
+    pub recording_id: u64,
+    pub status: ImportStatusDto,
+    pub added: u32,
+    pub changed: u32,
+    pub unchanged: u32,
+    pub removed: u32,
+    pub issues: Vec<ImportIssueDto>,
+}
+
+/// Answer to an import: one outcome per recording, in the order of the import. A recording that
+/// is not `ok` is left as it was; the others are applied unless `dry_run`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImportResultDto {
+    pub dry_run: bool,
+    pub recordings: Vec<ImportOutcomeDto>,
 }
 
 /// Body to create a label.
@@ -302,7 +411,7 @@ pub struct ConflictDto {
 }
 
 /// Estimated values of a recording; the confidences are ratios of the best to the second-best score.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct AnalysisResultDto {
     pub tuning_hz: f64,
     pub tuning_confidence: f64,
@@ -314,7 +423,7 @@ pub struct AnalysisResultDto {
     pub tempo_confidence: f64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum AnalysisProgressDto {
     None,
@@ -360,7 +469,7 @@ pub struct RenameRecordingDto {
     pub title: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct RecordingSummaryDto {
     pub id: u64,
     pub title: String,

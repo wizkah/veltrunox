@@ -1,16 +1,17 @@
 //! Translation between wire messages and domain types.
 
 use crate::{
-    AnalysisProgressDto, AnalysisResultDto, BookmarksDto, ClientMessageDto, LabelDto, PlayModeDto,
-    PlaybackStateDto, RangeDto, RecordingSummaryDto, RegionDto, ReplaceBookmarksDto,
-    WaveformInfoDto, WaveformLevelInfoDto,
+    AnalysisProgressDto, AnalysisResultDto, BookmarksDto, ClientMessageDto, ImportBookmarksDto,
+    LabelDto, PlayModeDto, PlaybackStateDto, RangeDto, RecordingSummaryDto, RegionDto,
+    ReplaceBookmarksDto, WaveformInfoDto, WaveformLevelInfoDto,
 };
 use veltrunox_core::{
-    AnalysisInfo, AnalysisProgress, BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, Intent,
-    InvalidRecording, InvalidValue, KeyMode, KeyShift, Label, LibraryEntry, Millis, MusicalKey,
-    NewBookmarks, NewLabel, NewRegion, Peak, PitchClass, PlayMode, PlaybackSettings, PlaybackState,
-    PositionReference, Recording, RecordingAnalysis, RecordingId, RecordingTitle, Region, Speed,
-    TimeRange, TuningHz, Version, Volume, Waveform,
+    AnalysisInfo, AnalysisProgress, BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, EntryRef,
+    ImportedBookmarks, ImportedLabel, ImportedRegion, Intent, InvalidRecording, InvalidValue,
+    KeyMode, KeyShift, Label, LibraryEntry, Millis, MusicalKey, NewBookmarks, NewLabel, NewRegion,
+    Peak, PitchClass, PlayMode, PlaybackSettings, PlaybackState, PositionReference, Recording,
+    RecordingAnalysis, RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version,
+    Volume, Waveform,
 };
 
 /// Describes the levels of a waveform without their peaks.
@@ -326,6 +327,67 @@ pub fn bookmarks_from_dto(dto: &BookmarksDto) -> Result<Bookmarks, InvalidValue>
     })
 }
 
+/// An entry of an import that is not valid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EntryIssue {
+    pub entry: EntryRef,
+    pub error: InvalidValue,
+}
+
+/// Names an entry the way an import answer does: `labels[2]`, `regions[0]`.
+pub fn entry_path(entry: EntryRef) -> String {
+    match entry {
+        EntryRef::Label(index) => format!("labels[{index}]"),
+        EntryRef::Region(index) => format!("regions[{index}]"),
+    }
+}
+
+/// An entry that names a stored entry by id and version; one with only half of that is new.
+fn known_entry(id: Option<u64>, version: Option<u64>) -> Option<(BookmarkId, Version)> {
+    Some((BookmarkId::new(id?), Version::new(version?)))
+}
+
+/// Validates every entry of an import and reports all that are invalid, not only the first.
+pub fn imported_bookmarks_from_dto(
+    dto: &ImportBookmarksDto,
+) -> Result<ImportedBookmarks, Vec<EntryIssue>> {
+    let mut issues = Vec::new();
+    let mut imported = ImportedBookmarks::default();
+    for (index, label) in dto.labels.iter().enumerate() {
+        let converted = BookmarkName::new(&label.name)
+            .and_then(|name| Ok((name, Millis::position(label.position_ms)?)));
+        match converted {
+            Ok((name, position)) => imported.labels.push(ImportedLabel {
+                known: known_entry(label.id, label.version),
+                label: NewLabel { name, position },
+            }),
+            Err(error) => issues.push(EntryIssue {
+                entry: EntryRef::Label(index),
+                error,
+            }),
+        }
+    }
+    for (index, region) in dto.regions.iter().enumerate() {
+        let converted = BookmarkName::new(&region.name)
+            .and_then(|name| Ok((name, range_from_dto(region.range)?)));
+        match converted {
+            Ok((name, range)) => imported.regions.push(ImportedRegion {
+                known: known_entry(region.id, region.version),
+                region: NewRegion { name, range },
+            }),
+            Err(error) => issues.push(EntryIssue {
+                entry: EntryRef::Region(index),
+                error,
+            }),
+        }
+    }
+    if issues.is_empty() {
+        Ok(imported)
+    } else {
+        Err(issues)
+    }
+}
+
 /// Validates the names, positions and ranges of a replacement set received from outside.
 pub fn new_bookmarks_from_dto(dto: &ReplaceBookmarksDto) -> Result<NewBookmarks, InvalidValue> {
     Ok(NewBookmarks {
@@ -566,6 +628,69 @@ mod tests {
             new_bookmarks_from_dto(&unnamed),
             Err(InvalidValue::EmptyName)
         );
+    }
+
+    #[test]
+    fn an_import_reports_every_invalid_entry_with_its_place() {
+        use crate::{ImportLabelDto, ImportRegionDto};
+        let dto = ImportBookmarksDto {
+            labels: vec![
+                ImportLabelDto {
+                    id: Some(4),
+                    version: Some(2),
+                    name: "Verse".into(),
+                    position_ms: 5,
+                },
+                ImportLabelDto {
+                    id: None,
+                    version: None,
+                    name: " ".into(),
+                    position_ms: 5,
+                },
+            ],
+            regions: vec![ImportRegionDto {
+                id: Some(1),
+                version: None,
+                name: "Chorus".into(),
+                range: RangeDto {
+                    start_ms: 9,
+                    end_ms: 3,
+                },
+            }],
+        };
+        let issues = imported_bookmarks_from_dto(&dto).unwrap_err();
+        assert_eq!(
+            issues,
+            vec![
+                EntryIssue {
+                    entry: EntryRef::Label(1),
+                    error: InvalidValue::EmptyName
+                },
+                EntryIssue {
+                    entry: EntryRef::Region(0),
+                    error: InvalidValue::EmptyRange
+                },
+            ]
+        );
+        assert_eq!(entry_path(issues[0].entry), "labels[1]");
+
+        let valid = ImportBookmarksDto {
+            labels: vec![dto.labels[0].clone()],
+            regions: vec![ImportRegionDto {
+                range: RangeDto {
+                    start_ms: 3,
+                    end_ms: 9,
+                },
+                ..dto.regions[0].clone()
+            }],
+        };
+        let imported = imported_bookmarks_from_dto(&valid).unwrap();
+        assert_eq!(
+            imported.labels[0].known,
+            Some((BookmarkId::new(4), Version::new(2)))
+        );
+        // An id without a version does not tie the entry to a stored one.
+        assert_eq!(imported.regions[0].known, None);
     }
 
     #[test]
