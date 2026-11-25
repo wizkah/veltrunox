@@ -1,5 +1,10 @@
 // The file name sorts it last: the player test below selects a recording on the shared server,
 // and the tests of the shared player expect none to be selected when they start.
+//
+// The sentences a dialog says about a finished or failed import (the status sentences) reach the
+// page only as the screen-reader announcement, which is not always updated, so these tests check
+// what the dialog ends in and what the server holds; the sentences are checked by the widget
+// tests. (The status of the upload bar is a node of its own, found by its label.)
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ADMIN, openSignedIn, typeInto, wav } from './support';
 
@@ -144,9 +149,9 @@ test('an import shows a preview first and applies only after a confirmation', as
   expect((await bookmarksOf(page, admin, id)).labels).toHaveLength(2);
 
   await chooseImportFile(page, 'edited.json', file);
+  // The button works once the preview has arrived; before, it is there but cannot be pressed.
+  await expect(page.getByText('Neu 1 · Geändert 0 · Unverändert 0')).toBeVisible();
   await press(page.getByRole('button', { name: 'Anwenden' }));
-  // The summary sentence is a live region, which the accessibility layer does not always carry
-  // to the page; what the dialog ends in and what the server holds say the same.
   await expect(page.getByRole('button', { name: 'Anwenden' })).toHaveCount(0);
   await press(page.getByRole('button', { name: 'Schließen' }));
   expect((await bookmarksOf(page, admin, id)).labels.map((label: any) => label.name)).toEqual(['Neu']);
@@ -195,7 +200,6 @@ test('a file that cannot be read gets one error and no preview', async ({ page }
 
   await chooseImportFile(page, 'broken.json', '{not json');
 
-  // The sentence that says why is a live region (see above); the dialog offers no way on.
   await expect(page.getByText('Import-Vorschau')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Schließen' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Anwenden' })).toHaveCount(0);

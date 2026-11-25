@@ -22,20 +22,23 @@ test('uploads a file, which appears in the library, and notices a repeat', async
 
 test('shows how much of a slow upload has arrived', async ({ page }) => {
   await openSignedIn(page);
-  // A throttled connection makes the 20 MB file take a few seconds to send.
+  // A throttled connection makes the 10 MB file take about ten seconds to send, long enough for a slow runner to show the progress.
   const session = await page.context().newCDPSession(page);
   await session.send('Network.emulateNetworkConditions', {
     offline: false,
     latency: 0,
     downloadThroughput: -1,
-    uploadThroughput: 5_000_000,
+    uploadThroughput: 1_000_000,
   });
 
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Aufnahmen hochladen' }).dispatchEvent('click');
   await (await chooser).setFiles({ name: 'Slow One.wav', mimeType: 'audio/wav', buffer: silentWav(10_000_000) });
 
-  await expect(page.getByText(/^Wird hochgeladen: Slow One\.wav – \d+\u00a0%$/).first()).toBeVisible({ timeout: 30_000 });
+  // Flutter's accessibility layer carries a status as the aria-label of its node; the only text
+  // node of the sentence is the screen-reader announcement, which is not always updated while
+  // the upload runs. The label is what the page really shows.
+  await expect(page.getByLabel(/^Wird hochgeladen: Slow One\.wav – \d+\s%$/).first()).toBeVisible({ timeout: 30_000 });
   await session.send('Network.emulateNetworkConditions', {
     offline: false,
     latency: 0,
