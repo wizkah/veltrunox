@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'bottom_navigation.dart';
+import 'build_stamp.dart';
 import 'shell_destination.dart';
 import 'shell_layout.dart';
 import 'brand_mark.dart';
@@ -36,6 +37,7 @@ class AppShell extends StatelessWidget {
   );
 
   Widget _mobile() => Scaffold(
+    // No room for the build time on a phone.
     appBar: AppBar(title: const BrandMark(), actions: [status]),
     body: body,
     bottomNavigationBar: BottomNavigation(
@@ -45,7 +47,10 @@ class AppShell extends StatelessWidget {
   );
 
   Widget _tablet() => Scaffold(
-    appBar: AppBar(title: const BrandMark(), actions: [status]),
+    appBar: AppBar(
+      title: const BrandMark(),
+      actions: [const BuildStamp(), status],
+    ),
     body: Row(
       children: [
         SideNavigation(selected: destination, onSelect: onSelect),

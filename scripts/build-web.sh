@@ -17,7 +17,8 @@ RUSTFLAGS="--cfg=web_sys_unstable_apis" wasm-pack build \
 rm -f web/pkg/package.json
 # The rehearsal room may have no internet, so CanvasKit and fonts are bundled instead of
 # fetched from Google's CDN.
-flutter build web --no-web-resources-cdn --no-source-maps "$@"
+flutter build web --no-web-resources-cdn --no-source-maps \
+  --dart-define=BUILD_TIME="$(date '+%Y-%m-%d %H:%M')" "$@"
 # The app uses the CanvasKit renderer: browsers load only canvaskit/ (Safari, Firefox) or
 # canvaskit/chromium/ (Chrome, Edge). Drop the other renderer variants and debug symbols.
 cd build/web/canvaskit

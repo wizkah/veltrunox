@@ -3,7 +3,7 @@ import 'package:web/web.dart' as web;
 /// Copies [text] through a temporary text field and the legacy copy command.
 /// Works where the asynchronous clipboard API is missing, such as a page
 /// served over plain HTTP from a host other than localhost.
-bool copyTextWithFallback(String text) {
+bool copyTextInBrowser(String text) {
   final field = web.HTMLTextAreaElement()
     ..value = text
     ..readOnly = true

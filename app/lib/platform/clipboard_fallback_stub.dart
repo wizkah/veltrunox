@@ -1,2 +1,2 @@
-/// No fallback outside a browser.
-bool copyTextWithFallback(String text) => false;
+/// Not a browser: nothing copied here.
+bool copyTextInBrowser(String text) => false;

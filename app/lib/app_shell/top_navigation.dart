@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../design/tokens/app_colors.dart';
 import '../design/tokens/app_geometry.dart';
 import 'brand_mark.dart';
+import 'build_stamp.dart';
 import 'shell_destination.dart';
 
 /// Compact navigation along the top edge (desktop), with the global status
@@ -39,7 +40,7 @@ class TopNavigation extends StatelessWidget implements PreferredSizeWidget {
           ),
       ],
     ),
-    actions: [status],
+    actions: [const BuildStamp(), status],
   );
 }
 
