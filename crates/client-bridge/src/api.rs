@@ -20,9 +20,9 @@ use veltrunox_client_app::{
     load_waveform, rename_recording,
 };
 use veltrunox_client_app::{
-    Credentials, ManagedUser, NewUser, Rights, SignedIn, UserChange, add_user, delete_user,
-    edit_user, load_access_status, load_rights, load_users, set_guest_access, set_password_policy,
-    set_up_first_admin, sign_in, sign_out,
+    Credentials, ManagedUser, NewUser, Rights, SignedIn, UserChange, add_user, change_own_password,
+    delete_user, edit_user, load_access_status, load_rights, load_users, set_guest_access,
+    set_password_policy, set_up_first_admin, sign_in, sign_out,
 };
 use veltrunox_core::{
     AnalysisProgress, ApiTokenId, BookmarkId, BookmarkName, Bpm, Capability, EntryRef, Intent,
@@ -1251,6 +1251,19 @@ pub async fn change_user(
         password,
     };
     edit_user(&link(&server_url), UserId::new(user_id), &change)
+        .await
+        .map_err(AccessError::from)
+}
+
+/// The signed-in account changes its own password with its current one. Afterwards every
+/// sign-in of the account has ended, this one too. Refusals (wrong current password, a new one
+/// that breaks the rules) carry their reason.
+pub async fn change_my_password(
+    server_url: String,
+    current_password: String,
+    new_password: String,
+) -> Result<(), AccessError> {
+    change_own_password(&link(&server_url), &current_password, &new_password)
         .await
         .map_err(AccessError::from)
 }

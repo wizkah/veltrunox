@@ -198,6 +198,12 @@ pub trait ServerLink {
     /// The rights of this link's token, or of a guest while guests are let in.
     fn fetch_rights(&self) -> impl Future<Output = Result<Rights, LinkError>>;
     fn fetch_users(&self) -> impl Future<Output = Result<Vec<ManagedUser>, LinkError>>;
+    /// The signed-in account changes its own password; the server ends all its sessions.
+    fn send_own_password(
+        &self,
+        current: &str,
+        new: &str,
+    ) -> impl Future<Output = Result<(), LinkError>>;
     fn create_user(&self, user: &NewUser) -> impl Future<Output = Result<ManagedUser, LinkError>>;
     fn change_user(
         &self,
@@ -411,6 +417,16 @@ pub async fn edit_user(
     change: &UserChange,
 ) -> Result<(), LinkError> {
     link.change_user(id, change).await
+}
+
+/// Use case: the signed-in account changes its own password. On success every sign-in of the
+/// account has ended, this one too.
+pub async fn change_own_password(
+    link: &impl ServerLink,
+    current: &str,
+    new: &str,
+) -> Result<(), LinkError> {
+    link.send_own_password(current, new).await
 }
 
 /// Use case (admin): delete a user.

@@ -72,15 +72,14 @@ fn user_to_dto(record: &UserRecord) -> UserDto {
 pub fn account_error_response(error: AccountError) -> Response {
     let reason = error.reason();
     match error {
-        AccountError::Invalid(_) | AccountError::GuestAccount => {
-            refusal(StatusCode::BAD_REQUEST, &reason)
-        }
+        AccountError::Invalid(_)
+        | AccountError::GuestAccount
+        | AccountError::WrongCurrentPassword => refusal(StatusCode::BAD_REQUEST, &reason),
         AccountError::NameTaken | AccountError::SetupDone | AccountError::LastAdmin => {
             refusal(StatusCode::CONFLICT, &reason)
         }
         AccountError::NotFound => refusal(StatusCode::NOT_FOUND, &reason),
         AccountError::BadCredentials => refusal(StatusCode::UNAUTHORIZED, &reason),
-        AccountError::WrongCurrentPassword => refusal(StatusCode::FORBIDDEN, &reason),
         AccountError::TooManyAttempts {
             retry_after_seconds,
         } => {

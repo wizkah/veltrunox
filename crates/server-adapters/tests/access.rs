@@ -462,7 +462,7 @@ async fn an_account_changes_its_own_password_and_is_signed_out() {
         Some(json!({"current_password": "not it", "new_password": "another secret"})),
     )
     .await;
-    assert_eq!(wrong, StatusCode::FORBIDDEN);
+    assert_eq!(wrong, StatusCode::BAD_REQUEST);
     assert_eq!(body["code"], "wrong_current_password");
 
     let (weak, _) = call(

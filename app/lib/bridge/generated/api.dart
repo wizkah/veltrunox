@@ -311,6 +311,19 @@ Future<void> changeUser({
   password: password,
 );
 
+/// The signed-in account changes its own password with its current one. Afterwards every
+/// sign-in of the account has ended, this one too. Refusals (wrong current password, a new one
+/// that breaks the rules) carry their reason.
+Future<void> changeMyPassword({
+  required String serverUrl,
+  required String currentPassword,
+  required String newPassword,
+}) => RustLib.instance.api.crateApiChangeMyPassword(
+  serverUrl: serverUrl,
+  currentPassword: currentPassword,
+  newPassword: newPassword,
+);
+
 /// Deletes a user; admin only.
 Future<void> removeUser({required String serverUrl, required BigInt userId}) =>
     RustLib.instance.api.crateApiRemoveUser(
