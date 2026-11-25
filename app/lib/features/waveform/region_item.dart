@@ -18,12 +18,16 @@ class RegionItem extends StatelessWidget {
     required this.onPlay,
     required this.onSelect,
     required this.onContext,
+    this.active = false,
     this.showSelectButton = true,
     super.key,
   });
 
   final RegionMarker region;
   final bool selected;
+
+  /// The region is the one being played.
+  final bool active;
   final int toneIndex;
   final VoidCallback onPlay;
   final VoidCallback onSelect;
@@ -39,7 +43,7 @@ class RegionItem extends StatelessWidget {
     final name = region.title.isEmpty
         ? WaveformTexts.fallbackRegion(region.id)
         : region.title;
-    final tone = selected
+    final tone = selected || active
         ? AppColors.action
         : _tones[toneIndex % _tones.length];
     return Semantics(
@@ -52,14 +56,23 @@ class RegionItem extends StatelessWidget {
         // the text stays on a dark enough ground.
         decoration: BoxDecoration(
           color: Color.alphaBlend(
-            tone.withValues(alpha: selected ? 0.4 : 0.32),
+            tone.withValues(alpha: active ? 0.6 : (selected ? 0.4 : 0.32)),
             AppColors.surface,
           ),
-          border: Border.all(color: tone, width: selected ? 2 : 1),
+          border: Border.all(color: tone, width: selected || active ? 2 : 1),
           borderRadius: BorderRadius.circular(AppRadius.small),
         ),
         child: Row(
           children: [
+            if (active)
+              const Padding(
+                padding: EdgeInsets.only(left: AppSpace.s2),
+                child: Icon(
+                  Icons.graphic_eq,
+                  size: AppSpace.s4,
+                  color: AppColors.textPrimary,
+                ),
+              ),
             Expanded(
               child: InkWell(
                 onTap: onPlay,
@@ -73,9 +86,10 @@ class RegionItem extends StatelessWidget {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: AppTypography.sizeSmall,
+                        fontWeight: active ? FontWeight.w700 : null,
                       ),
                     ),
                   ),

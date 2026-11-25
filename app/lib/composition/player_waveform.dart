@@ -172,6 +172,9 @@ class _PlayerWaveformState extends ConsumerState<PlayerWaveform> {
       );
     }
     final markers = ref.watch(markersProvider(recordingId)).value ?? const [];
+    final activeRange = ref.watch(
+      playerStateProvider.select((state) => state.value?.playRange),
+    );
     final position = (ref.watch(playerPositionProvider).value ?? 0).clamp(
       0,
       loaded.lengthMs,
@@ -192,6 +195,7 @@ class _PlayerWaveformState extends ConsumerState<PlayerWaveform> {
       onSetRegion: () => _setRegionHere(markers, loaded.lengthMs),
       onRegionResized: _resizeRegion,
       onMarkerContext: (marker) => _openActions(marker, loaded.lengthMs),
+      activeRange: activeRange,
     );
   }
 }

@@ -16,6 +16,9 @@ class MarkerRow extends StatelessWidget {
     required this.onPlay,
     required this.onEdit,
     required this.onDelete,
+    this.active = false,
+    this.selected,
+    this.onToggleSelected,
     super.key,
   });
 
@@ -24,12 +27,42 @@ class MarkerRow extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
+  /// The region is the one being played.
+  final bool active;
+
+  /// Whether the row is ticked; `null` for a marker that cannot be ticked.
+  final bool? selected;
+  final VoidCallback? onToggleSelected;
+
   @override
   Widget build(BuildContext context) => ListTile(
-    leading: Icon(switch (marker) {
-      LabelMarker() => Icons.place_outlined,
-      RegionMarker() => Icons.linear_scale,
-    }, color: AppColors.accentSoft),
+    tileColor: active ? AppColors.action.withValues(alpha: 0.18) : null,
+    shape: active
+        ? const Border(left: BorderSide(color: AppColors.action, width: 4))
+        : null,
+    leading: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (selected != null)
+          Semantics(
+            label: MarkerTexts.select(marker.title),
+            child: Checkbox(
+              value: selected,
+              onChanged: (_) => onToggleSelected?.call(),
+            ),
+          ),
+        Icon(
+          active
+              ? Icons.graphic_eq
+              : switch (marker) {
+                  LabelMarker() => Icons.place_outlined,
+                  RegionMarker() => Icons.linear_scale,
+                },
+          semanticLabel: active ? MarkerTexts.activeRegion : null,
+          color: active ? AppColors.action : AppColors.accentSoft,
+        ),
+      ],
+    ),
     title: Text(marker.title),
     subtitle: Text(_time),
     onTap: onPlay,

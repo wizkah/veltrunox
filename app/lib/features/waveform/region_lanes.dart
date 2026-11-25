@@ -27,6 +27,7 @@ class RegionLanes extends StatefulWidget {
     required this.markers,
     required this.viewport,
     required this.selectedId,
+    required this.activeRange,
     required this.maxLanes,
     required this.snapEnabled,
     required this.onPlay,
@@ -43,6 +44,9 @@ class RegionLanes extends StatefulWidget {
   final List<Marker> markers;
   final TimeViewport viewport;
   final int? selectedId;
+
+  /// The range being played; the region with these times is highlighted.
+  final TimeSpan? activeRange;
 
   /// How many lanes to show; `null` shows all of them.
   final int? maxLanes;
@@ -185,6 +189,7 @@ class _RegionLanesState extends State<RegionLanes> {
         child: RegionItem(
           region: shownRegion,
           selected: selected,
+          active: region.isActiveIn(widget.activeRange),
           toneIndex: _assignment.laneOf(region.id) ?? 0,
           showSelectButton: width >= 72,
           onPlay: () {

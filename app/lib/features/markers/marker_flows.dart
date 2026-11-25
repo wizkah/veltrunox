@@ -67,6 +67,54 @@ class MarkerFlows {
     );
   }
 
+  /// Asks for the name and times of one region covering [regions] (at least
+  /// two) and replaces them by it. Returns whether it was written.
+  Future<bool> combine(List<RegionMarker> regions) async {
+    final span = spanOfRegions(regions);
+    final draft = await MarkerFormDialog.show(
+      context,
+      heading: MarkerTexts.combineRegions,
+      title: regions.first.title,
+      startMs: span.startMs,
+      endMs: span.endMs,
+      lengthMs: lengthMs,
+    );
+    if (draft == null) return false;
+    final accepted = await controller.combineRegions(
+      regions,
+      title: draft.title,
+      startMs: draft.startMs,
+      endMs: draft.endMs ?? span.endMs,
+    );
+    _report(accepted);
+    return accepted;
+  }
+
+  /// Asks for the name and times of a new region covering [regions] and adds
+  /// it; the regions stay. Returns whether it was written.
+  Future<bool> addCovering(
+    List<RegionMarker> regions, {
+    required String title,
+  }) async {
+    final span = spanOfRegions(regions);
+    final draft = await MarkerFormDialog.show(
+      context,
+      heading: MarkerTexts.regionFromSelection,
+      title: title,
+      startMs: span.startMs,
+      endMs: span.endMs,
+      lengthMs: lengthMs,
+    );
+    if (draft == null) return false;
+    final accepted = await controller.add(
+      title: draft.title,
+      startMs: draft.startMs,
+      endMs: draft.endMs,
+    );
+    _report(accepted);
+    return accepted;
+  }
+
   Future<void> delete(Marker marker) async {
     final confirmed = await ConfirmDialog.ask(
       context,

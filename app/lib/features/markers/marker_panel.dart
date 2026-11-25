@@ -10,6 +10,7 @@ import 'marker_filter_bar.dart';
 import 'marker_flows.dart';
 import 'marker_order.dart';
 import 'marker_row.dart';
+import 'marker_selection.dart';
 import 'marker_texts.dart';
 
 /// The markers of a recording as one chronological list with a filter, a play
@@ -24,6 +25,7 @@ class MarkerPanel extends ConsumerWidget {
     required this.readPlayhead,
     required this.onPlay,
     this.exchange,
+    this.activeRange,
     super.key,
   });
 
@@ -38,6 +40,9 @@ class MarkerPanel extends ConsumerWidget {
 
   /// What the caller offers beside "Add region", for example the exchange menu.
   final Widget? exchange;
+
+  /// The range of the region being played, if any; that region is highlighted.
+  final TimeSpan? activeRange;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -69,7 +74,7 @@ class MarkerPanel extends ConsumerWidget {
     required bool scrolling,
   }) {
     final content = markers.when(
-      data: (all) => _list(all, filter, flows),
+      data: (all) => _list(ref, all, filter, flows),
       loading: _loading,
       error: (_, _) =>
           _failure(() => ref.invalidate(markersProvider(recordingId))),
@@ -102,6 +107,7 @@ class MarkerPanel extends ConsumerWidget {
           onSelected: ref.read(markerFilterProvider.notifier).select,
         ),
         const SizedBox(height: AppSpace.s2),
+        if (markers.value case final all?) _selectionBar(ref, all, flows),
         if (scrolling)
           Expanded(child: SingleChildScrollView(child: content))
         else
@@ -110,7 +116,65 @@ class MarkerPanel extends ConsumerWidget {
     );
   }
 
+  /// Shown while regions are ticked: what can be done with them.
+  Widget _selectionBar(
+    WidgetRef ref,
+    List<Marker> all,
+    MarkerFlows Function() flows,
+  ) {
+    final selection = ref.read(markerSelectionProvider(recordingId).notifier);
+    final regions = selectedRegions(
+      all,
+      ref.watch(markerSelectionProvider(recordingId)),
+    );
+    if (regions.isEmpty) return const SizedBox.shrink();
+    final several = regions.length >= 2;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.s2),
+      child: Wrap(
+        spacing: AppSpace.s2,
+        runSpacing: AppSpace.s2,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(MarkerTexts.selectedCount(regions.length)),
+          ActionButton(
+            label: MarkerTexts.combineRegions,
+            icon: Icons.merge_type,
+            kind: ActionKind.secondary,
+            onPressed: several
+                ? () async {
+                    if (await flows().combine(regions)) selection.clear();
+                  }
+                : null,
+          ),
+          ActionButton(
+            label: MarkerTexts.regionFromSelection,
+            icon: Icons.add,
+            kind: ActionKind.secondary,
+            onPressed: several
+                ? () async {
+                    final number = all.whereType<RegionMarker>().length + 1;
+                    if (await flows().addCovering(
+                      regions,
+                      title: MarkerTexts.defaultRegionName(number),
+                    )) {
+                      selection.clear();
+                    }
+                  }
+                : null,
+          ),
+          ActionButton(
+            label: MarkerTexts.clearSelection,
+            kind: ActionKind.secondary,
+            onPressed: selection.clear,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _list(
+    WidgetRef ref,
     List<Marker> all,
     MarkerFilter filter,
     MarkerFlows Function() flows,
@@ -123,12 +187,20 @@ class MarkerPanel extends ConsumerWidget {
         framed: false,
       );
     }
+    final ticked = ref.watch(markerSelectionProvider(recordingId));
     return Column(
       children: [
         for (final marker in shown)
           MarkerRow(
             key: ValueKey('${marker.runtimeType}-${marker.id}'),
             marker: marker,
+            active: marker is RegionMarker && marker.isActiveIn(activeRange),
+            selected: marker is RegionMarker
+                ? ticked.contains(marker.id)
+                : null,
+            onToggleSelected: () => ref
+                .read(markerSelectionProvider(recordingId).notifier)
+                .toggle(marker.id),
             onPlay: () => onPlay(marker),
             onEdit: () => flows().edit(marker),
             onDelete: () => flows().delete(marker),

@@ -54,6 +54,16 @@ abstract final class MarkerTexts {
         'The server\'s state stands.',
   );
 
+  static String get combineRegions =>
+      tr('Regionen kombinieren', 'Combine regions');
+  static String get regionFromSelection =>
+      tr('Neue Region aus Auswahl', 'New region from selection');
+  static String get clearSelection => tr('Auswahl aufheben', 'Clear selection');
+  static String selectedCount(int count) =>
+      tr('$count ausgewählt', '$count selected');
+  static String select(String name) => tr('Auswählen: $name', 'Select: $name');
+  static String get activeRegion => tr('Wird abgespielt', 'Playing');
+
   static String defaultLabelName(int number) => 'Label $number';
   static String defaultRegionName(int number) =>
       tr('Region $number', 'Region $number');

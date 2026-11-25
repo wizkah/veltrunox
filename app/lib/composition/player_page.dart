@@ -30,10 +30,14 @@ class PlayerPage extends ConsumerWidget {
     final connected =
         ref.watch(connectionStatusProvider).value == ConnectionStatus.connected;
     final player = ref.read(playerControllerProvider);
+    final activeRange = ref.watch(
+      playerStateProvider.select((state) => state.value?.playRange),
+    );
     Widget panel() => MarkerPanel(
       recordingId: recordingId!,
       exchange: BookmarkExchangeMenu(recordingId: recordingId),
       lengthMs: lengthMs,
+      activeRange: activeRange,
       readPlayhead: ref.read(playerSourceProvider).position,
       onPlay: (marker) {
         final view = ref.read(waveformViewProvider(recordingId).notifier);

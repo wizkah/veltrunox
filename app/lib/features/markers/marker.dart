@@ -39,3 +39,22 @@ final class RegionMarker extends Marker {
   final int startMs;
   final int endMs;
 }
+
+/// A span of time, as the shared player reports the region being played.
+typedef TimeSpan = ({int startMs, int endMs});
+
+extension RegionActivity on RegionMarker {
+  /// Whether this region is the one being played: the player knows the range,
+  /// not the region, so a region counts as active when its times match.
+  bool isActiveIn(TimeSpan? playRange) =>
+      playRange != null &&
+      playRange.startMs == startMs &&
+      playRange.endMs == endMs;
+}
+
+/// The one region that covers all of [regions]: from the earliest start to
+/// the latest end. Gaps between them are covered too.
+TimeSpan spanOfRegions(Iterable<RegionMarker> regions) => (
+  startMs: regions.map((r) => r.startMs).reduce((a, b) => a < b ? a : b),
+  endMs: regions.map((r) => r.endMs).reduce((a, b) => a > b ? a : b),
+);

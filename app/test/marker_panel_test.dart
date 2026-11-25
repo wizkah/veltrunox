@@ -6,6 +6,7 @@ import 'package:veltrunox_app/features/markers/marker.dart';
 import 'package:veltrunox_app/features/markers/marker_controller.dart';
 import 'package:veltrunox_app/features/markers/marker_panel.dart';
 import 'package:veltrunox_app/features/markers/marker_source.dart';
+import 'package:veltrunox_app/features/markers/marker_row.dart';
 
 import 'fake_marker_source.dart';
 
@@ -35,6 +36,7 @@ Future<_Harness> _pump(
   WidgetTester tester,
   FakeMarkerSource source, {
   int? lengthMs = 180000,
+  TimeSpan? activeRange,
 }) async {
   tester.view.physicalSize = const Size(800, 1400);
   tester.view.devicePixelRatio = 1;
@@ -50,6 +52,7 @@ Future<_Harness> _pump(
             child: MarkerPanel(
               recordingId: 1,
               lengthMs: lengthMs,
+              activeRange: activeRange,
               readPlayhead: () async => harness.playhead,
               onPlay: harness.played.add,
             ),
@@ -366,5 +369,128 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Strophe'), findsOneWidget);
+  });
+
+  group('active region', () {
+    const other = RegionMarker(
+      id: 3,
+      version: 1,
+      title: 'Refrain',
+      startMs: 70000,
+      endMs: 90000,
+    );
+
+    testWidgets('highlights the row of the region being played', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        FakeMarkerSource([_region, other]),
+        activeRange: (startMs: 70000, endMs: 90000),
+      );
+
+      final rows = tester.widgetList<MarkerRow>(find.byType(MarkerRow));
+      expect(
+        {for (final row in rows) row.marker.title: row.active},
+        {'Strophe': false, 'Refrain': true},
+      );
+    });
+
+    testWidgets('highlights nothing without a play range', (tester) async {
+      await _pump(tester, FakeMarkerSource([_region, other]));
+
+      expect(
+        tester
+            .widgetList<MarkerRow>(find.byType(MarkerRow))
+            .any((r) => r.active),
+        isFalse,
+      );
+    });
+  });
+
+  group('regions from a selection', () {
+    const other = RegionMarker(
+      id: 3,
+      version: 1,
+      title: 'Refrain',
+      startMs: 50000,
+      endMs: 90000,
+    );
+
+    Future<FakeMarkerSource> pumpTicked(WidgetTester tester) async {
+      final source = FakeMarkerSource([_label, _region, other]);
+      await _pump(tester, source);
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.tap(find.byType(Checkbox).last);
+      await tester.pumpAndSettle();
+      return source;
+    }
+
+    testWidgets('labels cannot be ticked, the bar needs two regions', (
+      tester,
+    ) async {
+      final source = FakeMarkerSource([_label, _region, other]);
+      await _pump(tester, source);
+      expect(find.byType(Checkbox), findsNWidgets(2));
+      expect(find.text('Regionen kombinieren'), findsNothing);
+
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pumpAndSettle();
+      expect(find.text('1 ausgewählt'), findsOneWidget);
+      final combine = tester.widget<OutlinedButton>(
+        find.widgetWithText(OutlinedButton, 'Regionen kombinieren'),
+      );
+      expect(combine.onPressed, isNull);
+    });
+
+    testWidgets('combining replaces them by one region over their span', (
+      tester,
+    ) async {
+      final source = await pumpTicked(tester);
+
+      await tester.tap(find.text('Regionen kombinieren'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, '0:10'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '1:30'), findsOneWidget);
+      await tester.tap(find.text('Speichern'));
+      await tester.pumpAndSettle();
+
+      expect(source.calls, [
+        'updateRegion 2 v3 Strophe 10000 90000',
+        'deleteRegion 3',
+      ]);
+      expect(source.markers.whereType<RegionMarker>().map((r) => r.id), [2]);
+      expect(find.text('Refrain'), findsNothing);
+      expect(find.text('2 ausgewählt'), findsNothing);
+    });
+
+    testWidgets('a new region from the selection keeps the originals', (
+      tester,
+    ) async {
+      final source = await pumpTicked(tester);
+
+      await tester.tap(find.text('Neue Region aus Auswahl'));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Name'), 'Alles');
+      await tester.tap(find.text('Speichern'));
+      await tester.pumpAndSettle();
+
+      expect(source.calls, ['addRegion Alles 10000 90000']);
+      expect(source.markers.whereType<RegionMarker>().length, 3);
+    });
+
+    testWidgets('cancelling the form writes nothing and keeps the ticks', (
+      tester,
+    ) async {
+      final source = await pumpTicked(tester);
+
+      await tester.tap(find.text('Regionen kombinieren'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Abbrechen'));
+      await tester.pumpAndSettle();
+
+      expect(source.calls, isEmpty);
+      expect(find.text('2 ausgewählt'), findsOneWidget);
+    });
   });
 }

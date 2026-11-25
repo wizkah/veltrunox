@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:veltrunox_app/features/waveform/region_handle.dart';
+import 'package:veltrunox_app/features/waveform/region_item.dart';
 import 'package:veltrunox_app/features/waveform/timeline_ruler.dart';
 import 'package:veltrunox_app/features/waveform/waveform_renderer.dart';
 import 'package:veltrunox_app/features/waveform/waveform_view_controller.dart';
@@ -20,6 +21,17 @@ double top(WidgetTester tester, String text) =>
     tester.getTopLeft(find.text(text)).dy;
 
 void main() {
+  testWidgets('the region being played is highlighted in its lane', (
+    tester,
+  ) async {
+    await pumpScene(tester, activeRange: (startMs: 25000, endMs: 50000));
+    final items = tester.widgetList<RegionItem>(find.byType(RegionItem));
+    expect(
+      {for (final item in items) item.region.title: item.active},
+      {'Verse': false, 'Chorus': false, 'Solo': true},
+    );
+  });
+
   testWidgets('tapping a label plays from its position (UI-AC-01)', (
     tester,
   ) async {

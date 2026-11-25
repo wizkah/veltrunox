@@ -41,6 +41,7 @@ class WaveformPanel extends ConsumerWidget {
     required this.onSetRegion,
     required this.onRegionResized,
     required this.onMarkerContext,
+    this.activeRange,
     super.key,
   });
 
@@ -67,6 +68,9 @@ class WaveformPanel extends ConsumerWidget {
   final void Function(RegionMarker region, int startMs, int endMs)
   onRegionResized;
   final ValueChanged<Marker> onMarkerContext;
+
+  /// The range of the region being played, if any.
+  final TimeSpan? activeRange;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -279,6 +283,7 @@ class _LayersState extends State<_Layers> {
                       markers: _panel.markers,
                       viewport: viewport,
                       selectedId: view.selectedRegionId,
+                      activeRange: _panel.activeRange,
                       maxLanes: maxLanes,
                       snapEnabled: view.snapEnabled,
                       onPlay: _panel.onPlayRegion,

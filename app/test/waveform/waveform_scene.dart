@@ -46,6 +46,7 @@ Future<Intents> pumpScene(
   List<Marker> markers = const [...sceneLabels, ...sceneRegions],
   int positionMs = 10000,
   bool withData = true,
+  TimeSpan? activeRange,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
@@ -74,6 +75,7 @@ Future<Intents> pumpScene(
               onRegionResized: (region, start, end) =>
                   intents.resized.add((region.id, start, end)),
               onMarkerContext: (_) {},
+              activeRange: activeRange,
             ),
           ),
         ),
