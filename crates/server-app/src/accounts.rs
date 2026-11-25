@@ -91,6 +91,8 @@ pub enum AccountError {
     SetupDone,
     #[error("wrong user name or password")]
     BadCredentials,
+    #[error("the current password is wrong")]
+    WrongCurrentPassword,
     #[error("too many failed logins; try again in {retry_after_seconds} seconds")]
     TooManyAttempts { retry_after_seconds: u64 },
     #[error("at least one active admin must remain")]
@@ -115,6 +117,7 @@ impl Refusal for AccountError {
             Self::NotFound => Reason::new(self, "user_not_found"),
             Self::SetupDone => Reason::new(self, "setup_done"),
             Self::BadCredentials => Reason::new(self, "bad_credentials"),
+            Self::WrongCurrentPassword => Reason::new(self, "wrong_current_password"),
             Self::TooManyAttempts {
                 retry_after_seconds,
             } => Reason::with_args(self, "too_many_attempts", vec![*retry_after_seconds]),
@@ -300,6 +303,32 @@ impl AccountService {
         let hash = self.hasher.hash(password)?;
         self.users.set_password_hash(id, &hash)?;
         Ok(self.sessions.delete_for_user(id)?)
+    }
+
+    /// An account changes its own password and proves it with the current one. All sessions of
+    /// the user end, this one too. Guests and API tokens cannot do this. Wrong current passwords
+    /// count as failed logins.
+    pub fn change_own_password(
+        &self,
+        actor: &Identity,
+        current: &str,
+        new: &str,
+    ) -> Result<(), AccountError> {
+        let (Some((id, name)), None) = (&actor.user, actor.scope) else {
+            return Err(AccountError::Forbidden);
+        };
+        let key = name.key();
+        self.ensure_not_blocked(&key)?;
+        let record = self.users.find(*id)?.ok_or(AccountError::NotFound)?;
+        if !self.hasher.verify(current, &record.password_hash) {
+            self.note_failure(&key);
+            return Err(AccountError::WrongCurrentPassword);
+        }
+        self.users.password_policy()?.check(new)?;
+        let hash = self.hasher.hash(new)?;
+        self.users.set_password_hash(*id, &hash)?;
+        self.clear_failures(&key);
+        Ok(self.sessions.delete_for_user(*id)?)
     }
 
     pub fn delete_user(&self, actor: &Identity, id: UserId) -> Result<(), AccountError> {
@@ -678,6 +707,63 @@ mod tests {
             .service
             .change_role(&admin, root, Role::User)
             .unwrap();
+    }
+
+    #[test]
+    fn an_account_changes_its_own_password_with_the_current_one() {
+        let fixture = fixture();
+        let admin = admin_of(&fixture);
+        let user = fixture
+            .service
+            .create_user(&admin, "ann", PASSWORD, Role::User)
+            .unwrap();
+        let ann = Identity::of(&user);
+        let session = fixture.service.login("ann", PASSWORD).unwrap();
+
+        assert!(matches!(
+            fixture
+                .service
+                .change_own_password(&ann, "wrong one", "another secret"),
+            Err(AccountError::WrongCurrentPassword)
+        ));
+        assert!(matches!(
+            fixture.service.change_own_password(&ann, PASSWORD, "short"),
+            Err(AccountError::Invalid(_))
+        ));
+        assert!(
+            fixture
+                .service
+                .authenticate(&session.token)
+                .unwrap()
+                .is_some()
+        );
+
+        fixture
+            .service
+            .change_own_password(&ann, PASSWORD, "another secret")
+            .unwrap();
+        assert_eq!(fixture.service.authenticate(&session.token).unwrap(), None);
+        assert!(fixture.service.login("ann", PASSWORD).is_err());
+        fixture.service.login("ann", "another secret").unwrap();
+    }
+
+    #[test]
+    fn guests_and_api_tokens_cannot_change_a_password() {
+        let fixture = fixture();
+        let admin = admin_of(&fixture);
+        let user = fixture
+            .service
+            .create_user(&admin, "ann", PASSWORD, Role::User)
+            .unwrap();
+        let by_token = Identity::of_token(&user, TokenScope::EditBookmarks);
+        for actor in [Identity::guest(), by_token] {
+            assert!(matches!(
+                fixture
+                    .service
+                    .change_own_password(&actor, PASSWORD, "another secret"),
+                Err(AccountError::Forbidden)
+            ));
+        }
     }
 
     #[test]

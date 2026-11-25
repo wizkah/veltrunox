@@ -11,6 +11,8 @@ pub const LOGIN_PATH: &str = "/api/v1/login";
 pub const LOGOUT_PATH: &str = "/api/v1/logout";
 /// Who the caller is and what they may do (`IdentityDto`).
 pub const ME_PATH: &str = "/api/v1/me";
+/// The caller changes their own password (`PUT`, `ChangePasswordDto`); needs the current one.
+pub const ME_PASSWORD_PATH: &str = "/api/v1/me/password";
 /// All users (admin) and creation of one (`NewUserDto`).
 pub const USERS_PATH: &str = "/api/v1/users";
 /// One user; `{id}` is the user id (`UpdateUserDto`).
@@ -214,6 +216,13 @@ pub struct UpdateUserDto {
     pub role: Option<RoleDto>,
     pub active: Option<bool>,
     pub password: Option<String>,
+}
+
+/// A person changes their own password; the current one proves it is them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChangePasswordDto {
+    pub current_password: String,
+    pub new_password: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

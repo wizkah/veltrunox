@@ -15,11 +15,11 @@ use axum::{
 use std::sync::Arc;
 use veltrunox_core::{Refusal, UserId};
 use veltrunox_protocol::{
-    CredentialsDto, GUEST_ACCESS_PATH, GuestAccessDto, IdentityDto, LOGIN_PATH, LOGOUT_PATH,
-    ME_PATH, NewUserDto, PASSWORD_POLICY_PATH, PROTOCOL_VERSION, SETUP_PATH, STATUS_PATH,
-    SessionDto, SetPasswordPolicyDto, StatusDto, USER_PATH, USERS_PATH, UpdateUserDto, UserDto,
-    capability_to_dto, password_policy_from_dto, password_policy_to_dto, role_from_dto,
-    role_to_dto,
+    ChangePasswordDto, CredentialsDto, GUEST_ACCESS_PATH, GuestAccessDto, IdentityDto, LOGIN_PATH,
+    LOGOUT_PATH, ME_PASSWORD_PATH, ME_PATH, NewUserDto, PASSWORD_POLICY_PATH, PROTOCOL_VERSION,
+    SETUP_PATH, STATUS_PATH, SessionDto, SetPasswordPolicyDto, StatusDto, USER_PATH, USERS_PATH,
+    UpdateUserDto, UserDto, capability_to_dto, password_policy_from_dto, password_policy_to_dto,
+    role_from_dto, role_to_dto,
 };
 use veltrunox_server_app::{AccountError, AccountService, Identity, Session, UserRecord};
 
@@ -30,6 +30,7 @@ pub fn routes() -> Router<AppState> {
         .route(LOGIN_PATH, post(login))
         .route(LOGOUT_PATH, post(logout))
         .route(ME_PATH, get(me))
+        .route(ME_PASSWORD_PATH, put(change_own_password))
         .route(USERS_PATH, get(list_users).post(create_user))
         .route(USER_PATH, put(update_user).delete(delete_user))
         .route(GUEST_ACCESS_PATH, put(set_guest_access))
@@ -79,6 +80,7 @@ pub fn account_error_response(error: AccountError) -> Response {
         }
         AccountError::NotFound => refusal(StatusCode::NOT_FOUND, &reason),
         AccountError::BadCredentials => refusal(StatusCode::UNAUTHORIZED, &reason),
+        AccountError::WrongCurrentPassword => refusal(StatusCode::FORBIDDEN, &reason),
         AccountError::TooManyAttempts {
             retry_after_seconds,
         } => {
@@ -199,6 +201,19 @@ async fn update_user(
             accounts.set_password(&actor, id, &password)?;
         }
         Ok(())
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn change_own_password(
+    State(app): State<AppState>,
+    caller: Caller,
+    Json(body): Json<ChangePasswordDto>,
+) -> Result<StatusCode, ApiError> {
+    let (actor, accounts) = actor(caller, &app)?;
+    blocking(move || {
+        Ok(accounts.change_own_password(&actor, &body.current_password, &body.new_password)?)
     })
     .await?;
     Ok(StatusCode::NO_CONTENT)

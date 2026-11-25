@@ -446,3 +446,72 @@ async fn the_admin_chooses_the_password_rules_and_nobody_else_does() {
     .await;
     assert_eq!(status, StatusCode::CREATED);
 }
+
+#[tokio::test]
+async fn an_account_changes_its_own_password_and_is_signed_out() {
+    let url = secured_server().await;
+    let admin = set_up_admin(&url).await;
+    let ann = user_token(&url, &admin, "ann", "user").await;
+    let path = "/api/v1/me/password";
+
+    let (wrong, body) = call(
+        &url,
+        Method::PUT,
+        path,
+        Some(&ann),
+        Some(json!({"current_password": "not it", "new_password": "another secret"})),
+    )
+    .await;
+    assert_eq!(wrong, StatusCode::FORBIDDEN);
+    assert_eq!(body["code"], "wrong_current_password");
+
+    let (weak, _) = call(
+        &url,
+        Method::PUT,
+        path,
+        Some(&ann),
+        Some(json!({"current_password": PASSWORD, "new_password": "x"})),
+    )
+    .await;
+    assert_eq!(weak, StatusCode::BAD_REQUEST);
+
+    let (guest, _) = call(
+        &url,
+        Method::PUT,
+        path,
+        None,
+        Some(json!({"current_password": PASSWORD, "new_password": "another secret"})),
+    )
+    .await;
+    assert!(guest == StatusCode::FORBIDDEN || guest == StatusCode::UNAUTHORIZED);
+
+    let (done, _) = call(
+        &url,
+        Method::PUT,
+        path,
+        Some(&ann),
+        Some(json!({"current_password": PASSWORD, "new_password": "another secret"})),
+    )
+    .await;
+    assert_eq!(done, StatusCode::NO_CONTENT);
+    let (after, _) = call(&url, Method::GET, "/api/v1/me", Some(&ann), None).await;
+    assert_eq!(after, StatusCode::UNAUTHORIZED);
+    let (old, _) = call(
+        &url,
+        Method::POST,
+        "/api/v1/login",
+        None,
+        Some(json!({"user_name": "ann", "password": PASSWORD})),
+    )
+    .await;
+    assert_eq!(old, StatusCode::UNAUTHORIZED);
+    let (new, _) = call(
+        &url,
+        Method::POST,
+        "/api/v1/login",
+        None,
+        Some(json!({"user_name": "ann", "password": "another secret"})),
+    )
+    .await;
+    assert_eq!(new, StatusCode::OK);
+}
