@@ -3659,6 +3659,7 @@ dependencies = [
  "veltrunox-client-adapters",
  "veltrunox-client-app",
  "veltrunox-core",
+ "veltrunox-server",
 ]
 
 [[package]]

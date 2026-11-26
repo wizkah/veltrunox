@@ -17,5 +17,9 @@ veltrunox-client-app.workspace = true
 veltrunox-client-adapters.workspace = true
 flutter_rust_bridge = "=2.13.0"
 
+# The desktop app carries the server; a browser cannot.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+veltrunox-server = { path = "../server" }
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = "0.3"

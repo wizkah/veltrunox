@@ -1,6 +1,10 @@
 //! Entry point of the client core: a narrow API for the Flutter bridge.
 
 mod clock;
+#[cfg_attr(not(target_arch = "wasm32"), path = "host_native.rs")]
+#[cfg_attr(target_arch = "wasm32", path = "host_web.rs")]
+mod host;
+pub mod host_api;
 
 pub mod api;
 

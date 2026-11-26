@@ -6,6 +6,8 @@ import '../features/access/account_menu.dart';
 import '../features/connection/connection_indicator.dart';
 import '../features/language/language_menu.dart';
 import '../features/own_password/own_password_dialog.dart';
+import '../features/server_sharing/sharing_button.dart';
+import '../features/server_sharing/sharing_dialog.dart';
 import '../features/tokens/tokens_dialog.dart';
 import '../features/users/users_dialog.dart';
 
@@ -22,6 +24,12 @@ class ShellStatus extends ConsumerWidget {
     children: [
       const ConnectionIndicator(),
       const LanguageMenu(),
+      SharingButton(
+        onPressed: () => SharingDialog.show(
+          context,
+          onManageUsers: () => UsersDialog.show(context),
+        ),
+      ),
       AccountMenu(
         onManageUsers: () => UsersDialog.show(context),
         onManageTokens: () => TokensDialog.show(context),

@@ -5,6 +5,10 @@ import 'access_controller.dart';
 import 'access_models.dart';
 import 'access_texts.dart';
 
+/// Whether the person is the owner of the application's own server, who has no
+/// account to sign out of. Overridden at the application root.
+final localOwnerProvider = Provider<bool>((ref) => false);
+
 /// The person's menu in the top bar: who they are, administration for the
 /// admin, and signing out. Nothing while nobody is signed in.
 class AccountMenu extends ConsumerWidget {
@@ -28,6 +32,8 @@ class AccountMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rights = ref.watch(rightsProvider);
     if (rights == null) return const SizedBox.shrink();
+    final owner = ref.watch(localOwnerProvider);
+    final hasAccount = !owner && !rights.isGuest;
     final controller = ref.read(accessControllerProvider.notifier);
     return PopupMenuButton<_Choice>(
       tooltip: AccessTexts.accountMenu,
@@ -41,21 +47,29 @@ class AccountMenu extends ConsumerWidget {
       itemBuilder: (_) => [
         PopupMenuItem<_Choice>(
           enabled: false,
-          child: Text(AccessTexts.signedInAs(_name(rights))),
+          child: Text(
+            owner
+                ? AccessTexts.localOwner
+                : AccessTexts.signedInAs(_name(rights)),
+          ),
         ),
         if (rights.canManageUsers)
           PopupMenuItem(value: _Choice.users, child: Text(AccessTexts.users)),
-        if (!rights.isGuest)
+        if (hasAccount)
           PopupMenuItem(
             value: _Choice.tokens,
             child: Text(AccessTexts.apiTokens),
           ),
-        if (!rights.isGuest)
+        if (hasAccount)
           PopupMenuItem(
             value: _Choice.password,
             child: Text(AccessTexts.changePassword),
           ),
-        PopupMenuItem(value: _Choice.signOut, child: Text(AccessTexts.signOut)),
+        if (!owner)
+          PopupMenuItem(
+            value: _Choice.signOut,
+            child: Text(AccessTexts.signOut),
+          ),
       ],
     );
   }

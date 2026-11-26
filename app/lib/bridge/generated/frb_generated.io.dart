@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:ffi' as ffi;
 
 import 'frb_generated.dart';
+import 'host_api.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
@@ -75,6 +76,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoleChoice dco_decode_box_autoadd_role_choice(dynamic raw);
 
   @protected
+  SharingChoice dco_decode_box_autoadd_sharing_choice(dynamic raw);
+
+  @protected
+  SharingProblem dco_decode_box_autoadd_sharing_problem(dynamic raw);
+
+  @protected
   TimeSpan dco_decode_box_autoadd_time_span(dynamic raw);
 
   @protected
@@ -114,6 +121,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LabelItem dco_decode_label_item(dynamic raw);
 
   @protected
+  List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
   List<ApiTokenItem> dco_decode_list_api_token_item(dynamic raw);
 
   @protected
@@ -150,6 +160,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<WaveformLevelData> dco_decode_list_waveform_level_data(dynamic raw);
 
   @protected
+  LocalHost dco_decode_local_host(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -160,6 +173,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoleChoice? dco_decode_opt_box_autoadd_role_choice(dynamic raw);
+
+  @protected
+  SharingProblem? dco_decode_opt_box_autoadd_sharing_problem(dynamic raw);
 
   @protected
   TimeSpan? dco_decode_opt_box_autoadd_time_span(dynamic raw);
@@ -207,6 +223,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SessionUpdate dco_decode_session_update(dynamic raw);
 
   @protected
+  SharingChoice dco_decode_sharing_choice(dynamic raw);
+
+  @protected
+  SharingInfo dco_decode_sharing_info(dynamic raw);
+
+  @protected
+  SharingProblem dco_decode_sharing_problem(dynamic raw);
+
+  @protected
   SignInResult dco_decode_sign_in_result(dynamic raw);
 
   @protected
@@ -217,6 +242,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   TokenScopeChoice dco_decode_token_scope_choice(dynamic raw);
+
+  @protected
+  int dco_decode_u_16(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -302,6 +330,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RoleChoice sse_decode_box_autoadd_role_choice(SseDeserializer deserializer);
 
   @protected
+  SharingChoice sse_decode_box_autoadd_sharing_choice(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SharingProblem sse_decode_box_autoadd_sharing_problem(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   TimeSpan sse_decode_box_autoadd_time_span(SseDeserializer deserializer);
 
   @protected
@@ -343,6 +381,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LabelItem sse_decode_label_item(SseDeserializer deserializer);
+
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
   List<ApiTokenItem> sse_decode_list_api_token_item(
@@ -393,6 +434,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  LocalHost sse_decode_local_host(SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -405,6 +449,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RoleChoice? sse_decode_opt_box_autoadd_role_choice(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SharingProblem? sse_decode_opt_box_autoadd_sharing_problem(
     SseDeserializer deserializer,
   );
 
@@ -460,6 +509,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SessionUpdate sse_decode_session_update(SseDeserializer deserializer);
 
   @protected
+  SharingChoice sse_decode_sharing_choice(SseDeserializer deserializer);
+
+  @protected
+  SharingInfo sse_decode_sharing_info(SseDeserializer deserializer);
+
+  @protected
+  SharingProblem sse_decode_sharing_problem(SseDeserializer deserializer);
+
+  @protected
   SignInResult sse_decode_sign_in_result(SseDeserializer deserializer);
 
   @protected
@@ -470,6 +528,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   TokenScopeChoice sse_decode_token_scope_choice(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_u_16(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -581,6 +642,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_sharing_choice(
+    SharingChoice self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_sharing_problem(
+    SharingProblem self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_time_span(
     TimeSpan self,
     SseSerializer serializer,
@@ -642,6 +715,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_label_item(LabelItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_api_token_item(
@@ -710,6 +786,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_local_host(LocalHost self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
@@ -724,6 +803,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_role_choice(
     RoleChoice? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_sharing_problem(
+    SharingProblem? self,
     SseSerializer serializer,
   );
 
@@ -791,6 +876,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_session_update(SessionUpdate self, SseSerializer serializer);
 
   @protected
+  void sse_encode_sharing_choice(SharingChoice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sharing_info(SharingInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sharing_problem(
+    SharingProblem self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_sign_in_result(SignInResult self, SseSerializer serializer);
 
   @protected
@@ -804,6 +901,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     TokenScopeChoice self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_u_16(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

@@ -87,6 +87,8 @@ abstract final class AccessTexts {
     'The password was changed. Please sign in with the new password.',
   );
 
+  static String get localOwner =>
+      tr('An diesem Mac (alle Rechte)', 'On this Mac (all rights)');
   static String signedInAs(String name) =>
       tr('Angemeldet als $name', 'Signed in as $name');
 
