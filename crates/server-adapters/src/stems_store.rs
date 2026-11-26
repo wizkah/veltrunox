@@ -134,6 +134,28 @@ impl StemRepository for SqliteStore {
         transaction.commit().map_err(storage)
     }
 
+    fn set_stem_analysis(&self, id: RecordingId, analysis: &str) -> Result<(), StorageError> {
+        self.connection()
+            .execute(
+                "UPDATE stem_sets SET analysis = ?2 WHERE recording_id = ?1",
+                params![sql_int(id.value())?, analysis],
+            )
+            .map_err(storage)?;
+        Ok(())
+    }
+
+    fn recordings_with_stems(&self) -> Result<Vec<RecordingId>, StorageError> {
+        let connection = self.connection();
+        let mut statement = connection
+            .prepare("SELECT recording_id FROM stem_sets")
+            .map_err(storage)?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, i64>(0))
+            .map_err(storage)?;
+        rows.map(|row| Ok(RecordingId::new(unsigned(row.map_err(storage)?)?)))
+            .collect()
+    }
+
     fn stem_paths(&self) -> Result<Vec<PathBuf>, StorageError> {
         let connection = self.connection();
         let mut statement = connection

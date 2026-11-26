@@ -88,6 +88,7 @@ pub fn analysis_from_dto(dto: &AnalysisResultDto) -> Result<RecordingAnalysis, I
 
 pub fn library_entry_to_dto(entry: &LibraryEntry) -> RecordingSummaryDto {
     RecordingSummaryDto {
+        has_stems: entry.has_stems,
         id: entry.recording.id.value(),
         title: entry.recording.title.as_str().to_owned(),
         length_ms: entry.length.map(Millis::value),
@@ -114,6 +115,7 @@ pub enum InvalidEntry {
 
 pub fn library_entry_from_dto(dto: &RecordingSummaryDto) -> Result<LibraryEntry, InvalidEntry> {
     Ok(LibraryEntry {
+        has_stems: dto.has_stems,
         recording: Recording {
             id: RecordingId::new(dto.id),
             title: RecordingTitle::new(&dto.title)?,
@@ -512,6 +514,7 @@ mod tests {
     #[test]
     fn a_library_entry_round_trips_through_its_wire_form() {
         let entry = LibraryEntry {
+            has_stems: true,
             recording: Recording {
                 id: RecordingId::new(7),
                 title: RecordingTitle::new("Intro").unwrap(),
@@ -539,6 +542,7 @@ mod tests {
     #[test]
     fn invalid_analysis_values_are_refused() {
         let mut dto = library_entry_to_dto(&LibraryEntry {
+            has_stems: false,
             recording: Recording {
                 id: RecordingId::new(1),
                 title: RecordingTitle::new("x").unwrap(),

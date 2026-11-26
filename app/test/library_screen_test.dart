@@ -23,7 +23,6 @@ class _FakeSource with NoRecordingActions implements RecordingSource {
   final Future<List<RecordingSummary>> Function() result;
   final changes = StreamController<int>.broadcast();
   final libraryChanged = StreamController<void>.broadcast();
-  final reanalysed = <int>[];
 
   @override
   Future<List<RecordingSummary>> listRecordings() => result();
@@ -33,9 +32,6 @@ class _FakeSource with NoRecordingActions implements RecordingSource {
 
   @override
   Stream<void> libraryChanges() => libraryChanged.stream;
-
-  @override
-  Future<void> reanalyse(int recordingId) async => reanalysed.add(recordingId);
 }
 
 class _FakeConnection implements ConnectionSource {
@@ -406,39 +402,20 @@ void main() {
     expect(find.text('Zugabe'), findsOneWidget);
   });
 
-  testWidgets('the details ask for a new analysis', (tester) async {
-    final source = _FakeSource(
-      () async => [const RecordingSummary(id: 5, title: 'Soundcheck')],
-    );
-    await tester.pumpWidget(_app(source));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Soundcheck'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Erneut analysieren'));
-
-    expect(source.reanalysed, [5]);
-  });
-
-  testWidgets('no new analysis can be asked for while one is pending', (
+  testWidgets('a recording with stems is marked, no new analysis is offered', (
     tester,
   ) async {
     final source = _FakeSource(
       () async => [
-        const RecordingSummary(
-          id: 5,
-          title: 'Soundcheck',
-          analysis: AnalysisInfo(status: AnalysisStatus.queued),
-        ),
+        const RecordingSummary(id: 5, title: 'Soundcheck', hasStems: true),
       ],
     );
     await tester.pumpWidget(_app(source));
-    await _pumpFrames(tester);
+    await tester.pumpAndSettle();
+    expect(find.text('Segmente vorhanden'), findsOneWidget);
 
     await tester.tap(find.text('Soundcheck'));
-    await _pumpFrames(tester);
-    await tester.tap(find.text('Erneut analysieren'));
-
-    expect(source.reanalysed, isEmpty);
+    await tester.pumpAndSettle();
+    expect(find.text('Erneut analysieren'), findsNothing);
   });
 }

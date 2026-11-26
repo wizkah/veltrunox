@@ -130,6 +130,8 @@ impl AnalysisService {
                     None => AnalysisProgress::None,
                 };
                 LibraryEntry {
+                    // Stems are not the analysis' business; the list adds them.
+                    has_stems: false,
                     length: lengths.get(&recording.id).copied(),
                     recording,
                     analysis: AnalysisInfo {

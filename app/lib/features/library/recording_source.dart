@@ -38,9 +38,6 @@ abstract interface class RecordingSource {
   /// Fires when recordings were added, renamed or removed, by anyone.
   Stream<void> libraryChanges();
 
-  /// Asks the server to analyse the recording again.
-  Future<void> reanalyse(int recordingId);
-
   /// Sends an audio file; throws [RecordingActionException] when it is refused.
   /// [onProgress] hears how many bytes of [content] the server has received.
   Future<UploadedRecording> upload(

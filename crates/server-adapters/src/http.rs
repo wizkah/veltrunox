@@ -144,7 +144,18 @@ async fn recordings(
     let _ = &caller;
     let entries = blocking(move || {
         let listed = list_recordings(app.recordings.as_ref()).map_err(|_| ApiError::Internal)?;
-        app.analysis.entries(listed).map_err(|_| ApiError::Internal)
+        let split = app
+            .stems
+            .recordings_with_stems()
+            .map_err(|_| ApiError::Internal)?;
+        let mut entries = app
+            .analysis
+            .entries(listed)
+            .map_err(|_| ApiError::Internal)?;
+        for entry in &mut entries {
+            entry.has_stems = split.contains(&entry.recording.id);
+        }
+        Ok(entries)
     })
     .await?;
     Ok(Json(RecordingListDto {

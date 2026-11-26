@@ -57,9 +57,6 @@ class _Recordings with NoRecordingActions implements RecordingSource {
 
   @override
   Stream<int> analysisChanges() => const Stream.empty();
-
-  @override
-  Future<void> reanalyse(int recordingId) async {}
 }
 
 class _Connection implements ConnectionSource {

@@ -7,6 +7,7 @@ class RecordingSummary {
     required this.title,
     this.lengthMs,
     this.analysis = const AnalysisInfo(),
+    this.hasStems = false,
   });
 
   final int id;
@@ -15,4 +16,7 @@ class RecordingSummary {
   /// Length of the audio; `null` until the server has scanned the recording.
   final int? lengthMs;
   final AnalysisInfo analysis;
+
+  /// Whether it has been split into stems.
+  final bool hasStems;
 }

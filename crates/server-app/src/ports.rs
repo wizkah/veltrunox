@@ -73,12 +73,16 @@ pub trait StemRepository: Send + Sync {
     fn stem_set(&self, id: RecordingId) -> Result<StemSet, StorageError>;
     /// Replaces the set as a whole; an empty set removes it.
     fn replace_stem_set(&self, id: RecordingId, set: &StemSet) -> Result<(), StorageError>;
+    /// Keeps the analysis of an existing set; the stems and their mix stay.
+    fn set_stem_analysis(&self, id: RecordingId, analysis: &str) -> Result<(), StorageError>;
+    /// The recordings that have stems.
+    fn recordings_with_stems(&self) -> Result<Vec<RecordingId>, StorageError>;
     /// Every stem file a recording refers to.
     fn stem_paths(&self) -> Result<Vec<PathBuf>, StorageError>;
 }
 
-/// Port: separates an audio file into stems and finds its structure, as a stem package
-/// written to `package` (ADR-015). Runs for minutes and blocks.
+/// Port: separates an audio file into stems and finds the structure of a recording from its
+/// stems (ADR-015). Both run for minutes and block.
 pub trait StemSeparator: Send + Sync {
     /// `report` is told how far it has come in percent. `Err` describes what went wrong,
     /// for the log.
@@ -87,6 +91,15 @@ pub trait StemSeparator: Send + Sync {
         audio: &Path,
         title: &str,
         package: &Path,
+        report: &dyn Fn(u8),
+    ) -> Result<(), String>;
+
+    /// Writes what it finds in the named stem files to `output`, as the analysis part of a
+    /// package manifest. Reports and fails like `separate`.
+    fn find_structure(
+        &self,
+        stems: &[(&str, &Path)],
+        output: &Path,
         report: &dyn Fn(u8),
     ) -> Result<(), String>;
 }

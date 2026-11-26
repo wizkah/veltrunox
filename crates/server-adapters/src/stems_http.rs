@@ -4,8 +4,8 @@ use crate::{
     access::Caller,
     http::{ApiError, blocking},
     state::AppState,
-    stem_analysis::JobState,
-    stem_package::{PackageError, StemStore},
+    stem_analysis::{Job, JobState, StemTask},
+    stem_package::{PackageError, StemStore, read_structure},
 };
 use axum::{
     Json, Router,
@@ -21,8 +21,9 @@ use tokio::io::AsyncWriteExt;
 use veltrunox_core::{Capability, Reason, RecordingId, Refusal};
 use veltrunox_protocol::{
     ImportedStemsDto, PackageRecordingDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH,
-    STEM_PACKAGES_PATH, STEM_WAVEFORM_LEVEL_PATH, STEM_WAVEFORM_PATH, STEMS_PATH, StemAnalysisDto,
-    StemDto, StemListDto, WaveformInfoDto, peaks_to_bytes, waveform_info_to_dto,
+    STEM_PACKAGES_PATH, STEM_REGIONS_PATH, STEM_WAVEFORM_LEVEL_PATH, STEM_WAVEFORM_PATH,
+    STEMS_PATH, StemAnalysisDto, StemDto, StemListDto, WaveformInfoDto, peaks_to_bytes,
+    waveform_info_to_dto,
 };
 use veltrunox_server_app::{Stem, StemError, list_recordings};
 
@@ -32,6 +33,7 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(STEMS_PATH, get(stems).delete(remove_stems))
         .route(STEM_PACKAGE_PATH, get(export_package))
         .route(STEM_ANALYSIS_PATH, post(analyse))
+        .route(STEM_REGIONS_PATH, post(create_regions))
         .route(STEM_WAVEFORM_PATH, get(waveform_info))
         .route(STEM_WAVEFORM_LEVEL_PATH, get(waveform_level))
 }
@@ -142,7 +144,15 @@ async fn stems(
     let id = RecordingId::new(recording);
     let jobs = app.stem_jobs.clone();
     let set = blocking(move || app.stems.stem_set(id).map_err(|_| ApiError::Internal)).await?;
-    let analysis = match jobs.as_ref().and_then(|jobs| jobs.state(id)) {
+    let job = jobs.as_ref().and_then(|jobs| jobs.state(id));
+    let creating_regions = matches!(
+        job,
+        Some(Job {
+            task: StemTask::Regions,
+            ..
+        })
+    );
+    let analysis = match job.map(|job| job.state) {
         None => StemAnalysisDto::None,
         Some(JobState::Queued) => StemAnalysisDto::Queued,
         Some(JobState::Running(percent)) => StemAnalysisDto::Running { percent },
@@ -153,6 +163,7 @@ async fn stems(
     Ok(Json(StemListDto {
         analysis_available: jobs.is_some(),
         analysis,
+        creating_regions,
         stems: set
             .stems
             .iter()
@@ -175,15 +186,7 @@ async fn analyse(
     Path(recording): Path<u64>,
 ) -> Result<StatusCode, ApiError> {
     caller.require(Capability::ManageRecordings)?;
-    let jobs = app.stem_jobs.clone().ok_or_else(|| {
-        ApiError::Refused(
-            StatusCode::SERVICE_UNAVAILABLE,
-            Reason::coded(
-                "stems_analysis_unavailable",
-                "no analysis program is set up on this server",
-            ),
-        )
-    })?;
+    let jobs = app.stem_jobs.clone().ok_or_else(no_program)?;
     let id = RecordingId::new(recording);
     let known = blocking(move || {
         Ok(list_recordings(app.recordings.as_ref())
@@ -195,8 +198,50 @@ async fn analyse(
     if !known {
         return Err(ApiError::NotFound);
     }
-    jobs.enqueue(id);
+    jobs.enqueue(id, StemTask::Split);
     Ok(StatusCode::ACCEPTED)
+}
+
+/// Creates regions from the structure of the stems. A structure found before is used again.
+async fn create_regions(
+    State(app): State<AppState>,
+    caller: Caller,
+    Path(recording): Path<u64>,
+) -> Result<StatusCode, ApiError> {
+    caller.require(Capability::ManageRecordings)?;
+    let id = RecordingId::new(recording);
+    let jobs = app.stem_jobs.clone();
+    let added = blocking(move || {
+        let set = app.stems.stem_set(id).map_err(|_| ApiError::Internal)?;
+        if set.stems.is_empty() {
+            return Err(ApiError::NotFound);
+        }
+        let Some(analysis) = set.analysis else {
+            return Ok(false);
+        };
+        let structure = read_structure(&analysis).map_err(|_| ApiError::Internal)?;
+        if structure.sections.is_empty() {
+            return Ok(false);
+        }
+        app.stems.add_structure(id, &structure, &analysis)?;
+        Ok(true)
+    })
+    .await?;
+    if added {
+        return Ok(StatusCode::NO_CONTENT);
+    }
+    jobs.ok_or_else(no_program)?.enqueue(id, StemTask::Regions);
+    Ok(StatusCode::ACCEPTED)
+}
+
+fn no_program() -> ApiError {
+    ApiError::Refused(
+        StatusCode::SERVICE_UNAVAILABLE,
+        Reason::coded(
+            "stems_analysis_unavailable",
+            "no analysis program is set up on this server",
+        ),
+    )
 }
 
 async fn remove_stems(

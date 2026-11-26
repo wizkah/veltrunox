@@ -96,23 +96,18 @@ class _MixerArea extends ConsumerWidget {
       view.zoomByButton(factor, playheadMs: position ?? 0);
     }
 
+    final canAnalyse =
+        canManage && connected && overview.analysisAvailable && percent == null;
     final bar = StemActionsBar(
       stemsEnabled: state.stemsEnabled,
       onEnabled: hasStems && connected ? player.setStemsEnabled : null,
-      onAnalyse:
-          canManage &&
-              connected &&
-              overview.analysisAvailable &&
-              percent == null
-          ? () => actions.analyse(replacing: hasStems)
-          : null,
+      // A recording is split once.
+      onSplit: canAnalyse && !hasStems ? actions.split : null,
+      onCreateRegions: canAnalyse && hasStems ? actions.createRegions : null,
       onImport: canManage && connected
           ? () => actions.import(replacing: hasStems)
           : null,
       onExport: hasStems && connected ? () => actions.export(title) : null,
-      onDelete: hasStems && canManage && connected
-          ? () => actions.delete(title)
-          : null,
       busy: busy,
       zoom: hasStems
           ? [
@@ -154,7 +149,11 @@ class _MixerArea extends ConsumerWidget {
             if (percent != null)
               Semantics(
                 liveRegion: true,
-                child: Text(MixerTexts.analysing(percent)),
+                child: Text(
+                  overview.creatingRegions
+                      ? MixerTexts.creatingRegions(percent)
+                      : MixerTexts.splitting(percent),
+                ),
               ),
             if (failure != null)
               Text(

@@ -17,15 +17,6 @@ part 'api.freezed.dart';
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
     RustLib.instance.api.crateApiListRecordings(serverUrl: serverUrl);
 
-/// Asks the server to analyse a recording again; the result arrives as a session update.
-Future<void> reanalyseRecording({
-  required String serverUrl,
-  required BigInt recordingId,
-}) => RustLib.instance.api.crateApiReanalyseRecording(
-  serverUrl: serverUrl,
-  recordingId: recordingId,
-);
-
 /// Sends an audio file to the server. `upload_id` is a fresh id of 1 to 64 letters, digits, `-`
 /// or `_`; the bytes the server has received arrive as `SessionUpdate::UploadProgress` under it.
 /// The refusal reason (not audio, too large, not allowed)
@@ -54,6 +45,14 @@ Future<void> analyseStems({
   required String serverUrl,
   required BigInt recordingId,
 }) => RustLib.instance.api.crateApiAnalyseStems(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+);
+
+Future<void> createStemRegions({
+  required String serverUrl,
+  required BigInt recordingId,
+}) => RustLib.instance.api.crateApiCreateStemRegions(
   serverUrl: serverUrl,
   recordingId: recordingId,
 );
@@ -1018,6 +1017,9 @@ class RecordingItem {
   final BigInt id;
   final String title;
 
+  /// Whether the recording has been split into stems.
+  final bool hasStems;
+
   /// Length of the audio in milliseconds; `None` until the recording has been scanned.
   final BigInt? lengthMs;
   final AnalysisState analysisState;
@@ -1034,6 +1036,7 @@ class RecordingItem {
   const RecordingItem({
     required this.id,
     required this.title,
+    required this.hasStems,
     this.lengthMs,
     required this.analysisState,
     required this.analysisPercent,
@@ -1045,6 +1048,7 @@ class RecordingItem {
   int get hashCode =>
       id.hashCode ^
       title.hashCode ^
+      hasStems.hashCode ^
       lengthMs.hashCode ^
       analysisState.hashCode ^
       analysisPercent.hashCode ^
@@ -1058,6 +1062,7 @@ class RecordingItem {
           runtimeType == other.runtimeType &&
           id == other.id &&
           title == other.title &&
+          hasStems == other.hasStems &&
           lengthMs == other.lengthMs &&
           analysisState == other.analysisState &&
           analysisPercent == other.analysisPercent &&
@@ -1269,6 +1274,9 @@ class StemOverviewItem {
   final List<StemItem> stems;
   final bool analysisAvailable;
 
+  /// Whether the job creates regions rather than stems.
+  final bool creatingRegions;
+
   /// Whether a job waits or runs.
   final bool analysing;
 
@@ -1281,6 +1289,7 @@ class StemOverviewItem {
   const StemOverviewItem({
     required this.stems,
     required this.analysisAvailable,
+    required this.creatingRegions,
     required this.analysing,
     required this.percent,
     this.failureCode,
@@ -1290,6 +1299,7 @@ class StemOverviewItem {
   int get hashCode =>
       stems.hashCode ^
       analysisAvailable.hashCode ^
+      creatingRegions.hashCode ^
       analysing.hashCode ^
       percent.hashCode ^
       failureCode.hashCode;
@@ -1301,6 +1311,7 @@ class StemOverviewItem {
           runtimeType == other.runtimeType &&
           stems == other.stems &&
           analysisAvailable == other.analysisAvailable &&
+          creatingRegions == other.creatingRegions &&
           analysing == other.analysing &&
           percent == other.percent &&
           failureCode == other.failureCode;

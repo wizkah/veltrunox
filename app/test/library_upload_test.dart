@@ -45,9 +45,6 @@ class _Recordings implements RecordingSource {
   Stream<void> libraryChanges() => const Stream.empty();
 
   @override
-  Future<void> reanalyse(int recordingId) async {}
-
-  @override
   Future<UploadedRecording> upload(
     String fileName,
     Uint8List content, {

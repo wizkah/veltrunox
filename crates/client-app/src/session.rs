@@ -67,6 +67,10 @@ impl ClockOffset {
     }
 }
 
+/// How far two samples may disagree beyond what their round trips explain before
+/// the older one is taken to be outdated.
+const CLOCK_TOLERANCE_MS: u64 = 100;
+
 /// Holds the latest state and extrapolates the position from it.
 #[derive(Debug, Default)]
 pub struct SessionView {
@@ -144,10 +148,15 @@ impl SessionView {
         }
     }
 
-    /// The sample with the shortest round trip is the most reliable one.
+    /// The sample with the shortest round trip is the most reliable one, unless a
+    /// newer one contradicts it: then one of the clocks has moved (the server was
+    /// restarted or a machine slept) and only the newer sample still holds.
     fn adopt_offset(&mut self, sample: ClockOffset) {
         match self.offset {
-            Some(best) if best.round_trip <= sample.round_trip => {}
+            Some(best)
+                if best.round_trip <= sample.round_trip
+                    && best.millis.abs_diff(sample.millis)
+                        <= (best.round_trip + sample.round_trip) / 2 + CLOCK_TOLERANCE_MS => {}
             _ => self.offset = Some(sample),
         }
     }
@@ -162,9 +171,13 @@ impl SessionView {
 
     /// The playback position to show at `local_now`.
     pub fn position_now(&self, local_now: Millis) -> Option<Millis> {
-        self.state
-            .as_ref()
-            .map(|state| state.position_at(self.server_time(local_now)))
+        // Without a round trip the server's clock is unknown, so the position
+        // does not run yet.
+        let now = match self.offset {
+            Some(_) => self.server_time(local_now),
+            None => Millis::new(0),
+        };
+        self.state.as_ref().map(|state| state.position_at(now))
     }
 }
 
@@ -313,6 +326,29 @@ mod tests {
         view.handle(pong(1_000, 6_005), ms(1_010));
         view.handle(pong(2_000, 7_500), ms(2_900));
         assert_eq!(view.server_time(ms(10_000)), ms(15_000));
+    }
+
+    #[test]
+    fn a_contradicting_sample_replaces_a_shorter_one() {
+        let mut view = SessionView::new();
+        let pong = |client: u64, server: u64| ServerEvent::Pong {
+            client_time: ms(client),
+            server_time: ms(server),
+        };
+        view.handle(pong(1_000, 500_005), ms(1_010));
+        // The server clock started over; this round trip is the slower one.
+        view.handle(pong(60_000, 2_020), ms(60_040));
+        assert_eq!(view.server_time(ms(61_020)), ms(3_020));
+    }
+
+    #[test]
+    fn before_the_first_round_trip_the_position_does_not_run() {
+        let mut view = SessionView::new();
+        view.handle(
+            ServerEvent::State(running_state(1, 500, 11_000)),
+            ms(1_000_000),
+        );
+        assert_eq!(view.position_now(ms(1_000_000)), Some(ms(500)));
     }
 
     #[test]

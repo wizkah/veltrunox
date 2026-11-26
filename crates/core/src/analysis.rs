@@ -92,6 +92,8 @@ pub struct LibraryEntry {
     /// Known once the recording has been scanned, whatever became of its analysis.
     pub length: Option<crate::Millis>,
     pub analysis: AnalysisInfo,
+    /// Whether the recording has been split into stems.
+    pub has_stems: bool,
 }
 
 #[cfg(test)]

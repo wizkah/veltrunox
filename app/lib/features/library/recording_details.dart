@@ -7,16 +7,15 @@ import 'analysis_info.dart';
 import 'analysis_summary.dart';
 import 'library_texts.dart';
 import 'recording_summary.dart';
+import 'stems_badge.dart';
 
 /// What the library knows about one recording, and what can be done with it:
-/// open it in the player (the main action), play it at once, analyse it
-/// again. On a narrow screen it is a view of its own, with a way [onBack].
+/// open it in the player (the main action) or play it at once. On a narrow screen it is a view of its own, with a way [onBack].
 class RecordingDetails extends StatelessWidget {
   const RecordingDetails({
     required this.recording,
     required this.onOpenInPlayer,
     required this.onPlay,
-    required this.onReanalyse,
     this.preview,
     this.onRename,
     this.onDelete,
@@ -31,7 +30,6 @@ class RecordingDetails extends StatelessWidget {
   final Widget? preview;
   final VoidCallback onOpenInPlayer;
   final VoidCallback onPlay;
-  final VoidCallback onReanalyse;
 
   /// Only for those who may manage recordings; without them the actions are not shown.
   final VoidCallback? onRename;
@@ -63,6 +61,10 @@ class RecordingDetails extends StatelessWidget {
           const SizedBox(height: AppSpace.s3),
           AnalysisSummary(analysis: analysis),
           const SizedBox(height: AppSpace.s3),
+          if (recording.hasStems) ...[
+            const StemsBadge(),
+            const SizedBox(height: AppSpace.s3),
+          ],
           if (recording.lengthMs != null)
             _Value(LibraryTexts.lengthLabel, formatClock(recording.lengthMs!)),
           ..._values(analysis.values),
@@ -86,12 +88,6 @@ class RecordingDetails extends StatelessWidget {
                 kind: ActionKind.secondary,
                 onPressed: onPlay,
               ),
-              ActionButton(
-                label: LibraryTexts.reanalyse,
-                icon: Icons.refresh,
-                kind: ActionKind.secondary,
-                onPressed: _pending(analysis.status) ? null : onReanalyse,
-              ),
               if (onRename != null)
                 ActionButton(
                   label: LibraryTexts.rename,
@@ -112,9 +108,6 @@ class RecordingDetails extends StatelessWidget {
       ),
     );
   }
-
-  static bool _pending(AnalysisStatus status) =>
-      status == AnalysisStatus.queued || status == AnalysisStatus.running;
 
   /// The chips above show analysed values; only their absence is said here.
   List<Widget> _values(AnalysisValues? values) =>

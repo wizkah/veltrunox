@@ -309,6 +309,13 @@ fn measure(path: &Path) -> Result<(Millis, veltrunox_core::Waveform), PackageErr
     Ok((Millis::new(frames * 1_000 / u64::from(rate)), waveform))
 }
 
+/// The structure in the analysis part of a package manifest.
+pub fn read_structure(analysis: &str) -> Result<Structure, PackageError> {
+    serde_json::from_str(analysis)
+        .map(structure_of)
+        .map_err(invalid)
+}
+
 fn structure_of(analysis: PackageAnalysisDto) -> Structure {
     Structure {
         sections: analysis

@@ -7,8 +7,8 @@ mod stems;
 pub use stems::{
     ImportedStemsDto, MANIFEST_FILE, PACKAGE_FORMAT, PackageAnalysisDto, PackageManifestDto,
     PackageRecordingDto, PackageSectionDto, PackageStemDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH,
-    STEM_PACKAGES_PATH, STEM_WAVEFORM_LEVEL_PATH, STEM_WAVEFORM_PATH, STEMS_PATH, StemAnalysisDto,
-    StemDto, StemListDto,
+    STEM_PACKAGES_PATH, STEM_REGIONS_PATH, STEM_WAVEFORM_LEVEL_PATH, STEM_WAVEFORM_PATH,
+    STEMS_PATH, StemAnalysisDto, StemDto, StemListDto,
 };
 
 pub use accounts::{
@@ -546,6 +546,8 @@ pub struct RecordingSummaryDto {
     pub length_ms: Option<u64>,
     pub analysis_progress: AnalysisProgressDto,
     pub analysis: Option<AnalysisResultDto>,
+    #[serde(default)]
+    pub has_stems: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -570,6 +572,7 @@ mod tests {
     fn list_round_trips_through_json() {
         let list = RecordingListDto {
             recordings: vec![RecordingSummaryDto {
+                has_stems: false,
                 id: 1,
                 title: "Intro".into(),
                 length_ms: Some(61_000),
@@ -584,7 +587,7 @@ mod tests {
             json,
             concat!(
                 r#"{"recordings":[{"id":1,"title":"Intro","length_ms":61000,"#,
-                r#""analysis_progress":{"state":"failed","code":"too_short"},"analysis":null}]}"#
+                r#""analysis_progress":{"state":"failed","code":"too_short"},"analysis":null,"has_stems":false}]}"#
             )
         );
         assert_eq!(

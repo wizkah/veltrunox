@@ -13,13 +13,21 @@ abstract final class MixerTexts {
   );
   static String get loading =>
       tr('Segmente werden geladen …', 'Loading stems …');
-  static String get analyse => tr('Analysieren', 'Analyse');
-  static String analysing(int percent) => percent == 0
-      ? tr('Analyse läuft …', 'Analysing …')
-      : tr('Analyse läuft ($percent %)', 'Analysing ($percent %)');
+  static String get split => tr('Aufteilen', 'Split');
+  static String splitting(int percent) => percent == 0
+      ? tr('Wird aufgeteilt …', 'Splitting …')
+      : tr('Wird aufgeteilt ($percent %)', 'Splitting ($percent %)');
+  static String get createRegions => tr('Regionen erstellen', 'Create regions');
+  static String creatingRegions(int percent) => percent == 0
+      ? tr('Regionen werden erstellt …', 'Creating regions …')
+      : tr(
+          'Regionen werden erstellt ($percent %)',
+          'Creating regions ($percent %)',
+        );
+  static String get regionsCreated =>
+      tr('Die Regionen stehen im Player.', 'The regions are in the player.');
   static String get import => tr('Importieren', 'Import');
   static String get export => tr('Exportieren', 'Export');
-  static String get delete => tr('Löschen', 'Delete');
   static String get cancel => tr('Abbrechen', 'Cancel');
   static String get replaceTitle =>
       tr('Segmente ersetzen?', 'Replace the stems?');
@@ -30,12 +38,6 @@ abstract final class MixerTexts {
         'their mix is reset.',
   );
   static String get replace => tr('Ersetzen', 'Replace');
-  static String get deleteTitle => tr('Segmente löschen?', 'Delete the stems?');
-  static String deleteMessage(String title) => tr(
-    'Die Segmente von „$title“ werden gelöscht. Aufnahme und Regionen '
-        'bleiben.',
-    'The stems of "$title" are deleted. The recording and its regions stay.',
-  );
   static String imported(String title, int stems, int regions) => tr(
     '„$title“: $stems Segmente importiert, $regions Regionen hinzugefügt.',
     '"$title": $stems stems imported, $regions regions added.',

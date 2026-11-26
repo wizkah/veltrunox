@@ -19,8 +19,12 @@ abstract interface class MixerSource {
   /// Without stems if the recording has none or they cannot be read.
   Future<StemOverview> stems(int recordingId);
 
-  /// Starts the analysis of the recording; it shows in [stems].
-  Future<void> analyse(int recordingId);
+  /// Starts splitting the recording into stems; the job shows in [stems].
+  Future<void> split(int recordingId);
+
+  /// Creates regions from the structure of the stems: at once if it is known,
+  /// else by a job that shows in [stems].
+  Future<void> createRegions(int recordingId);
 
   /// `null` if it cannot be read.
   Future<LoadedWaveform?> waveform(int recordingId, int stem);

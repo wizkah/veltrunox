@@ -183,8 +183,6 @@ class LibraryScreen extends ConsumerWidget {
     preview: previewBuilder?.call(recording),
     onOpenInPlayer: () => onOpenInPlayer(recording.id),
     onPlay: () => onPlay(recording.id),
-    onReanalyse: () =>
-        ref.read(libraryProvider.notifier).reanalyse(recording.id),
     onRename: _manages(ref)
         ? () => renameRecordingFlow(context, ref, recording)
         : null,

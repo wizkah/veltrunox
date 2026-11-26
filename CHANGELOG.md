@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed: pressing play could show the playhead at the end although playback ran from the right place. The client kept an outdated clock offset after the server's clock had moved (restart, sleep); it now replaces a contradicting measurement and measures again before play.
+- Mixer: “Analyse” is now “Split” and is offered only for a recording without stems; splitting no longer finds the song structure. The new “Create regions” (`POST /api/v1/recordings/{id}/stems/regions`) finds it from the stems and keeps it, so asking again adds missing regions without a new run. The analysis program gained `--structure` and reports finer progress; run `tools/analysis/install.sh` again after updating.
+- The library marks recordings that have stems (`has_stems` in the recording list). Removed from the interface: “Analyse again” in the library and deleting stems in the mixer; the endpoints remain.
 - The README describes the current features and limits; `SECURITY.md` says how to report a vulnerability and what the server does not protect against.
 - Fixed: a stem analysis could stay at 95 % although the program had ended. The server now goes by the end of the program, not the end of its output, and removes left-over temporary stem files at start-up.
 - Specification of stems, a mixer view and structure analysis (ADR-015; architecture and design specification section 5.7).

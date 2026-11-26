@@ -7,7 +7,7 @@ use veltrunox_client_app::{
 };
 use veltrunox_core::RecordingId;
 use veltrunox_protocol::{
-    ImportedStemsDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH, STEM_PACKAGES_PATH,
+    ImportedStemsDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH, STEM_PACKAGES_PATH, STEM_REGIONS_PATH,
     STEM_WAVEFORM_PATH, STEMS_PATH, StemAnalysisDto, StemListDto,
 };
 
@@ -29,6 +29,7 @@ impl StemLink for HttpServerLink {
             .and_then(checked)?;
         let list: StemListDto = response.json().await.map_err(invalid)?;
         Ok(StemOverview {
+            creating_regions: list.creating_regions,
             stems: list
                 .stems
                 .into_iter()
@@ -49,6 +50,11 @@ impl StemLink for HttpServerLink {
 
     async fn request_stem_analysis(&self, recording: RecordingId) -> Result<(), LinkError> {
         let request = self.post(self.url(STEM_ANALYSIS_PATH, recording.value()));
+        Self::account_call(request).await.map(|_| ())
+    }
+
+    async fn request_stem_regions(&self, recording: RecordingId) -> Result<(), LinkError> {
+        let request = self.post(self.url(STEM_REGIONS_PATH, recording.value()));
         Self::account_call(request).await.map(|_| ())
     }
 

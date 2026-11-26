@@ -191,8 +191,8 @@ String? _text(ServerReason reason) => switch (reason.code) {
     'No analysis program is set up on this server.',
   ),
   'stems_analysis_failed' => tr(
-    'Die Analyse in Segmente ist fehlgeschlagen.',
-    'The analysis into stems failed.',
+    'Das Analyseprogramm ist fehlgeschlagen.',
+    'The analysis program failed.',
   ),
   'bookmark_not_found' => tr(
     'Die Markierung oder Aufnahme wurde nicht gefunden.',

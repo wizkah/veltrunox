@@ -212,6 +212,7 @@ mod tests {
             format_version: 1,
             recordings: vec![ExportedRecordingDto {
                 recording: RecordingSummaryDto {
+                    has_stems: false,
                     id: 3,
                     title: "Song".into(),
                     length_ms: None,

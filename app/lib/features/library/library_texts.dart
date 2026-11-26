@@ -20,7 +20,7 @@ abstract final class LibraryTexts {
       tr('Analyse wartet …', 'Analysis waiting …');
   static String analysisRunning(int percent) =>
       tr('Analyse läuft … $percent %', 'Analysing … $percent %');
-  static String get reanalyse => tr('Erneut analysieren', 'Analyse again');
+  static String get stems => tr('Segmente vorhanden', 'Has stems');
   static String get search =>
       tr('Suchen: Titel, Tonart, Tempo', 'Search: title, key, tempo');
   static String get clearSearch => tr('Suche löschen', 'Clear search');

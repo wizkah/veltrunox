@@ -7,6 +7,7 @@ import 'analysis_format.dart';
 import 'analysis_summary.dart';
 import 'library_texts.dart';
 import 'recording_summary.dart';
+import 'stems_badge.dart';
 
 /// One recording in the list, as a card: a direct play button, its title and
 /// the state or values of its analysis. Tapping the card asks for its
@@ -32,6 +33,23 @@ class RecordingTile extends StatelessWidget {
   final VoidCallback onPlay;
 
   static final _restBorder = AppColors.border.withValues(alpha: 0.6);
+
+  Widget? _subtitle() {
+    final analysed = analysisLine(recording.analysis).isNotEmpty;
+    if (!analysed && !recording.hasStems) return null;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpace.s1),
+      child: Wrap(
+        spacing: AppSpace.s3,
+        runSpacing: AppSpace.s1,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (analysed) AnalysisSummary(analysis: recording.analysis),
+          if (recording.hasStems) const StemsBadge(),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,12 +96,7 @@ class RecordingTile extends StatelessWidget {
               onPressed: onPlay,
             ),
             title: Text(recording.title),
-            subtitle: analysisLine(recording.analysis).isEmpty
-                ? null
-                : Padding(
-                    padding: const EdgeInsets.only(top: AppSpace.s1),
-                    child: AnalysisSummary(analysis: recording.analysis),
-                  ),
+            subtitle: _subtitle(),
             trailing: loaded
                 ? Icon(
                     Icons.graphic_eq,

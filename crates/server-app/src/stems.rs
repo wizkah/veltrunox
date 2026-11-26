@@ -108,19 +108,48 @@ impl StemService {
         }
         self.stems.replace_stem_set(recording.id, set)?;
         self.broadcast.stems_changed(recording.id);
-        let existing = self.bookmarks.list(recording.id)?.regions;
-        let added = section_regions(&structure.sections, &structure.downbeats, length, &existing);
-        let regions_added = added.len();
-        for region in added {
-            self.bookmarks
-                .add_region(recording.id, region.name, region.range)?;
-        }
+        let regions_added = self.add_sections(recording.id, structure, length)?;
         self.broadcast.library_changed();
         Ok(ImportedStems {
             recording,
             stems: set.stems.len(),
             regions_added,
         })
+    }
+
+    /// Adds the sections of the structure as regions and keeps `analysis`, so they can be
+    /// added again without finding them anew. Returns how many regions are new.
+    pub fn add_structure(
+        &self,
+        id: RecordingId,
+        structure: &Structure,
+        analysis: &str,
+    ) -> Result<usize, StemError> {
+        let set = self.stems.stem_set(id)?;
+        let length = checked_length(&set, self.lengths.length(id))?;
+        self.stems.set_stem_analysis(id, analysis)?;
+        let added = self.add_sections(id, structure, length)?;
+        self.broadcast.library_changed();
+        Ok(added)
+    }
+
+    fn add_sections(
+        &self,
+        id: RecordingId,
+        structure: &Structure,
+        length: Millis,
+    ) -> Result<usize, StemError> {
+        let existing = self.bookmarks.list(id)?.regions;
+        let added = section_regions(&structure.sections, &structure.downbeats, length, &existing);
+        let count = added.len();
+        for region in added {
+            self.bookmarks.add_region(id, region.name, region.range)?;
+        }
+        Ok(count)
+    }
+
+    pub fn recordings_with_stems(&self) -> Result<Vec<RecordingId>, StorageError> {
+        self.stems.recordings_with_stems()
     }
 
     pub fn remove(&self, id: RecordingId) -> Result<(), StorageError> {

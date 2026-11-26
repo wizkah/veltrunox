@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:veltrunox_app/composition/mixer_board.dart';
 import 'package:veltrunox_app/features/mixer/mixer_source.dart';
+import 'package:veltrunox_app/features/mixer/stem_actions_bar.dart';
 import 'package:veltrunox_app/features/mixer/stem_controls.dart';
 import 'package:veltrunox_app/features/mixer/stem_models.dart';
 import 'package:veltrunox_app/features/player/player_controller.dart';
@@ -19,7 +20,10 @@ class _NoWaveforms implements MixerSource {
   Future<StemOverview> stems(int recordingId) async => const StemOverview();
 
   @override
-  Future<void> analyse(int recordingId) async {}
+  Future<void> split(int recordingId) async {}
+
+  @override
+  Future<void> createRegions(int recordingId) async {}
 
   @override
   Future<LoadedWaveform?> waveform(int recordingId, int stem) async => null;
@@ -109,6 +113,30 @@ void main() {
     expect(player.calls, isEmpty);
     expect(find.text('bass'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('splitting is offered until there are stems, no deleting', (
+    tester,
+  ) async {
+    Future<void> bar({VoidCallback? split, VoidCallback? regions}) =>
+        tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: StemActionsBar(
+                stemsEnabled: false,
+                onSplit: split,
+                onCreateRegions: regions,
+              ),
+            ),
+          ),
+        );
+    await bar(split: () {});
+    expect(find.text('Aufteilen'), findsOneWidget);
+    expect(find.text('Regionen erstellen'), findsNothing);
+    await bar(regions: () {});
+    expect(find.text('Aufteilen'), findsNothing);
+    expect(find.text('Regionen erstellen'), findsOneWidget);
+    expect(find.text('Löschen'), findsNothing);
   });
 
   testWidgets('fits a phone', (tester) async {

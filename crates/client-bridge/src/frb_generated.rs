@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -308116210;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 323168579;
 
 // Section: executor
 
@@ -503,6 +503,45 @@ fn wire__crate__api__create_region_impl(
                             api_end_ms,
                         )
                         .await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__create_stem_regions_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_stem_regions",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_server_url = <String>::sse_decode(&mut deserializer);
+            let api_recording_id = <u64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::RecordingActionError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::create_stem_regions(api_server_url, api_recording_id)
+                                .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -1143,45 +1182,6 @@ fn wire__crate__api__playback_position_ms_impl(
                 transform_result_sse::<_, ()>(
                     (move || async move {
                         let output_ok = Ok::<_, ()>(crate::api::playback_position_ms().await)?;
-                        std::result::Result::Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__reanalyse_recording_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "reanalyse_recording",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_server_url = <String>::sse_decode(&mut deserializer);
-            let api_recording_id = <u64>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| async move {
-                transform_result_sse::<_, String>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::reanalyse_recording(api_server_url, api_recording_id)
-                                .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -2905,6 +2905,7 @@ impl SseDecode for crate::api::RecordingItem {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <u64>::sse_decode(deserializer);
         let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_hasStems = <bool>::sse_decode(deserializer);
         let mut var_lengthMs = <Option<u64>>::sse_decode(deserializer);
         let mut var_analysisState = <crate::api::AnalysisState>::sse_decode(deserializer);
         let mut var_analysisPercent = <u8>::sse_decode(deserializer);
@@ -2913,6 +2914,7 @@ impl SseDecode for crate::api::RecordingItem {
         return crate::api::RecordingItem {
             id: var_id,
             title: var_title,
+            has_stems: var_hasStems,
             length_ms: var_lengthMs,
             analysis_state: var_analysisState,
             analysis_percent: var_analysisPercent,
@@ -3131,12 +3133,14 @@ impl SseDecode for crate::api::StemOverviewItem {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_stems = <Vec<crate::api::StemItem>>::sse_decode(deserializer);
         let mut var_analysisAvailable = <bool>::sse_decode(deserializer);
+        let mut var_creatingRegions = <bool>::sse_decode(deserializer);
         let mut var_analysing = <bool>::sse_decode(deserializer);
         let mut var_percent = <u8>::sse_decode(deserializer);
         let mut var_failureCode = <Option<String>>::sse_decode(deserializer);
         return crate::api::StemOverviewItem {
             stems: var_stems,
             analysis_available: var_analysisAvailable,
+            creating_regions: var_creatingRegions,
             analysing: var_analysing,
             percent: var_percent,
             failure_code: var_failureCode,
@@ -3289,23 +3293,23 @@ fn pde_ffi_dispatcher_primary_impl(
         9 => wire__crate__api__create_api_token_impl(port, ptr, rust_vec_len, data_len),
         10 => wire__crate__api__create_label_impl(port, ptr, rust_vec_len, data_len),
         11 => wire__crate__api__create_region_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__create_user_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__current_rights_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__delete_recording_for_good_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__delete_stems_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__end_scrub_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__export_bookmarks_text_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__export_stem_package_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__import_bookmarks_text_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__import_stem_package_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__label_to_region_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__list_api_tokens_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__list_bookmarks_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__list_recordings_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__list_users_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__merge_regions_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__playback_position_ms_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__reanalyse_recording_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__create_stem_regions_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__create_user_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__current_rights_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__delete_recording_for_good_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__delete_stems_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__end_scrub_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__export_bookmarks_text_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__export_stem_package_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__import_bookmarks_text_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__import_stem_package_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__label_to_region_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__list_api_tokens_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__list_bookmarks_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__list_recordings_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__list_users_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__merge_regions_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__playback_position_ms_impl(port, ptr, rust_vec_len, data_len),
         29 => wire__crate__api__recording_stems_impl(port, ptr, rust_vec_len, data_len),
         30 => wire__crate__api__recording_waveform_impl(port, ptr, rust_vec_len, data_len),
         31 => wire__crate__api__region_to_label_impl(port, ptr, rust_vec_len, data_len),
@@ -3873,6 +3877,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::RecordingItem {
         [
             self.id.into_into_dart().into_dart(),
             self.title.into_into_dart().into_dart(),
+            self.has_stems.into_into_dart().into_dart(),
             self.length_ms.into_into_dart().into_dart(),
             self.analysis_state.into_into_dart().into_dart(),
             self.analysis_percent.into_into_dart().into_dart(),
@@ -4119,6 +4124,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::StemOverviewItem {
         [
             self.stems.into_into_dart().into_dart(),
             self.analysis_available.into_into_dart().into_dart(),
+            self.creating_regions.into_into_dart().into_dart(),
             self.analysing.into_into_dart().into_dart(),
             self.percent.into_into_dart().into_dart(),
             self.failure_code.into_into_dart().into_dart(),
@@ -4908,6 +4914,7 @@ impl SseEncode for crate::api::RecordingItem {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u64>::sse_encode(self.id, serializer);
         <String>::sse_encode(self.title, serializer);
+        <bool>::sse_encode(self.has_stems, serializer);
         <Option<u64>>::sse_encode(self.length_ms, serializer);
         <crate::api::AnalysisState>::sse_encode(self.analysis_state, serializer);
         <u8>::sse_encode(self.analysis_percent, serializer);
@@ -5079,6 +5086,7 @@ impl SseEncode for crate::api::StemOverviewItem {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<crate::api::StemItem>>::sse_encode(self.stems, serializer);
         <bool>::sse_encode(self.analysis_available, serializer);
+        <bool>::sse_encode(self.creating_regions, serializer);
         <bool>::sse_encode(self.analysing, serializer);
         <u8>::sse_encode(self.percent, serializer);
         <Option<String>>::sse_encode(self.failure_code, serializer);

@@ -39,12 +39,6 @@ class BridgeRecordingSource implements RecordingSource {
   Stream<void> libraryChanges() => session.libraryChanges();
 
   @override
-  Future<void> reanalyse(int recordingId) => rust.reanalyseRecording(
-    serverUrl: serverUrl,
-    recordingId: BigInt.from(recordingId),
-  );
-
-  @override
   Future<UploadedRecording> upload(
     String fileName,
     Uint8List content, {
@@ -114,6 +108,7 @@ class BridgeRecordingSource implements RecordingSource {
   static RecordingSummary _summary(rust.RecordingItem item) => RecordingSummary(
     id: item.id.toInt(),
     title: item.title,
+    hasStems: item.hasStems,
     lengthMs: item.lengthMs?.toInt(),
     analysis: AnalysisInfo(
       status: switch (item.analysisState) {

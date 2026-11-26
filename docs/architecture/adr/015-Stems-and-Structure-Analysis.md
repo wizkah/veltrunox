@@ -22,6 +22,8 @@ For practising, single parts of a recording (drums, bass, vocals, the rest) shal
 
 **Analysis.** The separation and structure analysis is an external program configured in the server, not part of the build: it gets the audio file and writes a package. The server runs one such job at a time, reports its progress and imports the result. Without a configured program everything except starting an analysis works. Models and their weights are not distributed with Veltrunox; their licences (non-commercial or research only for the trial's models) are the operator's matter.
 
+**Amendment: two jobs.** Separating and finding the structure are separate jobs, so splitting is quicker and the structure is only found when regions are wanted. The program writes a package without analysis for the first, and for the second gets the stem files and writes the `analysis` object of the manifest. The server keeps that object with the stem set and creates regions from it again without a new run.
+
 ## Alternatives considered
 
 - Audio as database blobs: one file to back up, but a large database and slow backups (ADR-004).

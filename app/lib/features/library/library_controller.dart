@@ -33,9 +33,6 @@ class LibraryController extends AsyncNotifier<List<RecordingSummary>> {
     return source.listRecordings();
   }
 
-  Future<void> reanalyse(int recordingId) =>
-      ref.read(recordingSourceProvider).reanalyse(recordingId);
-
   /// Gives the recording another title; the list shows it at once.
   Future<void> rename(int recordingId, String title) async {
     await ref.read(recordingSourceProvider).rename(recordingId, title);

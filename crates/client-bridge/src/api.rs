@@ -15,7 +15,7 @@ use veltrunox_client_app::{
 use veltrunox_client_app::{
     ChannelAccess, ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkError, LinkEvent,
     RecordingWaveform, ScrubThrottle, ServerEvent, SessionView, StemJob, StemLink, ViewChange,
-    WaveformCache, add_label, add_recording, add_region, analyse_again, convert_label_to_region,
+    WaveformCache, add_label, add_recording, add_region, convert_label_to_region,
     convert_region_to_label, delete_label, delete_recording, delete_region, edit_label,
     edit_region, load_bookmarks, load_library, load_waveform,
     merge_regions as merge_regions_use_case, rename_recording,
@@ -37,6 +37,8 @@ use veltrunox_core::{
 pub struct RecordingItem {
     pub id: u64,
     pub title: String,
+    /// Whether the recording has been split into stems.
+    pub has_stems: bool,
     /// Length of the audio in milliseconds; `None` until the recording has been scanned.
     pub length_ms: Option<u64>,
     pub analysis_state: AnalysisState,
@@ -86,6 +88,7 @@ impl From<&LibraryEntry> for RecordingItem {
             AnalysisProgress::Done => (AnalysisState::Done, None),
         };
         Self {
+            has_stems: entry.has_stems,
             id: entry.recording.id.value(),
             title: entry.recording.title.as_str().to_owned(),
             length_ms: entry.length.map(Millis::value),
@@ -103,14 +106,6 @@ impl From<&LibraryEntry> for RecordingItem {
             }),
         }
     }
-}
-
-/// Asks the server to analyse a recording again; the result arrives as a session update.
-pub async fn reanalyse_recording(server_url: String, recording_id: u64) -> Result<(), String> {
-    let link = link(&server_url);
-    analyse_again(&link, RecordingId::new(recording_id))
-        .await
-        .map_err(|error| error.to_string())
 }
 
 /// Why the server refused something. The `code` is stable and the interface
@@ -182,6 +177,8 @@ pub struct StemItem {
 pub struct StemOverviewItem {
     pub stems: Vec<StemItem>,
     pub analysis_available: bool,
+    /// Whether the job creates regions rather than stems.
+    pub creating_regions: bool,
     /// Whether a job waits or runs.
     pub analysing: bool,
     /// Percent done of a running job.
@@ -213,6 +210,7 @@ pub async fn recording_stems(
         StemJob::Failed(code) => (false, 0, Some(code)),
     };
     Ok(StemOverviewItem {
+        creating_regions: overview.creating_regions,
         stems: overview
             .stems
             .into_iter()
@@ -234,6 +232,16 @@ pub async fn analyse_stems(
 ) -> Result<(), RecordingActionError> {
     link(&server_url)
         .request_stem_analysis(RecordingId::new(recording_id))
+        .await
+        .map_err(action_failure)
+}
+
+pub async fn create_stem_regions(
+    server_url: String,
+    recording_id: u64,
+) -> Result<(), RecordingActionError> {
+    link(&server_url)
+        .request_stem_regions(RecordingId::new(recording_id))
         .await
         .map_err(action_failure)
 }
@@ -887,7 +895,10 @@ fn forward(event: ServerEvent, updates: &StreamSink<SessionUpdate>) {
     let update = match view.handle(event, now) {
         ViewChange::Nothing => return,
         ViewChange::PlaybackState => view.state().map(|state| {
-            SessionUpdate::Playback(PlaybackView::from_state(state, view.server_time(now)))
+            SessionUpdate::Playback(PlaybackView::from_state(
+                state,
+                view.position_now(now).unwrap_or(state.reference.position),
+            ))
         }),
         ViewChange::BookmarksChanged(recording) => Some(SessionUpdate::BookmarksChanged {
             recording_id: recording.value(),
@@ -926,11 +937,11 @@ fn forward(event: ServerEvent, updates: &StreamSink<SessionUpdate>) {
 }
 
 impl PlaybackView {
-    fn from_state(state: &veltrunox_core::PlaybackState, server_now: Millis) -> Self {
+    fn from_state(state: &veltrunox_core::PlaybackState, position: Millis) -> Self {
         Self {
             revision: state.revision,
             recording_id: state.recording.map(RecordingId::value),
-            position_ms: state.position_at(server_now).value(),
+            position_ms: position.value(),
             running: state.running,
             speed: state.settings.speed.factor(),
             tuning_hz: state.settings.tuning.hertz(),
@@ -992,7 +1003,13 @@ pub async fn end_scrub(position_ms: u64) -> Result<(), String> {
 /// Sends a command to the shared player. Out-of-range values are rejected here
 /// and the server rejects them again; the answer arrives as a session update.
 pub async fn send_command(command: PlayerCommand) -> Result<(), String> {
-    send_intent(command.into_intent().map_err(|error| error.to_string())?)
+    let intent = command.into_intent().map_err(|error| error.to_string())?;
+    if matches!(intent, Intent::Play | Intent::PlayRegion(_)) {
+        // The position runs from the server's clock. Measured just before, the
+        // answer arrives ahead of the new state; a failure shows up below.
+        with_channel(|channel| channel.as_ref().map(EventChannel::sync_clock));
+    }
+    send_intent(intent)
 }
 
 fn send_intent(intent: Intent) -> Result<(), String> {

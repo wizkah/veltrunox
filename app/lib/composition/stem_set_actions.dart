@@ -20,7 +20,7 @@ final stemSetBusyProvider = NotifierProvider<StemSetBusy, bool>(
   StemSetBusy.new,
 );
 
-/// Import, export and delete of a recording's stems, with the questions before
+/// Splitting, regions, import and export of a recording's stems, with the questions before
 /// and the notices after. Used by the mixer page.
 class StemSetActions {
   const StemSetActions(this.context, this.ref, this.recordingId);
@@ -54,22 +54,19 @@ class StemSetActions {
     });
   }
 
-  Future<void> analyse({required bool replacing}) async {
-    if (replacing &&
-        !await ConfirmDialog.ask(
-          context,
-          title: MixerTexts.replaceTitle,
-          message: MixerTexts.replaceMessage,
-          confirmLabel: MixerTexts.replace,
-          cancelLabel: MixerTexts.cancel,
-        )) {
-      return;
-    }
-    await _run(() async {
-      await _source.analyse(recordingId);
-      return null;
-    });
-  }
+  Future<void> split() => _run(() async {
+    await _source.split(recordingId);
+    return null;
+  });
+
+  Future<void> createRegions() => _run(() async {
+    await _source.createRegions(recordingId);
+    // Without a job they are there already; the mixer does not show them.
+    final after = await _source.stems(recordingId);
+    return after.analysingPercent == null && after.failureCode == null
+        ? MixerTexts.regionsCreated
+        : null;
+  });
 
   Future<void> export(String title) => _run(() async {
     final package = await _source.exportPackage(recordingId);
@@ -78,21 +75,6 @@ class StemSetActions {
         .save('$title.stems.zip', package);
     return saved ? MixerTexts.exported : null;
   });
-
-  Future<void> delete(String title) async {
-    final confirmed = await ConfirmDialog.ask(
-      context,
-      title: MixerTexts.deleteTitle,
-      message: MixerTexts.deleteMessage(title),
-      confirmLabel: MixerTexts.delete,
-      cancelLabel: MixerTexts.cancel,
-    );
-    if (!confirmed) return;
-    await _run(() async {
-      await _source.remove(recordingId);
-      return null;
-    });
-  }
 
   /// Runs the action, says what came of it and reads the stems again.
   Future<void> _run(Future<String?> Function() action) async {

@@ -8,6 +8,8 @@ pub const STEM_PACKAGES_PATH: &str = "/api/v1/stem-packages";
 pub const STEMS_PATH: &str = "/api/v1/recordings/{id}/stems";
 /// Starts the analysis of one recording into stems (`POST`).
 pub const STEM_ANALYSIS_PATH: &str = "/api/v1/recordings/{id}/stems/analysis";
+/// Creates regions from the structure of the stems of one recording (`POST`).
+pub const STEM_REGIONS_PATH: &str = "/api/v1/recordings/{id}/stems/regions";
 /// The stem package of one recording as a ZIP file.
 pub const STEM_PACKAGE_PATH: &str = "/api/v1/recordings/{id}/stems/package";
 /// Waveform description of one stem (`WaveformInfoDto`); `{index}` counts from 0.
@@ -77,6 +79,9 @@ pub struct StemListDto {
     /// Whether this server can analyse recordings into stems.
     pub analysis_available: bool,
     pub analysis: StemAnalysisDto,
+    /// Whether that job creates regions rather than stems.
+    #[serde(default)]
+    pub creating_regions: bool,
 }
 
 /// The analysis job of one recording.

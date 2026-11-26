@@ -21,6 +21,7 @@ class StemOverview {
     this.stems = const [],
     this.analysisAvailable = false,
     this.analysingPercent,
+    this.creatingRegions = false,
     this.failureCode,
   });
 
@@ -31,6 +32,9 @@ class StemOverview {
 
   /// Percent done while a job waits or runs; `null` without one.
   final int? analysingPercent;
+
+  /// Whether that job creates regions rather than stems.
+  final bool creatingRegions;
 
   /// Why the last job failed.
   final String? failureCode;

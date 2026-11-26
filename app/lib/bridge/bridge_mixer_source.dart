@@ -26,6 +26,7 @@ class BridgeMixerSource implements MixerSource {
           for (final stem in found.stems) Stem(name: stem.name, key: stem.key),
         ],
         analysisAvailable: found.analysisAvailable,
+        creatingRegions: found.creatingRegions,
         analysingPercent: found.analysing ? found.percent : null,
         failureCode: found.failureCode,
       );
@@ -35,8 +36,16 @@ class BridgeMixerSource implements MixerSource {
   }
 
   @override
-  Future<void> analyse(int recordingId) => _reasoned(
+  Future<void> split(int recordingId) => _reasoned(
     () => rust.analyseStems(
+      serverUrl: serverUrl,
+      recordingId: BigInt.from(recordingId),
+    ),
+  );
+
+  @override
+  Future<void> createRegions(int recordingId) => _reasoned(
+    () => rust.createStemRegions(
       serverUrl: serverUrl,
       recordingId: BigInt.from(recordingId),
     ),

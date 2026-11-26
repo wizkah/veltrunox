@@ -28,6 +28,8 @@ pub struct StemOverview {
     /// Whether the server can analyse recordings.
     pub analysis_available: bool,
     pub job: StemJob,
+    /// Whether the job creates regions rather than stems.
+    pub creating_regions: bool,
 }
 
 /// What importing a stem package came to.
@@ -47,6 +49,11 @@ pub trait StemLink {
     ) -> impl Future<Output = Result<StemOverview, LinkError>>;
     /// Asks the server to analyse the recording into stems; the job shows in the overview.
     fn request_stem_analysis(
+        &self,
+        recording: RecordingId,
+    ) -> impl Future<Output = Result<(), LinkError>>;
+    /// Asks the server to create regions from the structure of the stems.
+    fn request_stem_regions(
         &self,
         recording: RecordingId,
     ) -> impl Future<Output = Result<(), LinkError>>;

@@ -1,9 +1,10 @@
 //! Stem analysis jobs (ADR-015): the external program and the queue that runs one job at a
 //! time and imports what it wrote.
 
-use crate::stem_package::StemStore;
+use crate::stem_package::{StemStore, read_structure};
 use std::{
     collections::HashMap,
+    ffi::OsString,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
     process::{ChildStdout, Command, Stdio},
@@ -17,8 +18,9 @@ use veltrunox_server_app::{
     StemSeparator, StemService,
 };
 
-/// The configured program: `PROGRAM INPUT OUTPUT.zip TITLE`, with `progress N` lines on its
-/// standard output.
+/// The configured program: `PROGRAM INPUT OUTPUT.zip TITLE` splits, `PROGRAM --structure
+/// OUTPUT.json --stem NAME=FILE ...` finds the structure; `progress N` lines on its standard
+/// output.
 pub struct ProgramSeparator(PathBuf);
 
 impl ProgramSeparator {
@@ -35,10 +37,31 @@ impl StemSeparator for ProgramSeparator {
         package: &Path,
         report: &dyn Fn(u8),
     ) -> Result<(), String> {
-        let mut child = Command::new(&self.0)
-            .arg(audio)
-            .arg(package)
-            .arg(title)
+        let mut command = Command::new(&self.0);
+        command.arg(audio).arg(package).arg(title);
+        self.run(command, report)
+    }
+
+    fn find_structure(
+        &self,
+        stems: &[(&str, &Path)],
+        output: &Path,
+        report: &dyn Fn(u8),
+    ) -> Result<(), String> {
+        let mut command = Command::new(&self.0);
+        command.arg("--structure").arg(output);
+        for (name, path) in stems {
+            let mut stem = OsString::from(format!("{name}="));
+            stem.push(path);
+            command.arg("--stem").arg(stem);
+        }
+        self.run(command, report)
+    }
+}
+
+impl ProgramSeparator {
+    fn run(&self, mut command: Command, report: &dyn Fn(u8)) -> Result<(), String> {
+        let mut child = command
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .spawn()
@@ -80,6 +103,21 @@ fn progress_of(output: ChildStdout) -> mpsc::Receiver<u8> {
     receiver
 }
 
+/// What a job does for its recording.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StemTask {
+    /// Splits the recording into stems.
+    Split,
+    /// Creates regions from the structure found in the stems.
+    Regions,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Job {
+    pub task: StemTask,
+    pub state: JobState,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JobState {
     Queued,
@@ -99,28 +137,37 @@ pub(crate) struct JobContext {
     pub broadcast: Arc<dyn PlaybackBroadcast>,
 }
 
-type States = Arc<Mutex<HashMap<RecordingId, JobState>>>;
+type States = Arc<Mutex<HashMap<RecordingId, Job>>>;
 
 pub struct StemJobs {
-    queue: mpsc::Sender<RecordingId>,
+    queue: mpsc::Sender<(RecordingId, StemTask)>,
     states: States,
     broadcast: Arc<dyn PlaybackBroadcast>,
 }
 
 impl StemJobs {
     pub(crate) fn start(separator: Arc<dyn StemSeparator>, context: JobContext) -> Self {
-        let (queue, waiting) = mpsc::channel::<RecordingId>();
+        let (queue, waiting) = mpsc::channel::<(RecordingId, StemTask)>();
         let states = States::default();
         let broadcast = context.broadcast.clone();
         let shared = states.clone();
         thread::spawn(move || {
-            for id in waiting {
-                set(&shared, &context, id, Some(JobState::Running(0)));
-                let report = |percent| {
-                    set(&shared, &context, id, Some(JobState::Running(percent)));
+            for (id, task) in waiting {
+                let running = |percent| Job {
+                    task,
+                    state: JobState::Running(percent),
                 };
-                let outcome = run(&*separator, &context, id, &report);
-                set(&shared, &context, id, outcome.err().map(JobState::Failed));
+                set(&shared, &context, id, Some(running(0)));
+                let report = |percent| set(&shared, &context, id, Some(running(percent)));
+                let outcome = match task {
+                    StemTask::Split => split(&*separator, &context, id, &report),
+                    StemTask::Regions => create_regions(&*separator, &context, id, &report),
+                };
+                let failed = outcome.err().map(|code| Job {
+                    task,
+                    state: JobState::Failed(code),
+                });
+                set(&shared, &context, id, failed);
             }
         });
         Self {
@@ -130,33 +177,40 @@ impl StemJobs {
         }
     }
 
-    /// Queues the recording unless it waits or runs already.
-    pub fn enqueue(&self, id: RecordingId) {
+    /// Queues the job unless one for the recording waits or runs already.
+    pub fn enqueue(&self, id: RecordingId, task: StemTask) {
         {
             let mut states = lock(&self.states);
             if matches!(
                 states.get(&id),
-                Some(JobState::Queued | JobState::Running(_))
+                Some(Job {
+                    state: JobState::Queued | JobState::Running(_),
+                    ..
+                })
             ) {
                 return;
             }
-            states.insert(id, JobState::Queued);
+            let queued = Job {
+                task,
+                state: JobState::Queued,
+            };
+            states.insert(id, queued);
         }
         self.broadcast.library_changed();
         // The thread only ends with the server.
-        let _ = self.queue.send(id);
+        let _ = self.queue.send((id, task));
     }
 
-    pub fn state(&self, id: RecordingId) -> Option<JobState> {
+    pub fn state(&self, id: RecordingId) -> Option<Job> {
         lock(&self.states).get(&id).cloned()
     }
 }
 
-fn lock(states: &States) -> std::sync::MutexGuard<'_, HashMap<RecordingId, JobState>> {
+fn lock(states: &States) -> std::sync::MutexGuard<'_, HashMap<RecordingId, Job>> {
     states.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-fn set(states: &States, context: &JobContext, id: RecordingId, state: Option<JobState>) {
+fn set(states: &States, context: &JobContext, id: RecordingId, state: Option<Job>) {
     match state {
         Some(state) => lock(states).insert(id, state),
         None => lock(states).remove(&id),
@@ -164,18 +218,19 @@ fn set(states: &States, context: &JobContext, id: RecordingId, state: Option<Job
     context.broadcast.library_changed();
 }
 
-fn run(
+fn failed(code: &'static str) -> impl Fn(String) -> &'static str {
+    move |detail| {
+        eprintln!("stem job: {detail}");
+        code
+    }
+}
+
+fn split(
     separator: &dyn StemSeparator,
     context: &JobContext,
     id: RecordingId,
     report: &dyn Fn(u8),
 ) -> Result<(), &'static str> {
-    let failed = |code: &'static str| {
-        move |detail: String| {
-            eprintln!("stem analysis of recording {id:?}: {detail}");
-            code
-        }
-    };
     let audio = context
         .media
         .media_path(id)
@@ -214,6 +269,36 @@ fn run(
         .playback
         .reload_mix(installed.recording.id)
         .map_err(|error| failed("storage_failed")(error.to_string()))
+}
+
+fn create_regions(
+    separator: &dyn StemSeparator,
+    context: &JobContext,
+    id: RecordingId,
+    report: &dyn Fn(u8),
+) -> Result<(), &'static str> {
+    let set = context
+        .stems
+        .stem_set(id)
+        .map_err(|error| failed("storage_failed")(error.to_string()))?;
+    let stems: Vec<(&str, &Path)> = set
+        .stems
+        .iter()
+        .map(|stem| (stem.name.as_str(), stem.path.as_path()))
+        .collect();
+    let output = context.store.temporary_file("json");
+    separator
+        .find_structure(&stems, output.path(), report)
+        .map_err(failed("stems_analysis_failed"))?;
+    let analysis = std::fs::read_to_string(output.path())
+        .map_err(|error| failed("stems_analysis_failed")(error.to_string()))?;
+    let structure = read_structure(&analysis)
+        .map_err(|error| failed("stems_analysis_failed")(error.to_string()))?;
+    context
+        .stems
+        .add_structure(id, &structure, &analysis)
+        .map(|_| ())
+        .map_err(|error| failed("stems_analysis_failed")(error.to_string()))
 }
 
 #[cfg(all(test, unix))]

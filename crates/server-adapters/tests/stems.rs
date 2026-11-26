@@ -75,6 +75,21 @@ impl StemSeparator for Prepared {
         }
         std::fs::write(package, bytes).map_err(|error| error.to_string())
     }
+
+    fn find_structure(
+        &self,
+        stems: &[(&str, &Path)],
+        output: &Path,
+        report: &dyn Fn(u8),
+    ) -> Result<(), String> {
+        report(50);
+        assert!(stems.iter().all(|(_, path)| path.exists()));
+        std::fs::write(
+            output,
+            r#"{"sections":[{"start_ms":0,"end_ms":400,"label":"outro"}]}"#,
+        )
+        .map_err(|error| error.to_string())
+    }
 }
 
 async fn server_with(name: &str, separator: Option<Arc<Prepared>>) -> Server {
@@ -356,6 +371,37 @@ async fn wait_for_job(link: &HttpServerLink, id: RecordingId) -> StemOverview {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
     panic!("the job did not finish");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn regions_come_from_the_stored_structure_or_else_from_the_program() {
+    let separator = Arc::new(Prepared {
+        package: Default::default(),
+    });
+    let server = server_with("regions", Some(separator)).await;
+    let link = HttpServerLink::new(&server.url);
+    let id = RecordingId::new(server.id);
+    let base = format!("{}/api/v1/recordings/{}", server.url, server.id);
+    let listed = format!("{}/api/v1/recordings", server.url);
+    let has_stems =
+        || async { json_of(&get(listed.clone()).await.1)["recordings"][0]["has_stems"] == true };
+    assert!(!has_stems().await);
+    assert!(link.request_stem_regions(id).await.is_err());
+
+    // Stems that came without a structure: the program finds it.
+    let bare = package(&server.hash, &[("bass", "a.ogg", LOW)], Value::Null);
+    send(&server.url, bare).await;
+    assert!(has_stems().await);
+    link.request_stem_regions(id).await.unwrap();
+    assert_eq!(wait_for_job(&link, id).await.job, StemJob::None);
+    let regions =
+        || async { json_of(&get(format!("{base}/bookmarks")).await.1)["regions"].clone() };
+    assert_eq!(regions().await[0]["name"], "Outro 1");
+
+    // The found structure is kept: asking again adds nothing and runs no job.
+    link.request_stem_regions(id).await.unwrap();
+    assert_eq!(link.fetch_stems(id).await.unwrap().job, StemJob::None);
+    assert_eq!(regions().await.as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]

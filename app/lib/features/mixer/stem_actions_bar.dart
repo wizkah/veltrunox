@@ -11,10 +11,10 @@ class StemActionsBar extends StatelessWidget {
   const StemActionsBar({
     required this.stemsEnabled,
     this.onEnabled,
-    this.onAnalyse,
+    this.onSplit,
+    this.onCreateRegions,
     this.onImport,
     this.onExport,
-    this.onDelete,
     this.busy = false,
     this.zoom = const [],
     super.key,
@@ -22,10 +22,10 @@ class StemActionsBar extends StatelessWidget {
 
   final bool stemsEnabled;
   final ValueChanged<bool>? onEnabled;
-  final VoidCallback? onAnalyse;
+  final VoidCallback? onSplit;
+  final VoidCallback? onCreateRegions;
   final VoidCallback? onImport;
   final VoidCallback? onExport;
-  final VoidCallback? onDelete;
 
   /// A package is on its way; the actions wait.
   final bool busy;
@@ -50,12 +50,19 @@ class StemActionsBar extends StatelessWidget {
             ],
           ),
         ),
-      if (onAnalyse != null)
+      if (onSplit != null)
         ActionButton(
-          label: MixerTexts.analyse,
+          label: MixerTexts.split,
+          icon: Icons.call_split,
+          kind: ActionKind.secondary,
+          onPressed: busy ? null : onSplit,
+        ),
+      if (onCreateRegions != null)
+        ActionButton(
+          label: MixerTexts.createRegions,
           icon: Icons.auto_awesome,
           kind: ActionKind.secondary,
-          onPressed: busy ? null : onAnalyse,
+          onPressed: busy ? null : onCreateRegions,
         ),
       if (onImport != null)
         ActionButton(
@@ -71,13 +78,6 @@ class StemActionsBar extends StatelessWidget {
           icon: Icons.download,
           kind: ActionKind.secondary,
           onPressed: busy ? null : onExport,
-        ),
-      if (onDelete != null)
-        ActionButton(
-          label: MixerTexts.delete,
-          icon: Icons.delete_outline,
-          kind: ActionKind.secondary,
-          onPressed: busy ? null : onDelete,
         ),
       ...zoom,
     ],
