@@ -301,7 +301,8 @@ fn create_regions(
         .map_err(|error| failed("stems_analysis_failed")(error.to_string()))
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 mod tests {
     use super::*;
     use std::{os::unix::fs::PermissionsExt, time::Instant};
