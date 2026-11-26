@@ -1,4 +1,4 @@
-//! Two clients against the real server: shared playback state (AC-001, AC-002).
+//! Two clients against the real server: shared playback state.
 
 mod support;
 

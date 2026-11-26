@@ -6,19 +6,28 @@
 
 Veltrunox helps bands during rehearsals. Recordings live on a server together with bookmarks: labels mark points, regions mark sections. A client plays the whole recording, starts at a label, or loops a region, so nobody searches for the same passage again and again. All connected clients see and control the same playback in real time.
 
-## Planned features
+## Features
 
-- Server-side library of recordings with labels and regions, editable from every client.
-- Shared, real-time playback position across all clients, with scrubbing where possible.
-- Waveform control for orientation and for setting and editing labels and regions.
+- Server-side library of recordings, with upload, renaming and deletion from the client.
+- Labels and regions, editable from every client on a zoomable waveform or in a list.
+- One playback state shared by all connected clients. The audio comes out of the server, not the clients.
 - Detection of tuning (for example 412 Hz), key (for example A major) and tempo (bpm); tuning and key can be adjusted.
 - Playback speed from 0.5× to 2× at constant pitch, also by entering a target tempo.
-- Upload and management of recordings from the client.
-- Roles: admin, user and an optional guest.
+- Stems with a mixer; an optional external program separates them and finds the song sections (see `tools/analysis/README.md` for the terms of its models).
+- Accounts with the roles admin, user and an optional guest.
+- Export and import of bookmarks as JSON or CSV, API tokens and an MCP server for LLMs.
+- Interface in German and English.
 
 ## Status
 
-Early scaffold. A Rust workspace with a first vertical slice (server lists recordings, client core fetches them) exists; a Flutter web app lists them. Architecture and coding rules are in `docs/`.
+Under development, no release yet. The server runs on Linux (including a 64-bit Raspberry Pi) and macOS, with the browser as client; there is also a macOS application with the server built in. What has been checked, on which hardware, and what has not is recorded in `docs/validation/`.
+
+Limits to know before using it:
+
+- Transport is plain HTTP by default. Use it in a trusted network only, or switch on [HTTPS](#https). Do not expose the server to the internet; see [SECURITY.md](SECURITY.md).
+- Phones and tablets with touch have hardly been checked.
+- The macOS application is not signed or notarized.
+- Stems need much more memory than a Raspberry Pi has to spare.
 
 ## Technology
 

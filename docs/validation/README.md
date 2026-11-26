@@ -46,7 +46,7 @@ Environment: macOS (Apple silicon), Rust 1.99.1 stable, native only.
 Limits:
 
 - The browser test covers one browser (Chromium), two clients on one machine and the play/pause path; speed, tuning and key controls are covered by widget tests only. Buttons are pressed with `dispatchEvent('click')` because another accessibility node covers them for real clicks.
-- Latency (NFR-001) is not measured; the tests only show correctness.
+- Latency between clients is not measured; the tests only show correctness.
 - Not covered: server ping timeout, the periodic clock measurement (only its start at connection is exercised), clock offset against a real offset, any authentication.
 
 ## Phase 2 – Reconnection in the browser (2026-11-21)
@@ -77,7 +77,7 @@ Environment: macOS (Apple silicon), Rust 1.99.1 stable, native only; synthetic s
 
 Limits:
 
-- Sound quality (NFR-003), the audible loop wrap (AC-003 tolerance still to be set) and latency from choosing a position to sound (NFR-002) are not measured. They need a listening test and measurement on the target hardware.
+- Sound quality, the audible loop wrap (tolerance still to be set) and latency from choosing a position to sound are not measured. They need a listening test and measurement on the target hardware.
 - Position is reported as the frames handed to the stretcher; the sound leaves it up to its input latency later. The latency is not yet measured or compensated.
 - Whole files are held as `f32` in memory; memory use on the Pi is not measured. Only WAV is decoded in a test; MP3, FLAC, M4A, OGG and AIFF rely on `symphonia` and are not tested here.
 - The server clock and the device clock are not compared; a long-running drift between them is not corrected.

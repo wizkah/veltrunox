@@ -1,4 +1,4 @@
-//! Bookmarks over HTTP with versions, change notices, and persistence across restarts (AC-009).
+//! Bookmarks over HTTP with versions, change notices, and persistence across restarts.
 
 mod support;
 
