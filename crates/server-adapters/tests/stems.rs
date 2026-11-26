@@ -18,7 +18,8 @@ use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 const LOW: &[u8] = include_bytes!("fixtures/stem-110.ogg");
 const HIGH: &[u8] = include_bytes!("fixtures/stem-880.ogg");
-const RATE: u32 = 8_000;
+/// The rate of the stem fixtures: stems must have the rate of their recording.
+const RATE: u32 = 22_050;
 
 /// Two seconds of silence as mono 16-bit WAV: the recording the stems belong to.
 fn recording() -> Vec<u8> {
@@ -232,6 +233,24 @@ async fn the_mix_is_shared_stored_and_reset_by_new_stems() {
 
     send(&server.url, two_stems(&server.hash)).await;
     second.state_where(|state| !state.settings.mix.channels[1].muted);
+}
+
+#[tokio::test]
+async fn stems_of_another_rate_than_the_recording_are_refused() {
+    let server = server("rate").await;
+    // The scan tells the rate of the recording.
+    let waveform = format!("{}/api/v1/recordings/{}/waveform", server.url, server.id);
+    while get(waveform.clone()).await.0 != StatusCode::OK {
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let other = include_bytes!("fixtures/stem-16k.ogg");
+    let (status, body) = send(
+        &server.url,
+        package(&server.hash, &[("bass", "a.ogg", other)], Value::Null),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(body["code"], "stems_rate_mismatch");
 }
 
 #[tokio::test]
