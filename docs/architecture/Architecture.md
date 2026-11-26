@@ -4,12 +4,14 @@
 **Version:** 0.1  
 **Date:** 2026-11-21  
 **Server:** Rust  
-**Client:** Rust client core and Flutter user interface; browser (WebAssembly) first
+**Client:** Rust client core and Flutter user interface; browser (WebAssembly) and macOS application
 
 ## 1. Core decisions
 
 - A server holds recordings, bookmarks (labels and regions), users and the shared playback state. Clients connect to it over HTTP and a real-time channel. No cloud service.
-- The server plays the audio (for example on the rehearsal-room speakers). Clients output no audio; they control and display the shared playback state in real time. The server is the single authority for that state and decides concurrent changes.
+- The server plays the audio (for example on the rehearsal-room speakers). Clients output no audio (in the desktop application, the server inside it does); they control and display the shared playback state in real time. The server is the single authority for that state and decides concurrent changes.
+- The macOS application is the Flutter interface and the server in one program and works without a network (ADR-014). Its interface reaches the built-in server like any client, over a loopback port; a separate endpoint for the network can be switched on and off.
+- LLMs read and edit bookmarks through a Model Context Protocol program that uses the server's HTTP API with an API token (ADR-013).
 - Rust implements the server and the client core (application logic, protocol, state). Flutter implements only the user interface (ADR-001).
 - Clean Architecture determines the direction of dependencies. IOSP separates domain decisions and operations from their coordination. IODA structures the code where it clarifies the flow of data (see Clean-Code).
 - Event streams (playback position, remote changes, scrubbing) use `rxrust` where a stream is the natural model. Domain decisions stay synchronous and free of stream types.
@@ -31,6 +33,10 @@ flowchart TB
         SP[Storage / audio / analysis adapters] --> SA
     end
     CP -. HTTP / WebSocket .-> EP
+    MCP[MCP program] -. HTTP .-> EP
+    BR -. starts in the desktop application .-> SW[Server wiring]
+    SW --> EP
+    SW --> SP
 ```
 
 Solid arrows show source-code dependencies. Use cases define the ports they need; adapters implement them. Runtime calls to the outside go through these ports. The shared domain is one crate used by both sides.
@@ -58,8 +64,9 @@ A Cargo workspace with the following boundaries (all crates exist; some are stil
 | `veltrunox-client-app` | Client use cases, session state and viewport logic and their port traits; depends on `veltrunox-core` |
 | `veltrunox-server-adapters` | Persistence, file storage, audio decoding, time stretching, audio output, analysis, security, HTTP and WebSocket endpoints |
 | `veltrunox-client-adapters` | HTTP and WebSocket client, platform integration |
-| `veltrunox-server` | Server entry point and wiring |
-| `veltrunox-client-bridge` | Entry point of the client core; exposes a narrow API to Flutter (`flutter_rust_bridge`) |
+| `veltrunox-server` | Server wiring as a library, used by the headless program and by the desktop application, and the headless entry point |
+| `veltrunox-client-bridge` | Entry point of the client core; exposes a narrow API to Flutter (`flutter_rust_bridge`); on native targets it also runs the server of the desktop application (depends on `veltrunox-server`) |
+| `veltrunox-mcp` | Program for the Model Context Protocol over standard input and output; offers bookmark tools to an LLM through the HTTP API; depends on `veltrunox-protocol`, not on server crates |
 
 Core and application crates import neither adapters nor UI, network, database or runtime types. Protocol types are translated into application commands at the entry point. Crates that must compile to WebAssembly avoid dependencies that do not support that target. Further crates are added only at an actual module or build boundary.
 
@@ -67,7 +74,7 @@ States are modelled with `enum`, identifiers with dedicated types and expected e
 
 ### Flutter layout
 
-The Flutter project holds only presentation: feature folders (for example library, player, waveform, bookmarks, tuning, upload, administration), a small shared design system, and the generated bridge bindings. Features follow `GUI-Architecture.md`. The Flutter code depends on the bridge API, never on server endpoints or storage.
+The Flutter project holds only presentation: feature folders (for example library, player, waveform, bookmarks, tuning, upload, administration), a small shared design system, and the generated bridge bindings. Features follow `GUI-Architecture.md`. The Flutter code depends on the bridge API, never on server endpoints or storage. This also holds in the desktop application, where server settings pass through the bridge.
 
 ## 3. Ports and adapters
 
@@ -101,6 +108,8 @@ Scrubbing sends a throttled stream of position intents that all clients follow c
 ## 6. Security
 
 - Authentication with user name and password; the server stores only password hashes. Roles are admin, user and an optional guest. The guest role is a server setting that is off by default.
+- In the desktop application the loopback endpoint accepts an owner token, made anew at each start, with all rights and no account. The network endpoint is separate, requires sign-in or guest access like the headless server and never accepts that token (ADR-014).
+- API tokens carry at most the rights of their user, limited to reading or to reading and editing bookmarks (ADR-013).
 - Every action is authorised on the server. The user interface may hide actions, but it never grants them.
 - Input is validated at system boundaries: uploads (format, size), messages, identifiers and ranges.
 - Transport security (TLS) is required except for an explicitly documented local-network setup. Secrets never appear in logs.
@@ -108,6 +117,6 @@ Scrubbing sends a throttled stream of position intents that all clients follow c
 ## 7. Quality attributes
 
 - Domain logic (time and pixel arithmetic, snapping, region rules, tempo and pitch calculations, permission decisions) is testable without network, audio or GUI.
-- The server is a single process with an embedded store; no external database service is required.
+- The server is a single process (in the desktop application, the application's own) with an embedded store; no external database service is required.
 - Audio output, time stretching and analysis must run in real time on the target hardware, including a Raspberry Pi. The separation and structure analysis of ADR-015 is exempt: it runs only where the external program is installed.
 - Real-time latency and audio quality are measured; results and limits go to `docs/validation/`.

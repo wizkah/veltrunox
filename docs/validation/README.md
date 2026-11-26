@@ -119,7 +119,7 @@ Environment: macOS (Apple silicon), release build, native only. Not run on the R
 | Playback pitch follows the recording's own tuning; a tuning that arrives while the recording is loaded corrects the pitch without other commands | Pass (unit test of the player logic; not heard) |
 | Flutter widget tests: analysis line, pending and failed states, refresh on a notice, re-analyse button, reset buttons, wanted tempo (valid, out of range, not a number) | Pass |
 | Browser tests (Playwright, Chromium, rebuilt web app): library, two clients sharing the player, reconnect | Pass after adapting the recording locators to the new tile (it now contains a button) |
-| Six real rehearsal bounces (MP3, 73–268 s) | Results plausible, no reference values: *Message in a Bottle* C♯ minor at 148 bpm, A4 440.7 Hz; *Stacy's Mom* E major at 122 bpm, A4 439.2 Hz; three variants of one 73 s take: G♯ minor at 100 bpm, A4 443.5 Hz. Decoding 0.1–0.2 s, analysis 0.1–0.4 s per file on the Mac |
+| Six real rehearsal bounces (MP3, 73–268 s) | Results plausible, no reference values: first song C♯ minor at 148 bpm, A4 440.7 Hz; second song E major at 122 bpm, A4 439.2 Hz; three variants of one 73 s take: G♯ minor at 100 bpm, A4 443.5 Hz. Decoding 0.1–0.2 s, analysis 0.1–0.4 s per file on the Mac |
 
 Limits:
 
@@ -154,7 +154,7 @@ Environment: Raspberry Pi 4 Model B (4 GB), Debian 12, kernel 6.12.47, no thrott
 | Check | Result |
 |---|---|
 | Fresh install: service starts, imports six files, opens the audio output (48 000 Hz), serves the web app (HTTP 200) | Pass |
-| All six bounces analysed after the first start (within about 40 s of the restart), results equal to the Mac values in kind (e.g. *Message in a Bottle* C♯ minor, 148 bpm; *Stacy's Mom* E major, 122 bpm) | Pass (manual, once) |
+| All six bounces analysed after the first start (within about 40 s of the restart), results equal to the Mac values in kind (e.g. first song C♯ minor, 148 bpm; second song E major, 122 bpm) | Pass (manual, once) |
 | Repeated scan of two files (268 s MP3 and a similar one), start to "done": 6.6 s and 6.2 s; process memory peaked at about 190 MB (about 35–55 MB otherwise; sampled every 0.25 s) | Measured, two runs |
 | Waveform of the 268 s file: 7 levels, finest 12 550 blocks (25 100 B), coarsest 197 blocks (394 B) | Measured |
 | Web app from the Mac: `main.dart.js` 0.8 MB compressed in 0.74 s, index 0.23 s | Measured, once |

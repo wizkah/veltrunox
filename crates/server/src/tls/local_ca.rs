@@ -282,7 +282,7 @@ mod tests {
     }
 
     fn names() -> ServerNames {
-        ServerNames::new("PinsPlayer", [address("192.168.1.20")])
+        ServerNames::new("Veltrunox", [address("192.168.1.20")])
     }
 
     fn now() -> OffsetDateTime {
@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn names_hold_the_local_name_and_only_local_addresses() {
         let names = ServerNames::new(
-            "PinsPlayer.lan",
+            "Veltrunox.lan",
             [
                 address("192.168.1.20"),
                 address("8.8.8.8"),
@@ -304,7 +304,7 @@ mod tests {
         assert_eq!(
             names.all(),
             [
-                "pinsplayer.local",
+                "veltrunox.local",
                 "localhost",
                 "127.0.0.1",
                 "192.168.1.20",
@@ -331,7 +331,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let ca = LocalCa::open(directory.path(), "pi", now()).unwrap();
         let first = ca.server_certificate(&names(), now()).unwrap();
-        let moved = ServerNames::new("PinsPlayer", [address("10.0.0.7")]);
+        let moved = ServerNames::new("Veltrunox", [address("10.0.0.7")]);
         let second = ca.server_certificate(&moved, now()).unwrap();
         assert_ne!(second, first);
         let expiring = now() + Duration::days(370);

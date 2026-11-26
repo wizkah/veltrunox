@@ -128,6 +128,7 @@ The tools are `list_recordings`, `get_recording`, `get_bookmarks` and `set_bookm
 | `docs/design/` | Design specification and design tokens |
 | `docs/logo/` | Logo |
 | `docs/validation/` | Verification results and their limits |
+| `CONTRIBUTING.md` | How to report problems and contribute |
 | `CHANGELOG.md` | Changes |
 
 ## License
