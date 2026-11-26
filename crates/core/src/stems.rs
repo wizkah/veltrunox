@@ -2,7 +2,7 @@
 //! them (ADR-015).
 
 use crate::bookmark::{BookmarkName, NewRegion, Region};
-use crate::units::{InvalidValue, Millis, TimeRange};
+use crate::units::{InvalidValue, Millis, TimeRange, Volume};
 use std::collections::HashMap;
 
 /// Most stems one recording can have.
@@ -15,6 +15,51 @@ const DOWNBEAT_REACH_MS: u64 = 2_000;
 const AT_END_MS: u64 = 500;
 /// Regions whose ends differ by at most this are taken to be the same.
 const SAME_RANGE_MS: u64 = 1_000;
+
+/// How one stem sounds in the mix.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StemChannel {
+    pub volume: Volume,
+    pub muted: bool,
+    pub solo: bool,
+}
+
+/// The mix of the stems of a recording; channel `n` belongs to stem `n`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StemMix {
+    /// Play the stems; otherwise the original recording.
+    pub enabled: bool,
+    pub channels: [StemChannel; MAX_STEMS],
+}
+
+impl StemMix {
+    /// Whether stem `index` is heard: mute wins over solo, and with any solo only the
+    /// soloed stems sound.
+    pub fn audible(&self, index: usize) -> bool {
+        let any_solo = self.channels.iter().any(|channel| channel.solo);
+        self.channels
+            .get(index)
+            .is_some_and(|channel| !channel.muted && (channel.solo || !any_solo))
+    }
+
+    /// Amplitude factor of stem `index`; the volume is squared, which follows hearing better
+    /// than a straight line.
+    pub fn gain(&self, index: usize) -> f32 {
+        if !self.audible(index) {
+            return 0.0;
+        }
+        let share = f32::from(self.channels[index].volume.percent()) / 100.0;
+        share * share
+    }
+
+    /// The mix with channel `index` changed; unchanged for an index beyond the last one.
+    pub fn with_channel(mut self, index: usize, change: impl FnOnce(&mut StemChannel)) -> Self {
+        if let Some(channel) = self.channels.get_mut(index) {
+            change(channel);
+        }
+        self
+    }
+}
 
 /// The non-empty, trimmed name of a stem ("drums", "bass" …).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,6 +162,29 @@ mod tests {
 
     fn names(regions: &[NewRegion]) -> Vec<&str> {
         regions.iter().map(|region| region.name.as_str()).collect()
+    }
+
+    #[test]
+    fn mute_wins_over_solo_and_a_solo_silences_the_others() {
+        let mix = StemMix::default()
+            .with_channel(0, |channel| channel.solo = true)
+            .with_channel(1, |channel| {
+                channel.solo = true;
+                channel.muted = true;
+            });
+        assert!(mix.audible(0));
+        assert!(!mix.audible(1));
+        assert!(!mix.audible(2));
+        assert!(StemMix::default().audible(2));
+        assert!(!StemMix::default().audible(MAX_STEMS));
+    }
+
+    #[test]
+    fn the_gain_follows_the_square_of_the_volume() {
+        let half =
+            StemMix::default().with_channel(0, |channel| channel.volume = Volume::new(50).unwrap());
+        assert_eq!(half.gain(0), 0.25);
+        assert_eq!(half.gain(1), 1.0);
     }
 
     #[test]

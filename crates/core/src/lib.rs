@@ -31,11 +31,11 @@ pub use bookmark_import::{
 pub use playback::{
     Intent, PlayMode, PlaybackSettings, PlaybackState, PositionReference, TransportError,
     end_playback, end_region, pause, play, play_region, seek, select_recording, set_key,
-    set_play_mode, set_speed, set_tuning, set_volume,
+    set_play_mode, set_speed, set_stem_mix, set_tuning, set_volume,
 };
 pub use reason::{Reason, Refusal};
 pub use recording::{InvalidRecording, Recording, RecordingId, RecordingTitle};
-pub use stems::{MAX_STEMS, Section, StemName, section_regions};
+pub use stems::{MAX_STEMS, Section, StemChannel, StemMix, StemName, section_regions};
 pub use tempo_pitch::{Bpm, TargetSpeed, pitch_shift_semitones, speed_for_target_tempo};
 pub use units::{InvalidValue, KeyShift, Millis, Speed, TimeRange, TuningHz, Volume};
 pub use waveform::{FINEST_BLOCK_FRAMES, Peak, Waveform, WaveformBuilder, WaveformLevel};

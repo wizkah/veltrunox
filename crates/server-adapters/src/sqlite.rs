@@ -7,8 +7,8 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use veltrunox_core::{
     BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, KeyMode, KeyShift, Label, Millis,
     MusicalKey, NewBookmarks, Peak, PitchClass, PlaybackSettings, Recording, RecordingAnalysis,
-    RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version, Waveform,
-    WaveformLevel, check_version,
+    RecordingId, RecordingTitle, Region, Speed, StemChannel, StemMix, TimeRange, TuningHz, Version,
+    Volume, Waveform, WaveformLevel, check_version,
 };
 use veltrunox_server_app::{
     AnalysisRepository, BookmarkError, BookmarkRepository, MediaCatalog, Owned,
@@ -153,7 +153,40 @@ const MIGRATIONS: &[&str] = &[
             ON DELETE CASCADE
     );
 ",
+    "ALTER TABLE recordings ADD COLUMN stem_mix BLOB;",
 ];
+
+const MIX_MUTED: u8 = 1;
+const MIX_SOLO: u8 = 2;
+
+/// One byte for the switch, then volume and flags per channel.
+fn encode_mix(mix: &StemMix) -> Vec<u8> {
+    let mut bytes = vec![u8::from(mix.enabled)];
+    for channel in mix.channels {
+        let flags =
+            if channel.muted { MIX_MUTED } else { 0 } | if channel.solo { MIX_SOLO } else { 0 };
+        bytes.extend([channel.volume.percent(), flags]);
+    }
+    bytes
+}
+
+fn decode_mix(bytes: &[u8]) -> Result<StemMix, StorageError> {
+    let Some((enabled, channels)) = bytes.split_first() else {
+        return Err(corrupt("stem mix", "empty"));
+    };
+    let mut mix = StemMix {
+        enabled: *enabled != 0,
+        ..StemMix::default()
+    };
+    for (channel, stored) in mix.channels.iter_mut().zip(channels.as_chunks::<2>().0) {
+        *channel = StemChannel {
+            volume: Volume::new(stored[0]).map_err(|error| corrupt("stem volume", error))?,
+            muted: stored[1] & MIX_MUTED != 0,
+            solo: stored[1] & MIX_SOLO != 0,
+        };
+    }
+    Ok(mix)
+}
 
 /// Blocking store; callers on an async runtime run it off the runtime threads.
 pub struct SqliteStore {
@@ -346,23 +379,29 @@ impl RecordingRepository for SqliteStore {
         let row = self
             .connection()
             .query_row(
-                "SELECT speed, tuning_hz, key_shift FROM recordings WHERE id = ?1",
+                "SELECT speed, tuning_hz, key_shift, stem_mix FROM recordings WHERE id = ?1",
                 params![sql_int(id.value())?],
                 |row| {
                     Ok((
                         row.get::<_, f64>(0)?,
                         row.get::<_, f64>(1)?,
                         row.get::<_, i8>(2)?,
+                        row.get::<_, Option<Vec<u8>>>(3)?,
                     ))
                 },
             )
             .optional()
             .map_err(storage)?;
-        row.map(|(speed, tuning, key)| {
+        row.map(|(speed, tuning, key, mix)| {
             Ok(PlaybackSettings {
                 speed: Speed::new(speed).map_err(|error| corrupt("speed", error))?,
                 tuning: TuningHz::new(tuning).map_err(|error| corrupt("tuning", error))?,
                 key: KeyShift::new(key).map_err(|error| corrupt("key", error))?,
+                mix: mix
+                    .as_deref()
+                    .map(decode_mix)
+                    .transpose()?
+                    .unwrap_or_default(),
             })
         })
         .transpose()
@@ -375,12 +414,14 @@ impl RecordingRepository for SqliteStore {
     ) -> Result<(), StorageError> {
         self.connection()
             .execute(
-                "UPDATE recordings SET speed = ?2, tuning_hz = ?3, key_shift = ?4 WHERE id = ?1",
+                "UPDATE recordings SET speed = ?2, tuning_hz = ?3, key_shift = ?4, stem_mix = ?5 \
+                 WHERE id = ?1",
                 params![
                     sql_int(id.value())?,
                     settings.speed.factor(),
                     settings.tuning.hertz(),
-                    settings.key.semitones()
+                    settings.key.semitones(),
+                    encode_mix(&settings.mix)
                 ],
             )
             .map_err(storage)?;
@@ -1280,6 +1321,7 @@ mod tests {
         std::fs::create_dir_all(&directory).unwrap();
         let path = directory.join("store.db");
         let settings = PlaybackSettings {
+            mix: Default::default(),
             speed: Speed::new(0.7).unwrap(),
             tuning: TuningHz::new(412.0).unwrap(),
             key: KeyShift::new(-3).unwrap(),

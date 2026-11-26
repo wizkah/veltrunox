@@ -1,6 +1,7 @@
 //! The shared playback state and the pure operations that change it.
 
 use crate::recording::RecordingId;
+use crate::stems::StemMix;
 use crate::units::{KeyShift, Millis, Speed, TimeRange, TuningHz, Volume};
 
 /// Settings stored with a recording and restored when it is loaded.
@@ -9,6 +10,7 @@ pub struct PlaybackSettings {
     pub speed: Speed,
     pub tuning: TuningHz,
     pub key: KeyShift,
+    pub mix: StemMix,
 }
 
 impl Default for Speed {
@@ -157,6 +159,19 @@ pub enum Intent {
     PlayRegion(TimeRange),
     SetPlayMode(PlayMode),
     SetVolume(Volume),
+    SetStemsEnabled(bool),
+    SetStemVolume {
+        stem: usize,
+        volume: Volume,
+    },
+    SetStemMuted {
+        stem: usize,
+        muted: bool,
+    },
+    SetStemSolo {
+        stem: usize,
+        solo: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -331,6 +346,21 @@ pub fn set_key(state: &PlaybackState, key: KeyShift) -> Result<PlaybackState, Tr
     })
 }
 
+/// Changes the mix of the stems of the selected recording.
+pub fn set_stem_mix(
+    state: &PlaybackState,
+    change: impl FnOnce(StemMix) -> StemMix,
+) -> Result<PlaybackState, TransportError> {
+    require_recording(state)?;
+    Ok(PlaybackState {
+        settings: PlaybackSettings {
+            mix: change(state.settings.mix),
+            ..state.settings
+        },
+        ..*state
+    })
+}
+
 /// Changes the output volume; possible without a selected recording.
 pub fn set_volume(state: &PlaybackState, volume: Volume) -> PlaybackState {
     PlaybackState { volume, ..*state }
@@ -429,6 +459,7 @@ mod tests {
     #[test]
     fn selecting_applies_stored_settings_and_starts_paused() {
         let settings = PlaybackSettings {
+            mix: Default::default(),
             speed: Speed::new(0.8).unwrap(),
             tuning: TuningHz::new(412.0).unwrap(),
             key: KeyShift::new(-2).unwrap(),

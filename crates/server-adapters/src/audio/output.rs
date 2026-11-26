@@ -2,7 +2,7 @@
 
 use super::decode::decode_file;
 use super::engine::{Engine, Pcm};
-use super::player::{Command, CommandSink, PlayerCore};
+use super::player::{Audio, Command, CommandSink, PlayerCore};
 use super::volume::{SystemMixer, engine_gain};
 use crate::hooks::AudioHooks;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -11,7 +11,9 @@ use std::sync::mpsc::{Receiver, Sender, SyncSender, channel, sync_channel};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use veltrunox_core::{Millis, PlaybackState, RecordingId, TuningHz, Volume};
-use veltrunox_server_app::{AnalysisRepository, Clock, MediaCatalog, PlaybackBroadcast};
+use veltrunox_server_app::{
+    AnalysisRepository, Clock, MediaCatalog, PlaybackBroadcast, StemRepository,
+};
 
 /// Commands waiting for the audio thread; a full queue drops the newest, which
 /// a complete state makes up for with the next one.
@@ -203,6 +205,7 @@ impl Renderer {
                         Command::Loop(range) => engine.set_loop_ms(range),
                         Command::Stop(position) => engine.set_stop_ms(position),
                         Command::Seek(position) => engine.seek_ms(position),
+                        Command::Mix(mix) => engine.set_mix(&mix),
                         Command::Scrub(position) => engine.scrub_ms(position),
                         Command::Replace(_)
                         | Command::Unload
@@ -239,6 +242,8 @@ enum Input {
     State(PlaybackState),
     /// The analysis of this recording changed: its tuning may be new.
     Analysis(RecordingId),
+    /// The stems of this recording were replaced or removed.
+    Stems(RecordingId),
 }
 
 impl AudioPlayback {
@@ -247,6 +252,7 @@ impl AudioPlayback {
         device: Option<String>,
         volume: Volume,
         catalog: Arc<dyn MediaCatalog>,
+        stems: Arc<dyn StemRepository>,
         analyses: Arc<dyn AnalysisRepository>,
         clock: Arc<dyn Clock>,
         hooks: AudioHooks,
@@ -256,7 +262,10 @@ impl AudioPlayback {
             run(
                 device.as_deref(),
                 volume,
-                &*catalog,
+                &Files {
+                    catalog: &*catalog,
+                    stems: &*stems,
+                },
                 &*analyses,
                 &*clock,
                 &hooks,
@@ -289,21 +298,36 @@ impl PlaybackBroadcast for AudioPlayback {
     }
 
     fn library_changed(&self) {}
+
+    fn stems_changed(&self, recording: RecordingId) {
+        self.send(Input::Stems(recording));
+    }
+}
+
+/// Where the audio of the recordings is found.
+struct Files<'a> {
+    catalog: &'a dyn MediaCatalog,
+    stems: &'a dyn StemRepository,
 }
 
 fn run(
     device: Option<&str>,
     volume: Volume,
-    catalog: &dyn MediaCatalog,
+    files: &Files,
     analyses: &dyn AnalysisRepository,
     clock: &dyn Clock,
     hooks: &AudioHooks,
     incoming: &Receiver<Input>,
 ) {
-    let mut load = |id: RecordingId| {
-        let pcm = load_audio(catalog, id)?;
-        hooks.recording_length(id, Millis::new(pcm.duration_ms()));
-        Some(pcm)
+    let mut load = |id: RecordingId, with_stems: bool| {
+        let original = load_audio(files.catalog, id)?;
+        hooks.recording_length(id, Millis::new(original.duration_ms()));
+        let stems = if with_stems {
+            load_stems(files.stems, id)
+        } else {
+            Vec::new()
+        };
+        Some(Audio { original, stems })
     };
     let tuning_of = |id: RecordingId| recording_tuning(analyses, id);
     let mut output = match DeviceOutput::open(device) {
@@ -320,7 +344,7 @@ fn run(
     };
     let mut core = PlayerCore::with_volume(volume);
     while let Ok(input) = incoming.recv() {
-        let Some(state) = newest_state(input, incoming, &core) else {
+        let Some(state) = newest_state(input, incoming, &mut core) else {
             continue;
         };
         core.apply(&state, clock.now(), &mut output, &mut load, &tuning_of);
@@ -333,7 +357,7 @@ fn run(
 fn newest_state(
     first: Input,
     incoming: &Receiver<Input>,
-    core: &PlayerCore,
+    core: &mut PlayerCore,
 ) -> Option<PlaybackState> {
     let mut newest = None;
     let mut analysed = Vec::new();
@@ -341,6 +365,8 @@ fn newest_state(
         match input {
             Input::State(state) => newest = Some(state),
             Input::Analysis(id) => analysed.push(id),
+            // The state that follows loads the audio anew.
+            Input::Stems(id) => core.stems_changed(id),
         }
     }
     newest.or_else(|| {
@@ -365,7 +391,7 @@ fn recording_tuning(analyses: &dyn AnalysisRepository, id: RecordingId) -> Tunin
 /// recording is still needed to end the playback and to check positions.
 fn follow_silently(
     incoming: &Receiver<Input>,
-    load: &mut dyn FnMut(RecordingId) -> Option<Arc<Pcm>>,
+    load: &mut dyn FnMut(RecordingId, bool) -> Option<Audio>,
 ) {
     let mut last = None;
     while let Ok(input) = incoming.recv() {
@@ -375,7 +401,7 @@ fn follow_silently(
         if state.recording != last {
             last = state.recording;
             if let Some(id) = last {
-                load(id);
+                load(id, false);
             }
         }
     }
@@ -397,6 +423,26 @@ fn load_audio(catalog: &dyn MediaCatalog, id: RecordingId) -> Option<Arc<Pcm>> {
             None
         }
     }
+}
+
+/// All stems of the recording, or none if one of them cannot be read.
+fn load_stems(stems: &dyn StemRepository, id: RecordingId) -> Vec<Arc<Pcm>> {
+    let set = match stems.stem_set(id) {
+        Ok(set) => set,
+        Err(error) => {
+            eprintln!("recording {id}: {error}");
+            return Vec::new();
+        }
+    };
+    set.stems
+        .iter()
+        .map(|stem| {
+            decode_file(&stem.path)
+                .map(Arc::new)
+                .map_err(|error| eprintln!("recording {id} ({}): {error}", stem.path.display()))
+        })
+        .collect::<Result<_, _>>()
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

@@ -44,6 +44,7 @@ pub fn start_core(config: &Config, seed: Seed) -> Result<AppState, Box<dyn Error
     let store_for_uploads = store.clone();
     let store_for_stems = store.clone();
     let analyses = store.clone();
+    let stem_sets = store.clone();
     let accounts = Arc::new(AccountService::new(
         store.clone(),
         store.clone(),
@@ -63,6 +64,7 @@ pub fn start_core(config: &Config, seed: Seed) -> Result<AppState, Box<dyn Error
             config.audio_device.clone(),
             volume,
             catalog,
+            stem_sets,
             analyses,
             audio_clock,
             hooks,

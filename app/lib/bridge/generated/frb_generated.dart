@@ -2270,6 +2270,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<StemChannelView> dco_decode_list_stem_channel_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_stem_channel_view).toList();
+  }
+
+  @protected
   List<UserItem> dco_decode_list_user_item(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_user_item).toList();
@@ -2351,8 +2357,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlaybackView dco_decode_playback_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return PlaybackView(
       revision: dco_decode_u_64(arr[0]),
       recordingId: dco_decode_opt_box_autoadd_u_64(arr[1]),
@@ -2365,6 +2371,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       playMode: dco_decode_play_mode_choice(arr[8]),
       scrubbing: dco_decode_bool(arr[9]),
       volumePercent: dco_decode_u_8(arr[10]),
+      stemsEnabled: dco_decode_bool(arr[11]),
+      stemChannels: dco_decode_list_stem_channel_view(arr[12]),
     );
   }
 
@@ -2399,6 +2407,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 9:
         return PlayerCommand_SetVolume(volumePercent: dco_decode_u_8(raw[1]));
+      case 10:
+        return PlayerCommand_SetStemsEnabled(enabled: dco_decode_bool(raw[1]));
+      case 11:
+        return PlayerCommand_SetStemVolume(
+          stem: dco_decode_u_8(raw[1]),
+          volumePercent: dco_decode_u_8(raw[2]),
+        );
+      case 12:
+        return PlayerCommand_SetStemMuted(
+          stem: dco_decode_u_8(raw[1]),
+          muted: dco_decode_bool(raw[2]),
+        );
+      case 13:
+        return PlayerCommand_SetStemSolo(
+          stem: dco_decode_u_8(raw[1]),
+          solo: dco_decode_bool(raw[2]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -2606,6 +2631,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return SignInResult(
       token: dco_decode_String(arr[0]),
       rights: dco_decode_rights_info(arr[1]),
+    );
+  }
+
+  @protected
+  StemChannelView dco_decode_stem_channel_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return StemChannelView(
+      volumePercent: dco_decode_u_8(arr[0]),
+      muted: dco_decode_bool(arr[1]),
+      solo: dco_decode_bool(arr[2]),
+      audible: dco_decode_bool(arr[3]),
     );
   }
 
@@ -3133,6 +3172,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<StemChannelView> sse_decode_list_stem_channel_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <StemChannelView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_stem_channel_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<UserItem> sse_decode_list_user_item(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -3279,6 +3332,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_playMode = sse_decode_play_mode_choice(deserializer);
     var var_scrubbing = sse_decode_bool(deserializer);
     var var_volumePercent = sse_decode_u_8(deserializer);
+    var var_stemsEnabled = sse_decode_bool(deserializer);
+    var var_stemChannels = sse_decode_list_stem_channel_view(deserializer);
     return PlaybackView(
       revision: var_revision,
       recordingId: var_recordingId,
@@ -3291,6 +3346,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       playMode: var_playMode,
       scrubbing: var_scrubbing,
       volumePercent: var_volumePercent,
+      stemsEnabled: var_stemsEnabled,
+      stemChannels: var_stemChannels,
     );
   }
 
@@ -3329,6 +3386,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 9:
         var var_volumePercent = sse_decode_u_8(deserializer);
         return PlayerCommand_SetVolume(volumePercent: var_volumePercent);
+      case 10:
+        var var_enabled = sse_decode_bool(deserializer);
+        return PlayerCommand_SetStemsEnabled(enabled: var_enabled);
+      case 11:
+        var var_stem = sse_decode_u_8(deserializer);
+        var var_volumePercent = sse_decode_u_8(deserializer);
+        return PlayerCommand_SetStemVolume(
+          stem: var_stem,
+          volumePercent: var_volumePercent,
+        );
+      case 12:
+        var var_stem = sse_decode_u_8(deserializer);
+        var var_muted = sse_decode_bool(deserializer);
+        return PlayerCommand_SetStemMuted(stem: var_stem, muted: var_muted);
+      case 13:
+        var var_stem = sse_decode_u_8(deserializer);
+        var var_solo = sse_decode_bool(deserializer);
+        return PlayerCommand_SetStemSolo(stem: var_stem, solo: var_solo);
       default:
         throw UnimplementedError('');
     }
@@ -3554,6 +3629,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_token = sse_decode_String(deserializer);
     var var_rights = sse_decode_rights_info(deserializer);
     return SignInResult(token: var_token, rights: var_rights);
+  }
+
+  @protected
+  StemChannelView sse_decode_stem_channel_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_volumePercent = sse_decode_u_8(deserializer);
+    var var_muted = sse_decode_bool(deserializer);
+    var var_solo = sse_decode_bool(deserializer);
+    var var_audible = sse_decode_bool(deserializer);
+    return StemChannelView(
+      volumePercent: var_volumePercent,
+      muted: var_muted,
+      solo: var_solo,
+      audible: var_audible,
+    );
   }
 
   @protected
@@ -4083,6 +4173,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_stem_channel_view(
+    List<StemChannelView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_stem_channel_view(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_user_item(
     List<UserItem> self,
     SseSerializer serializer,
@@ -4227,6 +4329,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_play_mode_choice(self.playMode, serializer);
     sse_encode_bool(self.scrubbing, serializer);
     sse_encode_u_8(self.volumePercent, serializer);
+    sse_encode_bool(self.stemsEnabled, serializer);
+    sse_encode_list_stem_channel_view(self.stemChannels, serializer);
   }
 
   @protected
@@ -4262,6 +4366,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case PlayerCommand_SetVolume(volumePercent: final volumePercent):
         sse_encode_i_32(9, serializer);
         sse_encode_u_8(volumePercent, serializer);
+      case PlayerCommand_SetStemsEnabled(enabled: final enabled):
+        sse_encode_i_32(10, serializer);
+        sse_encode_bool(enabled, serializer);
+      case PlayerCommand_SetStemVolume(
+        stem: final stem,
+        volumePercent: final volumePercent,
+      ):
+        sse_encode_i_32(11, serializer);
+        sse_encode_u_8(stem, serializer);
+        sse_encode_u_8(volumePercent, serializer);
+      case PlayerCommand_SetStemMuted(stem: final stem, muted: final muted):
+        sse_encode_i_32(12, serializer);
+        sse_encode_u_8(stem, serializer);
+        sse_encode_bool(muted, serializer);
+      case PlayerCommand_SetStemSolo(stem: final stem, solo: final solo):
+        sse_encode_i_32(13, serializer);
+        sse_encode_u_8(stem, serializer);
+        sse_encode_bool(solo, serializer);
     }
   }
 
@@ -4431,6 +4553,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.token, serializer);
     sse_encode_rights_info(self.rights, serializer);
+  }
+
+  @protected
+  void sse_encode_stem_channel_view(
+    StemChannelView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_8(self.volumePercent, serializer);
+    sse_encode_bool(self.muted, serializer);
+    sse_encode_bool(self.solo, serializer);
+    sse_encode_bool(self.audible, serializer);
   }
 
   @protected

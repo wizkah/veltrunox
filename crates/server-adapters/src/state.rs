@@ -131,6 +131,7 @@ impl AppState {
             lengths.clone(),
             bookmarks.clone(),
             broadcast_for_analysis.clone(),
+            store.clone(),
         ));
         let analysis = Arc::new(AnalysisService::new(
             store.clone(),
@@ -220,5 +221,11 @@ impl PlaybackBroadcast for Fanout {
 
     fn library_changed(&self) {
         self.0.iter().for_each(|target| target.library_changed());
+    }
+
+    fn stems_changed(&self, recording: veltrunox_core::RecordingId) {
+        self.0
+            .iter()
+            .for_each(|target| target.stems_changed(recording));
     }
 }

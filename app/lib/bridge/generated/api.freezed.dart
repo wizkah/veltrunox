@@ -502,7 +502,7 @@ extension PlayerCommandPatterns on PlayerCommand {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PlayerCommand_SelectRecording value)?  selectRecording,TResult Function( PlayerCommand_Play value)?  play,TResult Function( PlayerCommand_Pause value)?  pause,TResult Function( PlayerCommand_Seek value)?  seek,TResult Function( PlayerCommand_SetSpeed value)?  setSpeed,TResult Function( PlayerCommand_SetTuning value)?  setTuning,TResult Function( PlayerCommand_SetKey value)?  setKey,TResult Function( PlayerCommand_PlayRegion value)?  playRegion,TResult Function( PlayerCommand_SetPlayMode value)?  setPlayMode,TResult Function( PlayerCommand_SetVolume value)?  setVolume,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PlayerCommand_SelectRecording value)?  selectRecording,TResult Function( PlayerCommand_Play value)?  play,TResult Function( PlayerCommand_Pause value)?  pause,TResult Function( PlayerCommand_Seek value)?  seek,TResult Function( PlayerCommand_SetSpeed value)?  setSpeed,TResult Function( PlayerCommand_SetTuning value)?  setTuning,TResult Function( PlayerCommand_SetKey value)?  setKey,TResult Function( PlayerCommand_PlayRegion value)?  playRegion,TResult Function( PlayerCommand_SetPlayMode value)?  setPlayMode,TResult Function( PlayerCommand_SetVolume value)?  setVolume,TResult Function( PlayerCommand_SetStemsEnabled value)?  setStemsEnabled,TResult Function( PlayerCommand_SetStemVolume value)?  setStemVolume,TResult Function( PlayerCommand_SetStemMuted value)?  setStemMuted,TResult Function( PlayerCommand_SetStemSolo value)?  setStemSolo,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording() when selectRecording != null:
@@ -515,7 +515,11 @@ return setTuning(_that);case PlayerCommand_SetKey() when setKey != null:
 return setKey(_that);case PlayerCommand_PlayRegion() when playRegion != null:
 return playRegion(_that);case PlayerCommand_SetPlayMode() when setPlayMode != null:
 return setPlayMode(_that);case PlayerCommand_SetVolume() when setVolume != null:
-return setVolume(_that);case _:
+return setVolume(_that);case PlayerCommand_SetStemsEnabled() when setStemsEnabled != null:
+return setStemsEnabled(_that);case PlayerCommand_SetStemVolume() when setStemVolume != null:
+return setStemVolume(_that);case PlayerCommand_SetStemMuted() when setStemMuted != null:
+return setStemMuted(_that);case PlayerCommand_SetStemSolo() when setStemSolo != null:
+return setStemSolo(_that);case _:
   return orElse();
 
 }
@@ -533,7 +537,7 @@ return setVolume(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PlayerCommand_SelectRecording value)  selectRecording,required TResult Function( PlayerCommand_Play value)  play,required TResult Function( PlayerCommand_Pause value)  pause,required TResult Function( PlayerCommand_Seek value)  seek,required TResult Function( PlayerCommand_SetSpeed value)  setSpeed,required TResult Function( PlayerCommand_SetTuning value)  setTuning,required TResult Function( PlayerCommand_SetKey value)  setKey,required TResult Function( PlayerCommand_PlayRegion value)  playRegion,required TResult Function( PlayerCommand_SetPlayMode value)  setPlayMode,required TResult Function( PlayerCommand_SetVolume value)  setVolume,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PlayerCommand_SelectRecording value)  selectRecording,required TResult Function( PlayerCommand_Play value)  play,required TResult Function( PlayerCommand_Pause value)  pause,required TResult Function( PlayerCommand_Seek value)  seek,required TResult Function( PlayerCommand_SetSpeed value)  setSpeed,required TResult Function( PlayerCommand_SetTuning value)  setTuning,required TResult Function( PlayerCommand_SetKey value)  setKey,required TResult Function( PlayerCommand_PlayRegion value)  playRegion,required TResult Function( PlayerCommand_SetPlayMode value)  setPlayMode,required TResult Function( PlayerCommand_SetVolume value)  setVolume,required TResult Function( PlayerCommand_SetStemsEnabled value)  setStemsEnabled,required TResult Function( PlayerCommand_SetStemVolume value)  setStemVolume,required TResult Function( PlayerCommand_SetStemMuted value)  setStemMuted,required TResult Function( PlayerCommand_SetStemSolo value)  setStemSolo,}){
 final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording():
@@ -546,7 +550,11 @@ return setTuning(_that);case PlayerCommand_SetKey():
 return setKey(_that);case PlayerCommand_PlayRegion():
 return playRegion(_that);case PlayerCommand_SetPlayMode():
 return setPlayMode(_that);case PlayerCommand_SetVolume():
-return setVolume(_that);}
+return setVolume(_that);case PlayerCommand_SetStemsEnabled():
+return setStemsEnabled(_that);case PlayerCommand_SetStemVolume():
+return setStemVolume(_that);case PlayerCommand_SetStemMuted():
+return setStemMuted(_that);case PlayerCommand_SetStemSolo():
+return setStemSolo(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -560,7 +568,7 @@ return setVolume(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PlayerCommand_SelectRecording value)?  selectRecording,TResult? Function( PlayerCommand_Play value)?  play,TResult? Function( PlayerCommand_Pause value)?  pause,TResult? Function( PlayerCommand_Seek value)?  seek,TResult? Function( PlayerCommand_SetSpeed value)?  setSpeed,TResult? Function( PlayerCommand_SetTuning value)?  setTuning,TResult? Function( PlayerCommand_SetKey value)?  setKey,TResult? Function( PlayerCommand_PlayRegion value)?  playRegion,TResult? Function( PlayerCommand_SetPlayMode value)?  setPlayMode,TResult? Function( PlayerCommand_SetVolume value)?  setVolume,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PlayerCommand_SelectRecording value)?  selectRecording,TResult? Function( PlayerCommand_Play value)?  play,TResult? Function( PlayerCommand_Pause value)?  pause,TResult? Function( PlayerCommand_Seek value)?  seek,TResult? Function( PlayerCommand_SetSpeed value)?  setSpeed,TResult? Function( PlayerCommand_SetTuning value)?  setTuning,TResult? Function( PlayerCommand_SetKey value)?  setKey,TResult? Function( PlayerCommand_PlayRegion value)?  playRegion,TResult? Function( PlayerCommand_SetPlayMode value)?  setPlayMode,TResult? Function( PlayerCommand_SetVolume value)?  setVolume,TResult? Function( PlayerCommand_SetStemsEnabled value)?  setStemsEnabled,TResult? Function( PlayerCommand_SetStemVolume value)?  setStemVolume,TResult? Function( PlayerCommand_SetStemMuted value)?  setStemMuted,TResult? Function( PlayerCommand_SetStemSolo value)?  setStemSolo,}){
 final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording() when selectRecording != null:
@@ -573,7 +581,11 @@ return setTuning(_that);case PlayerCommand_SetKey() when setKey != null:
 return setKey(_that);case PlayerCommand_PlayRegion() when playRegion != null:
 return playRegion(_that);case PlayerCommand_SetPlayMode() when setPlayMode != null:
 return setPlayMode(_that);case PlayerCommand_SetVolume() when setVolume != null:
-return setVolume(_that);case _:
+return setVolume(_that);case PlayerCommand_SetStemsEnabled() when setStemsEnabled != null:
+return setStemsEnabled(_that);case PlayerCommand_SetStemVolume() when setStemVolume != null:
+return setStemVolume(_that);case PlayerCommand_SetStemMuted() when setStemMuted != null:
+return setStemMuted(_that);case PlayerCommand_SetStemSolo() when setStemSolo != null:
+return setStemSolo(_that);case _:
   return null;
 
 }
@@ -590,7 +602,7 @@ return setVolume(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( BigInt recordingId)?  selectRecording,TResult Function()?  play,TResult Function()?  pause,TResult Function( BigInt positionMs)?  seek,TResult Function( double speed)?  setSpeed,TResult Function( double tuningHz)?  setTuning,TResult Function( int keyShiftSemitones)?  setKey,TResult Function( BigInt startMs,  BigInt endMs)?  playRegion,TResult Function( PlayModeChoice playMode)?  setPlayMode,TResult Function( int volumePercent)?  setVolume,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( BigInt recordingId)?  selectRecording,TResult Function()?  play,TResult Function()?  pause,TResult Function( BigInt positionMs)?  seek,TResult Function( double speed)?  setSpeed,TResult Function( double tuningHz)?  setTuning,TResult Function( int keyShiftSemitones)?  setKey,TResult Function( BigInt startMs,  BigInt endMs)?  playRegion,TResult Function( PlayModeChoice playMode)?  setPlayMode,TResult Function( int volumePercent)?  setVolume,TResult Function( bool enabled)?  setStemsEnabled,TResult Function( int stem,  int volumePercent)?  setStemVolume,TResult Function( int stem,  bool muted)?  setStemMuted,TResult Function( int stem,  bool solo)?  setStemSolo,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording() when selectRecording != null:
 return selectRecording(_that.recordingId);case PlayerCommand_Play() when play != null:
@@ -602,7 +614,11 @@ return setTuning(_that.tuningHz);case PlayerCommand_SetKey() when setKey != null
 return setKey(_that.keyShiftSemitones);case PlayerCommand_PlayRegion() when playRegion != null:
 return playRegion(_that.startMs,_that.endMs);case PlayerCommand_SetPlayMode() when setPlayMode != null:
 return setPlayMode(_that.playMode);case PlayerCommand_SetVolume() when setVolume != null:
-return setVolume(_that.volumePercent);case _:
+return setVolume(_that.volumePercent);case PlayerCommand_SetStemsEnabled() when setStemsEnabled != null:
+return setStemsEnabled(_that.enabled);case PlayerCommand_SetStemVolume() when setStemVolume != null:
+return setStemVolume(_that.stem,_that.volumePercent);case PlayerCommand_SetStemMuted() when setStemMuted != null:
+return setStemMuted(_that.stem,_that.muted);case PlayerCommand_SetStemSolo() when setStemSolo != null:
+return setStemSolo(_that.stem,_that.solo);case _:
   return orElse();
 
 }
@@ -620,7 +636,7 @@ return setVolume(_that.volumePercent);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( BigInt recordingId)  selectRecording,required TResult Function()  play,required TResult Function()  pause,required TResult Function( BigInt positionMs)  seek,required TResult Function( double speed)  setSpeed,required TResult Function( double tuningHz)  setTuning,required TResult Function( int keyShiftSemitones)  setKey,required TResult Function( BigInt startMs,  BigInt endMs)  playRegion,required TResult Function( PlayModeChoice playMode)  setPlayMode,required TResult Function( int volumePercent)  setVolume,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( BigInt recordingId)  selectRecording,required TResult Function()  play,required TResult Function()  pause,required TResult Function( BigInt positionMs)  seek,required TResult Function( double speed)  setSpeed,required TResult Function( double tuningHz)  setTuning,required TResult Function( int keyShiftSemitones)  setKey,required TResult Function( BigInt startMs,  BigInt endMs)  playRegion,required TResult Function( PlayModeChoice playMode)  setPlayMode,required TResult Function( int volumePercent)  setVolume,required TResult Function( bool enabled)  setStemsEnabled,required TResult Function( int stem,  int volumePercent)  setStemVolume,required TResult Function( int stem,  bool muted)  setStemMuted,required TResult Function( int stem,  bool solo)  setStemSolo,}) {final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording():
 return selectRecording(_that.recordingId);case PlayerCommand_Play():
@@ -632,7 +648,11 @@ return setTuning(_that.tuningHz);case PlayerCommand_SetKey():
 return setKey(_that.keyShiftSemitones);case PlayerCommand_PlayRegion():
 return playRegion(_that.startMs,_that.endMs);case PlayerCommand_SetPlayMode():
 return setPlayMode(_that.playMode);case PlayerCommand_SetVolume():
-return setVolume(_that.volumePercent);}
+return setVolume(_that.volumePercent);case PlayerCommand_SetStemsEnabled():
+return setStemsEnabled(_that.enabled);case PlayerCommand_SetStemVolume():
+return setStemVolume(_that.stem,_that.volumePercent);case PlayerCommand_SetStemMuted():
+return setStemMuted(_that.stem,_that.muted);case PlayerCommand_SetStemSolo():
+return setStemSolo(_that.stem,_that.solo);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -646,7 +666,7 @@ return setVolume(_that.volumePercent);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( BigInt recordingId)?  selectRecording,TResult? Function()?  play,TResult? Function()?  pause,TResult? Function( BigInt positionMs)?  seek,TResult? Function( double speed)?  setSpeed,TResult? Function( double tuningHz)?  setTuning,TResult? Function( int keyShiftSemitones)?  setKey,TResult? Function( BigInt startMs,  BigInt endMs)?  playRegion,TResult? Function( PlayModeChoice playMode)?  setPlayMode,TResult? Function( int volumePercent)?  setVolume,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( BigInt recordingId)?  selectRecording,TResult? Function()?  play,TResult? Function()?  pause,TResult? Function( BigInt positionMs)?  seek,TResult? Function( double speed)?  setSpeed,TResult? Function( double tuningHz)?  setTuning,TResult? Function( int keyShiftSemitones)?  setKey,TResult? Function( BigInt startMs,  BigInt endMs)?  playRegion,TResult? Function( PlayModeChoice playMode)?  setPlayMode,TResult? Function( int volumePercent)?  setVolume,TResult? Function( bool enabled)?  setStemsEnabled,TResult? Function( int stem,  int volumePercent)?  setStemVolume,TResult? Function( int stem,  bool muted)?  setStemMuted,TResult? Function( int stem,  bool solo)?  setStemSolo,}) {final _that = this;
 switch (_that) {
 case PlayerCommand_SelectRecording() when selectRecording != null:
 return selectRecording(_that.recordingId);case PlayerCommand_Play() when play != null:
@@ -658,7 +678,11 @@ return setTuning(_that.tuningHz);case PlayerCommand_SetKey() when setKey != null
 return setKey(_that.keyShiftSemitones);case PlayerCommand_PlayRegion() when playRegion != null:
 return playRegion(_that.startMs,_that.endMs);case PlayerCommand_SetPlayMode() when setPlayMode != null:
 return setPlayMode(_that.playMode);case PlayerCommand_SetVolume() when setVolume != null:
-return setVolume(_that.volumePercent);case _:
+return setVolume(_that.volumePercent);case PlayerCommand_SetStemsEnabled() when setStemsEnabled != null:
+return setStemsEnabled(_that.enabled);case PlayerCommand_SetStemVolume() when setStemVolume != null:
+return setStemVolume(_that.stem,_that.volumePercent);case PlayerCommand_SetStemMuted() when setStemMuted != null:
+return setStemMuted(_that.stem,_that.muted);case PlayerCommand_SetStemSolo() when setStemSolo != null:
+return setStemSolo(_that.stem,_that.solo);case _:
   return null;
 
 }
@@ -1270,6 +1294,284 @@ class _$PlayerCommand_SetVolumeCopyWithImpl<$Res>
   return _then(PlayerCommand_SetVolume(
 volumePercent: null == volumePercent ? _self.volumePercent : volumePercent // ignore: cast_nullable_to_non_nullable
 as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PlayerCommand_SetStemsEnabled extends PlayerCommand {
+  const PlayerCommand_SetStemsEnabled({required this.enabled}): super._();
+  
+
+ final  bool enabled;
+
+/// Create a copy of PlayerCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PlayerCommand_SetStemsEnabledCopyWith<PlayerCommand_SetStemsEnabled> get copyWith => _$PlayerCommand_SetStemsEnabledCopyWithImpl<PlayerCommand_SetStemsEnabled>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PlayerCommand_SetStemsEnabled&&(identical(other.enabled, enabled) || other.enabled == enabled));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,enabled);
+}
+
+@override
+String toString() {
+    return 'PlayerCommand.setStemsEnabled(enabled: $enabled)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PlayerCommand_SetStemsEnabledCopyWith<$Res> implements $PlayerCommandCopyWith<$Res> {
+  factory $PlayerCommand_SetStemsEnabledCopyWith(PlayerCommand_SetStemsEnabled value, $Res Function(PlayerCommand_SetStemsEnabled) _then) = _$PlayerCommand_SetStemsEnabledCopyWithImpl;
+@useResult
+$Res call({
+ bool enabled
+});
+
+
+
+
+}
+/// @nodoc
+class _$PlayerCommand_SetStemsEnabledCopyWithImpl<$Res>
+    implements $PlayerCommand_SetStemsEnabledCopyWith<$Res> {
+  _$PlayerCommand_SetStemsEnabledCopyWithImpl(this._self, this._then);
+
+  final PlayerCommand_SetStemsEnabled _self;
+  final $Res Function(PlayerCommand_SetStemsEnabled) _then;
+
+/// Create a copy of PlayerCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? enabled = null,}) {
+  return _then(PlayerCommand_SetStemsEnabled(
+enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PlayerCommand_SetStemVolume extends PlayerCommand {
+  const PlayerCommand_SetStemVolume({required this.stem, required this.volumePercent}): super._();
+  
+
+ final  int stem;
+ final  int volumePercent;
+
+/// Create a copy of PlayerCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PlayerCommand_SetStemVolumeCopyWith<PlayerCommand_SetStemVolume> get copyWith => _$PlayerCommand_SetStemVolumeCopyWithImpl<PlayerCommand_SetStemVolume>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PlayerCommand_SetStemVolume&&(identical(other.stem, stem) || other.stem == stem)&&(identical(other.volumePercent, volumePercent) || other.volumePercent == volumePercent));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,stem,volumePercent);
+}
+
+@override
+String toString() {
+    return 'PlayerCommand.setStemVolume(stem: $stem, volumePercent: $volumePercent)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PlayerCommand_SetStemVolumeCopyWith<$Res> implements $PlayerCommandCopyWith<$Res> {
+  factory $PlayerCommand_SetStemVolumeCopyWith(PlayerCommand_SetStemVolume value, $Res Function(PlayerCommand_SetStemVolume) _then) = _$PlayerCommand_SetStemVolumeCopyWithImpl;
+@useResult
+$Res call({
+ int stem, int volumePercent
+});
+
+
+
+
+}
+/// @nodoc
+class _$PlayerCommand_SetStemVolumeCopyWithImpl<$Res>
+    implements $PlayerCommand_SetStemVolumeCopyWith<$Res> {
+  _$PlayerCommand_SetStemVolumeCopyWithImpl(this._self, this._then);
+
+  final PlayerCommand_SetStemVolume _self;
+  final $Res Function(PlayerCommand_SetStemVolume) _then;
+
+/// Create a copy of PlayerCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? stem = null,Object? volumePercent = null,}) {
+  return _then(PlayerCommand_SetStemVolume(
+stem: null == stem ? _self.stem : stem // ignore: cast_nullable_to_non_nullable
+as int,volumePercent: null == volumePercent ? _self.volumePercent : volumePercent // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PlayerCommand_SetStemMuted extends PlayerCommand {
+  const PlayerCommand_SetStemMuted({required this.stem, required this.muted}): super._();
+  
+
+ final  int stem;
+ final  bool muted;
+
+/// Create a copy of PlayerCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PlayerCommand_SetStemMutedCopyWith<PlayerCommand_SetStemMuted> get copyWith => _$PlayerCommand_SetStemMutedCopyWithImpl<PlayerCommand_SetStemMuted>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PlayerCommand_SetStemMuted&&(identical(other.stem, stem) || other.stem == stem)&&(identical(other.muted, muted) || other.muted == muted));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,stem,muted);
+}
+
+@override
+String toString() {
+    return 'PlayerCommand.setStemMuted(stem: $stem, muted: $muted)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PlayerCommand_SetStemMutedCopyWith<$Res> implements $PlayerCommandCopyWith<$Res> {
+  factory $PlayerCommand_SetStemMutedCopyWith(PlayerCommand_SetStemMuted value, $Res Function(PlayerCommand_SetStemMuted) _then) = _$PlayerCommand_SetStemMutedCopyWithImpl;
+@useResult
+$Res call({
+ int stem, bool muted
+});
+
+
+
+
+}
+/// @nodoc
+class _$PlayerCommand_SetStemMutedCopyWithImpl<$Res>
+    implements $PlayerCommand_SetStemMutedCopyWith<$Res> {
+  _$PlayerCommand_SetStemMutedCopyWithImpl(this._self, this._then);
+
+  final PlayerCommand_SetStemMuted _self;
+  final $Res Function(PlayerCommand_SetStemMuted) _then;
+
+/// Create a copy of PlayerCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? stem = null,Object? muted = null,}) {
+  return _then(PlayerCommand_SetStemMuted(
+stem: null == stem ? _self.stem : stem // ignore: cast_nullable_to_non_nullable
+as int,muted: null == muted ? _self.muted : muted // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PlayerCommand_SetStemSolo extends PlayerCommand {
+  const PlayerCommand_SetStemSolo({required this.stem, required this.solo}): super._();
+  
+
+ final  int stem;
+ final  bool solo;
+
+/// Create a copy of PlayerCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PlayerCommand_SetStemSoloCopyWith<PlayerCommand_SetStemSolo> get copyWith => _$PlayerCommand_SetStemSoloCopyWithImpl<PlayerCommand_SetStemSolo>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PlayerCommand_SetStemSolo&&(identical(other.stem, stem) || other.stem == stem)&&(identical(other.solo, solo) || other.solo == solo));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,stem,solo);
+}
+
+@override
+String toString() {
+    return 'PlayerCommand.setStemSolo(stem: $stem, solo: $solo)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PlayerCommand_SetStemSoloCopyWith<$Res> implements $PlayerCommandCopyWith<$Res> {
+  factory $PlayerCommand_SetStemSoloCopyWith(PlayerCommand_SetStemSolo value, $Res Function(PlayerCommand_SetStemSolo) _then) = _$PlayerCommand_SetStemSoloCopyWithImpl;
+@useResult
+$Res call({
+ int stem, bool solo
+});
+
+
+
+
+}
+/// @nodoc
+class _$PlayerCommand_SetStemSoloCopyWithImpl<$Res>
+    implements $PlayerCommand_SetStemSoloCopyWith<$Res> {
+  _$PlayerCommand_SetStemSoloCopyWithImpl(this._self, this._then);
+
+  final PlayerCommand_SetStemSolo _self;
+  final $Res Function(PlayerCommand_SetStemSolo) _then;
+
+/// Create a copy of PlayerCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? stem = null,Object? solo = null,}) {
+  return _then(PlayerCommand_SetStemSolo(
+stem: null == stem ? _self.stem : stem // ignore: cast_nullable_to_non_nullable
+as int,solo: null == solo ? _self.solo : solo // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

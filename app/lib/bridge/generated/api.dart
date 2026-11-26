@@ -11,7 +11,7 @@ part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `access`, `action_failure`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`, `write_failure`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Access`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Loads the recording list from the server at `server_url`.
 Future<List<RecordingItem>> listRecordings({required String serverUrl}) =>
@@ -745,6 +745,12 @@ class PlaybackView {
   final bool scrubbing;
   final int volumePercent;
 
+  /// Whether the stems play instead of the original recording.
+  final bool stemsEnabled;
+
+  /// The mix, one entry per possible stem.
+  final List<StemChannelView> stemChannels;
+
   const PlaybackView({
     required this.revision,
     this.recordingId,
@@ -757,6 +763,8 @@ class PlaybackView {
     required this.playMode,
     required this.scrubbing,
     required this.volumePercent,
+    required this.stemsEnabled,
+    required this.stemChannels,
   });
 
   @override
@@ -771,7 +779,9 @@ class PlaybackView {
       playRange.hashCode ^
       playMode.hashCode ^
       scrubbing.hashCode ^
-      volumePercent.hashCode;
+      volumePercent.hashCode ^
+      stemsEnabled.hashCode ^
+      stemChannels.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -788,7 +798,9 @@ class PlaybackView {
           playRange == other.playRange &&
           playMode == other.playMode &&
           scrubbing == other.scrubbing &&
-          volumePercent == other.volumePercent;
+          volumePercent == other.volumePercent &&
+          stemsEnabled == other.stemsEnabled &&
+          stemChannels == other.stemChannels;
 }
 
 @freezed
@@ -817,6 +829,20 @@ sealed class PlayerCommand with _$PlayerCommand {
       PlayerCommand_SetPlayMode;
   const factory PlayerCommand.setVolume({required int volumePercent}) =
       PlayerCommand_SetVolume;
+  const factory PlayerCommand.setStemsEnabled({required bool enabled}) =
+      PlayerCommand_SetStemsEnabled;
+  const factory PlayerCommand.setStemVolume({
+    required int stem,
+    required int volumePercent,
+  }) = PlayerCommand_SetStemVolume;
+  const factory PlayerCommand.setStemMuted({
+    required int stem,
+    required bool muted,
+  }) = PlayerCommand_SetStemMuted;
+  const factory PlayerCommand.setStemSolo({
+    required int stem,
+    required bool solo,
+  }) = PlayerCommand_SetStemSolo;
 }
 
 /// Why the server refused something. The `code` is stable and the interface
@@ -1099,6 +1125,40 @@ class SignInResult {
           runtimeType == other.runtimeType &&
           token == other.token &&
           rights == other.rights;
+}
+
+/// How one stem sounds in the mix.
+class StemChannelView {
+  final int volumePercent;
+  final bool muted;
+  final bool solo;
+
+  /// Whether the stem is heard, with mute and solo of all of them counted.
+  final bool audible;
+
+  const StemChannelView({
+    required this.volumePercent,
+    required this.muted,
+    required this.solo,
+    required this.audible,
+  });
+
+  @override
+  int get hashCode =>
+      volumePercent.hashCode ^
+      muted.hashCode ^
+      solo.hashCode ^
+      audible.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StemChannelView &&
+          runtimeType == other.runtimeType &&
+          volumePercent == other.volumePercent &&
+          muted == other.muted &&
+          solo == other.solo &&
+          audible == other.audible;
 }
 
 /// The speed that plays a recording of `recording_bpm` at `target_bpm`.

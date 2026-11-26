@@ -3,15 +3,15 @@
 use crate::{
     AnalysisProgressDto, AnalysisResultDto, BookmarksDto, ClientMessageDto, ImportBookmarksDto,
     LabelDto, PlayModeDto, PlaybackStateDto, RangeDto, RecordingSummaryDto, RegionDto,
-    ReplaceBookmarksDto, WaveformInfoDto, WaveformLevelInfoDto,
+    ReplaceBookmarksDto, StemChannelDto, WaveformInfoDto, WaveformLevelInfoDto,
 };
 use veltrunox_core::{
     AnalysisInfo, AnalysisProgress, BookmarkId, BookmarkName, Bookmarks, Bpm, Confidence, EntryRef,
     ImportedBookmarks, ImportedLabel, ImportedRegion, Intent, InvalidRecording, InvalidValue,
     KeyMode, KeyShift, Label, LibraryEntry, Millis, MusicalKey, NewBookmarks, NewLabel, NewRegion,
     Peak, PitchClass, PlayMode, PlaybackSettings, PlaybackState, PositionReference, Recording,
-    RecordingAnalysis, RecordingId, RecordingTitle, Region, Speed, TimeRange, TuningHz, Version,
-    Volume, Waveform,
+    RecordingAnalysis, RecordingId, RecordingTitle, Region, Speed, StemChannel, StemMix, TimeRange,
+    TuningHz, Version, Volume, Waveform,
 };
 
 /// Describes the levels of a waveform without their peaks.
@@ -179,6 +179,18 @@ pub fn state_to_dto(state: &PlaybackState) -> PlaybackStateDto {
         play_mode: play_mode_to_dto(state.play_mode),
         scrubbing: state.scrubbing,
         volume_percent: state.volume.percent(),
+        stems_enabled: state.settings.mix.enabled,
+        stem_channels: state
+            .settings
+            .mix
+            .channels
+            .iter()
+            .map(|channel| StemChannelDto {
+                volume_percent: channel.volume.percent(),
+                muted: channel.muted,
+                solo: channel.solo,
+            })
+            .collect(),
     }
 }
 
@@ -195,12 +207,28 @@ pub fn state_from_dto(dto: &PlaybackStateDto) -> Result<PlaybackState, InvalidVa
             speed: Speed::new(dto.speed)?,
             tuning: TuningHz::new(dto.tuning_hz)?,
             key: KeyShift::new(dto.key_shift_semitones)?,
+            mix: mix_from_dto(dto)?,
         },
         play_range: dto.play_range.map(range_from_dto).transpose()?,
         play_mode: play_mode_from_dto(dto.play_mode),
         scrubbing: dto.scrubbing,
         volume: Volume::new(dto.volume_percent)?,
     })
+}
+
+fn mix_from_dto(dto: &PlaybackStateDto) -> Result<StemMix, InvalidValue> {
+    let mut mix = StemMix {
+        enabled: dto.stems_enabled,
+        ..StemMix::default()
+    };
+    for (channel, sent) in mix.channels.iter_mut().zip(&dto.stem_channels) {
+        *channel = StemChannel {
+            volume: Volume::new(sent.volume_percent)?,
+            muted: sent.muted,
+            solo: sent.solo,
+        };
+    }
+    Ok(mix)
 }
 
 pub fn intent_to_message(intent: Intent) -> ClientMessageDto {
@@ -235,6 +263,19 @@ pub fn intent_to_message(intent: Intent) -> ClientMessageDto {
         Intent::SetVolume(volume) => ClientMessageDto::SetVolume {
             volume_percent: volume.percent(),
         },
+        Intent::SetStemsEnabled(enabled) => ClientMessageDto::SetStemsEnabled { enabled },
+        Intent::SetStemVolume { stem, volume } => ClientMessageDto::SetStemVolume {
+            stem: stem as u8,
+            volume_percent: volume.percent(),
+        },
+        Intent::SetStemMuted { stem, muted } => ClientMessageDto::SetStemMuted {
+            stem: stem as u8,
+            muted,
+        },
+        Intent::SetStemSolo { stem, solo } => ClientMessageDto::SetStemSolo {
+            stem: stem as u8,
+            solo,
+        },
     }
 }
 
@@ -266,6 +307,22 @@ pub fn intent_from_message(message: &ClientMessageDto) -> Result<Option<Intent>,
         ClientMessageDto::SetVolume { volume_percent } => {
             Intent::SetVolume(Volume::new(*volume_percent)?)
         }
+        ClientMessageDto::SetStemsEnabled { enabled } => Intent::SetStemsEnabled(*enabled),
+        ClientMessageDto::SetStemVolume {
+            stem,
+            volume_percent,
+        } => Intent::SetStemVolume {
+            stem: usize::from(*stem),
+            volume: Volume::new(*volume_percent)?,
+        },
+        ClientMessageDto::SetStemMuted { stem, muted } => Intent::SetStemMuted {
+            stem: usize::from(*stem),
+            muted: *muted,
+        },
+        ClientMessageDto::SetStemSolo { stem, solo } => Intent::SetStemSolo {
+            stem: usize::from(*stem),
+            solo: *solo,
+        },
     }))
 }
 
@@ -515,6 +572,7 @@ mod tests {
             },
             running: true,
             settings: PlaybackSettings {
+                mix: StemMix::default().with_channel(1, |channel| channel.muted = true),
                 speed: Speed::new(0.75).unwrap(),
                 tuning: TuningHz::new(432.0).unwrap(),
                 key: KeyShift::new(2).unwrap(),
@@ -541,6 +599,19 @@ mod tests {
             Intent::SetTuning(TuningHz::new(415.0).unwrap()),
             Intent::SetKey(KeyShift::new(-5).unwrap()),
             Intent::PlayRegion(TimeRange::new(Millis::new(1_000), Millis::new(2_000)).unwrap()),
+            Intent::SetStemsEnabled(true),
+            Intent::SetStemVolume {
+                stem: 2,
+                volume: Volume::new(40).unwrap(),
+            },
+            Intent::SetStemMuted {
+                stem: 1,
+                muted: true,
+            },
+            Intent::SetStemSolo {
+                stem: 0,
+                solo: true,
+            },
             Intent::SetPlayMode(PlayMode::ToRegionEnd),
             Intent::SetVolume(Volume::new(80).unwrap()),
         ];

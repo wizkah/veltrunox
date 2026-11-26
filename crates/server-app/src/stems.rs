@@ -3,7 +3,7 @@
 use crate::bookmarks::BookmarkService;
 use crate::ports::{
     BookmarkError, MediaCatalog, PlaybackBroadcast, RecordingLengths, StemRepository, StemSet,
-    StorageError,
+    StorageError, WaveformRepository,
 };
 use std::sync::Arc;
 use veltrunox_core::{Millis, Recording, RecordingId, Section, section_regions};
@@ -17,6 +17,8 @@ pub enum StemError {
     UnknownRecording,
     #[error("a stem is not as long as the recording")]
     LengthMismatch,
+    #[error("the stems do not have the sample rate of the recording")]
+    RateMismatch,
     #[error(transparent)]
     Storage(#[from] StorageError),
     #[error(transparent)]
@@ -28,6 +30,7 @@ impl veltrunox_core::Refusal for StemError {
         let code = match self {
             Self::UnknownRecording => "stems_unknown_recording",
             Self::LengthMismatch => "stems_length_mismatch",
+            Self::RateMismatch => "stems_rate_mismatch",
             Self::Storage(_) | Self::Bookmark(_) => "storage_failed",
         };
         veltrunox_core::Reason::new(self, code)
@@ -55,6 +58,7 @@ pub struct StemService {
     lengths: Arc<dyn RecordingLengths>,
     bookmarks: Arc<BookmarkService>,
     broadcast: Arc<dyn PlaybackBroadcast>,
+    waveforms: Arc<dyn WaveformRepository>,
 }
 
 impl StemService {
@@ -64,6 +68,7 @@ impl StemService {
         lengths: Arc<dyn RecordingLengths>,
         bookmarks: Arc<BookmarkService>,
         broadcast: Arc<dyn PlaybackBroadcast>,
+        waveforms: Arc<dyn WaveformRepository>,
     ) -> Self {
         Self {
             media,
@@ -71,6 +76,7 @@ impl StemService {
             lengths,
             bookmarks,
             broadcast,
+            waveforms,
         }
     }
 
@@ -91,7 +97,17 @@ impl StemService {
             .recording_by_hash(content_hash)?
             .ok_or(StemError::UnknownRecording)?;
         let length = checked_length(set, self.lengths.length(recording.id))?;
+        // The engine mixes the stems frame by frame in place of the recording.
+        if let Some(original) = self.waveforms.waveform(recording.id)?
+            && set
+                .stems
+                .iter()
+                .any(|stem| stem.waveform.sample_rate != original.sample_rate)
+        {
+            return Err(StemError::RateMismatch);
+        }
         self.stems.replace_stem_set(recording.id, set)?;
+        self.broadcast.stems_changed(recording.id);
         let existing = self.bookmarks.list(recording.id)?.regions;
         let added = section_regions(&structure.sections, &structure.downbeats, length, &existing);
         let regions_added = added.len();
@@ -109,6 +125,7 @@ impl StemService {
 
     pub fn remove(&self, id: RecordingId) -> Result<(), StorageError> {
         self.stems.replace_stem_set(id, &StemSet::default())?;
+        self.broadcast.stems_changed(id);
         self.broadcast.library_changed();
         Ok(())
     }

@@ -81,6 +81,13 @@ impl StemRepository for SqliteStore {
                 params![recording],
             )
             .map_err(storage)?;
+        // The mix belonged to the old stems.
+        transaction
+            .execute(
+                "UPDATE recordings SET stem_mix = NULL WHERE id = ?1",
+                params![recording],
+            )
+            .map_err(storage)?;
         if !set.stems.is_empty() {
             transaction
                 .execute(

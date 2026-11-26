@@ -5,6 +5,7 @@
 use signalsmith_stretch::Stretch;
 use std::ops::Range;
 use std::sync::Arc;
+use veltrunox_core::{MAX_STEMS, StemMix};
 
 const CHANNELS: usize = 2;
 /// Frames of input the scratch buffer can take without growing.
@@ -61,10 +62,21 @@ const STOP_FADE_MS: u64 = 5;
 /// Pieces sounding at once: the newest and the one it fades out.
 const MAX_GRAINS: usize = 3;
 
+/// A change of the mix reaches its new gains within this time, so it does not click.
+const MIX_RAMP_MS: u64 = 15;
+/// The sources a frame is summed from: the stems, then the original recording.
+const SOURCES: usize = MAX_STEMS + 1;
+const ORIGINAL: usize = MAX_STEMS;
+
 /// Plays one recording: speed and pitch independently, with a loop that wraps
 /// and a stop position that ends playback, both at sample level.
 pub struct Engine {
     pcm: Arc<Pcm>,
+    /// Tracks of the recording at its sample rate; they replace it while the mix says so.
+    stems: Vec<Arc<Pcm>>,
+    /// Gain of each source now and where it is moving to.
+    gains: [f32; SOURCES],
+    targets: [f32; SOURCES],
     stretch: Stretch,
     /// Device sample rate; a difference to the recording's rate is absorbed here.
     output_rate: u32,
@@ -106,6 +118,9 @@ impl Engine {
         let stretch = Stretch::preset_default(CHANNELS as u32, pcm.sample_rate());
         let mut engine = Self {
             pcm,
+            stems: Vec::new(),
+            gains: original_only(),
+            targets: original_only(),
             stretch,
             output_rate,
             running: false,
@@ -121,6 +136,65 @@ impl Engine {
         };
         engine.apply_pitch();
         engine
+    }
+
+    /// Gives the engine the stems of the recording. Those beyond `MAX_STEMS` are ignored;
+    /// stems of another sample rate would play at the wrong speed and are dropped.
+    pub fn with_stems(mut self, mut stems: Vec<Arc<Pcm>>) -> Self {
+        let rate = self.pcm.sample_rate();
+        if stems.iter().any(|stem| stem.sample_rate() != rate) {
+            stems.clear();
+        }
+        stems.truncate(MAX_STEMS);
+        self.stems = stems;
+        self
+    }
+
+    /// Which sources sound, and how loud. Without stems the original plays whatever the
+    /// mix says. While silent the change applies at once, otherwise it moves there.
+    pub fn set_mix(&mut self, mix: &StemMix) {
+        self.targets = if mix.enabled && !self.stems.is_empty() {
+            let mut targets = [0.0; SOURCES];
+            for (index, target) in targets.iter_mut().enumerate().take(self.stems.len()) {
+                *target = mix.gain(index);
+            }
+            targets
+        } else {
+            original_only()
+        };
+        if !self.running && self.grains.is_empty() {
+            self.gains = self.targets;
+        }
+    }
+
+    /// The mixed frame at `index` with the gains as they are now.
+    fn frame(&self, index: usize) -> [f32; CHANNELS] {
+        let mut mixed = [0.0; CHANNELS];
+        let sources = self
+            .stems
+            .iter()
+            .enumerate()
+            .chain(std::iter::once((ORIGINAL, &self.pcm)));
+        for (source, pcm) in sources {
+            let gain = self.gains[source];
+            if gain == 0.0 {
+                continue;
+            }
+            let at = index * CHANNELS;
+            if let Some(samples) = pcm.samples.get(at..at + CHANNELS) {
+                for (sum, sample) in mixed.iter_mut().zip(samples) {
+                    *sum += sample * gain;
+                }
+            }
+        }
+        mixed
+    }
+
+    /// One step of the gains towards their targets.
+    fn ramp_mix(&mut self, step: f32) {
+        for (gain, target) in self.gains.iter_mut().zip(self.targets) {
+            *gain += (target - *gain).clamp(-step, step);
+        }
     }
 
     /// Starts or stops playing; ends the pieces of scrubbing.
@@ -205,8 +279,13 @@ impl Engine {
         self.stretch.reset();
         let preroll = self.stretch.input_latency().min(target);
         let from = (target - preroll) * CHANNELS;
-        self.stretch
-            .seek(&self.pcm.samples[from..target * CHANNELS], self.speed);
+        self.gains = self.targets;
+        self.input.clear();
+        for index in from / CHANNELS..target {
+            let frame = self.frame(index);
+            self.input.extend(frame);
+        }
+        self.stretch.seek(&self.input, self.speed);
     }
 
     /// The source position in milliseconds: the frames handed to the stretcher.
@@ -258,7 +337,10 @@ impl Engine {
         let fade_in = self.frames_out(GRAIN_FADE_IN_MS).max(1) as f32;
         let fade_out = self.frames_out(GRAIN_FADE_OUT_MS).max(1) as f32;
         let total = self.pcm.frames();
-        for grain in &mut self.grains {
+        // A scrubbed piece is short; it takes the mix as it is.
+        self.gains = self.targets;
+        let mut grains = std::mem::take(&mut self.grains);
+        for grain in &mut grains {
             for out in output.as_chunks_mut::<CHANNELS>().0 {
                 if grain.left == 0 {
                     break;
@@ -267,8 +349,8 @@ impl Engine {
                 if source < total {
                     let gain = ((grain.played + 1) as f32 / fade_in).min(1.0)
                         * (grain.left as f32 / fade_out).min(1.0);
-                    for (channel, sample) in out.iter_mut().enumerate() {
-                        *sample += self.pcm.samples[source * CHANNELS + channel] * gain;
+                    for (sample, mixed) in out.iter_mut().zip(self.frame(source)) {
+                        *sample += mixed * gain;
                     }
                 }
                 grain.frame += step;
@@ -276,7 +358,8 @@ impl Engine {
                 grain.left -= 1;
             }
         }
-        self.grains.retain(|grain| grain.left > 0);
+        grains.retain(|grain| grain.left > 0);
+        self.grains = grains;
     }
 
     /// Source frames for the next `frames` input frames; a running loop wraps at its end and
@@ -285,6 +368,7 @@ impl Engine {
         self.input.clear();
         let total = self.pcm.frames();
         let fade = self.frame_at(STOP_FADE_MS).max(1);
+        let mix_step = 1.0 / self.frame_at(MIX_RAMP_MS).max(1) as f32;
         for _ in 0..frames {
             if self.ended.is_some() {
                 self.input.extend([0.0; CHANNELS]);
@@ -301,19 +385,16 @@ impl Engine {
                 self.input.extend([0.0; CHANNELS]);
                 continue;
             }
+            self.ramp_mix(mix_step);
             if self.read < total {
-                let at = self.read * CHANNELS;
                 let gain = match self.stop_frame {
                     Some(stop) if self.read < stop && stop - self.read <= fade => {
                         (stop - self.read) as f32 / (fade + 1) as f32
                     }
                     _ => 1.0,
                 };
-                self.input.extend(
-                    self.pcm.samples[at..at + CHANNELS]
-                        .iter()
-                        .map(|sample| sample * gain),
-                );
+                let frame = self.frame(self.read);
+                self.input.extend(frame.map(|sample| sample * gain));
             } else {
                 self.input.extend([0.0; CHANNELS]);
             }
@@ -342,6 +423,13 @@ impl Engine {
         let factor = 2.0_f64.powf(self.semitones / 12.0) * rate_ratio;
         self.stretch.set_transpose_factor(factor as f32, None);
     }
+}
+
+/// The gains that play the original recording and nothing else.
+fn original_only() -> [f32; SOURCES] {
+    let mut gains = [0.0; SOURCES];
+    gains[ORIGINAL] = 1.0;
+    gains
 }
 
 #[cfg(test)]
@@ -383,6 +471,69 @@ mod tests {
 
     fn rms(samples: &[f32]) -> f32 {
         (samples.iter().map(|sample| sample * sample).sum::<f32>() / samples.len() as f32).sqrt()
+    }
+
+    fn stems_of(engine: Engine) -> Engine {
+        engine.with_stems(vec![sine(220.0, 4.0), sine(880.0, 4.0)])
+    }
+
+    fn mix(change: impl FnOnce(&mut StemMix)) -> StemMix {
+        let mut mix = StemMix {
+            enabled: true,
+            ..StemMix::default()
+        };
+        change(&mut mix);
+        mix
+    }
+
+    #[test]
+    fn the_mix_chooses_what_is_heard() {
+        let heard = |mix: StemMix| {
+            let mut engine = stems_of(Engine::new(sine(440.0, 4.0), RATE));
+            engine.set_mix(&mix);
+            engine.set_running(true);
+            let rendered = render_seconds(&mut engine, 1.0);
+            let settled = &rendered[RATE as usize / 2..];
+            (measured_hertz(settled, RATE), rms(settled))
+        };
+        let (hertz, _) = heard(StemMix::default());
+        assert!((hertz - 440.0).abs() < 8.0, "original: {hertz}");
+        let (hertz, _) = heard(mix(|mix| mix.channels[0].muted = true));
+        assert!((hertz - 880.0).abs() < 12.0, "second stem: {hertz}");
+        let (hertz, _) = heard(mix(|mix| mix.channels[0].solo = true));
+        assert!((hertz - 220.0).abs() < 8.0, "first stem: {hertz}");
+        let (_, level) = heard(mix(|mix| {
+            mix.channels[0].muted = true;
+            mix.channels[1].muted = true;
+        }));
+        assert!(level < 0.001, "silence: {level}");
+    }
+
+    #[test]
+    fn a_mix_changed_while_playing_moves_there_without_a_jump() {
+        let mut engine = stems_of(Engine::new(sine(440.0, 4.0), RATE));
+        engine.set_running(true);
+        render_seconds(&mut engine, 0.5);
+        engine.set_mix(&mix(|mix| {
+            mix.channels[0].muted = true;
+            mix.channels[1].muted = true;
+        }));
+        let after = render_seconds(&mut engine, 1.0);
+        let step = after
+            .windows(2)
+            .map(|pair| (pair[1] - pair[0]).abs())
+            .fold(0.0, f32::max);
+        assert!(step < 0.2, "{step}");
+        assert!(rms(&after[RATE as usize / 2..]) < 0.001);
+    }
+
+    #[test]
+    fn stems_of_another_rate_are_not_used() {
+        let other = Arc::new(Pcm::new(vec![0.5; 200], 8_000));
+        let mut engine = Engine::new(sine(440.0, 1.0), RATE).with_stems(vec![other]);
+        engine.set_mix(&mix(|_| {}));
+        engine.set_running(true);
+        assert!(rms(&render_seconds(&mut engine, 0.5)) > 0.3);
     }
 
     #[test]

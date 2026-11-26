@@ -2296,6 +2296,18 @@ impl SseDecode for Vec<crate::api::RegionItem> {
     }
 }
 
+impl SseDecode for Vec<crate::api::StemChannelView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::StemChannelView>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::UserItem> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2448,6 +2460,8 @@ impl SseDecode for crate::api::PlaybackView {
         let mut var_playMode = <crate::api::PlayModeChoice>::sse_decode(deserializer);
         let mut var_scrubbing = <bool>::sse_decode(deserializer);
         let mut var_volumePercent = <u8>::sse_decode(deserializer);
+        let mut var_stemsEnabled = <bool>::sse_decode(deserializer);
+        let mut var_stemChannels = <Vec<crate::api::StemChannelView>>::sse_decode(deserializer);
         return crate::api::PlaybackView {
             revision: var_revision,
             recording_id: var_recordingId,
@@ -2460,6 +2474,8 @@ impl SseDecode for crate::api::PlaybackView {
             play_mode: var_playMode,
             scrubbing: var_scrubbing,
             volume_percent: var_volumePercent,
+            stems_enabled: var_stemsEnabled,
+            stem_channels: var_stemChannels,
         };
     }
 }
@@ -2521,6 +2537,36 @@ impl SseDecode for crate::api::PlayerCommand {
                 let mut var_volumePercent = <u8>::sse_decode(deserializer);
                 return crate::api::PlayerCommand::SetVolume {
                     volume_percent: var_volumePercent,
+                };
+            }
+            10 => {
+                let mut var_enabled = <bool>::sse_decode(deserializer);
+                return crate::api::PlayerCommand::SetStemsEnabled {
+                    enabled: var_enabled,
+                };
+            }
+            11 => {
+                let mut var_stem = <u8>::sse_decode(deserializer);
+                let mut var_volumePercent = <u8>::sse_decode(deserializer);
+                return crate::api::PlayerCommand::SetStemVolume {
+                    stem: var_stem,
+                    volume_percent: var_volumePercent,
+                };
+            }
+            12 => {
+                let mut var_stem = <u8>::sse_decode(deserializer);
+                let mut var_muted = <bool>::sse_decode(deserializer);
+                return crate::api::PlayerCommand::SetStemMuted {
+                    stem: var_stem,
+                    muted: var_muted,
+                };
+            }
+            13 => {
+                let mut var_stem = <u8>::sse_decode(deserializer);
+                let mut var_solo = <bool>::sse_decode(deserializer);
+                return crate::api::PlayerCommand::SetStemSolo {
+                    stem: var_stem,
+                    solo: var_solo,
                 };
             }
             _ => {
@@ -2789,6 +2835,22 @@ impl SseDecode for crate::api::SignInResult {
         return crate::api::SignInResult {
             token: var_token,
             rights: var_rights,
+        };
+    }
+}
+
+impl SseDecode for crate::api::StemChannelView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_volumePercent = <u8>::sse_decode(deserializer);
+        let mut var_muted = <bool>::sse_decode(deserializer);
+        let mut var_solo = <bool>::sse_decode(deserializer);
+        let mut var_audible = <bool>::sse_decode(deserializer);
+        return crate::api::StemChannelView {
+            volume_percent: var_volumePercent,
+            muted: var_muted,
+            solo: var_solo,
+            audible: var_audible,
         };
     }
 }
@@ -3335,6 +3397,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::PlaybackView {
             self.play_mode.into_into_dart().into_dart(),
             self.scrubbing.into_into_dart().into_dart(),
             self.volume_percent.into_into_dart().into_dart(),
+            self.stems_enabled.into_into_dart().into_dart(),
+            self.stem_channels.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3382,6 +3446,30 @@ impl flutter_rust_bridge::IntoDart for crate::api::PlayerCommand {
             crate::api::PlayerCommand::SetVolume { volume_percent } => {
                 [9.into_dart(), volume_percent.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::PlayerCommand::SetStemsEnabled { enabled } => {
+                [10.into_dart(), enabled.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::PlayerCommand::SetStemVolume {
+                stem,
+                volume_percent,
+            } => [
+                11.into_dart(),
+                stem.into_into_dart().into_dart(),
+                volume_percent.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::PlayerCommand::SetStemMuted { stem, muted } => [
+                12.into_dart(),
+                stem.into_into_dart().into_dart(),
+                muted.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::PlayerCommand::SetStemSolo { stem, solo } => [
+                13.into_dart(),
+                stem.into_into_dart().into_dart(),
+                solo.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -3671,6 +3759,26 @@ impl flutter_rust_bridge::IntoDart for crate::api::SignInResult {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::SignInResult {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::SignInResult> for crate::api::SignInResult {
     fn into_into_dart(self) -> crate::api::SignInResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::StemChannelView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.volume_percent.into_into_dart().into_dart(),
+            self.muted.into_into_dart().into_dart(),
+            self.solo.into_into_dart().into_dart(),
+            self.audible.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::StemChannelView {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::StemChannelView>
+    for crate::api::StemChannelView
+{
+    fn into_into_dart(self) -> crate::api::StemChannelView {
         self
     }
 }
@@ -4140,6 +4248,16 @@ impl SseEncode for Vec<crate::api::RegionItem> {
     }
 }
 
+impl SseEncode for Vec<crate::api::StemChannelView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::StemChannelView>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::UserItem> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -4285,6 +4403,8 @@ impl SseEncode for crate::api::PlaybackView {
         <crate::api::PlayModeChoice>::sse_encode(self.play_mode, serializer);
         <bool>::sse_encode(self.scrubbing, serializer);
         <u8>::sse_encode(self.volume_percent, serializer);
+        <bool>::sse_encode(self.stems_enabled, serializer);
+        <Vec<crate::api::StemChannelView>>::sse_encode(self.stem_channels, serializer);
     }
 }
 
@@ -4332,6 +4452,28 @@ impl SseEncode for crate::api::PlayerCommand {
             crate::api::PlayerCommand::SetVolume { volume_percent } => {
                 <i32>::sse_encode(9, serializer);
                 <u8>::sse_encode(volume_percent, serializer);
+            }
+            crate::api::PlayerCommand::SetStemsEnabled { enabled } => {
+                <i32>::sse_encode(10, serializer);
+                <bool>::sse_encode(enabled, serializer);
+            }
+            crate::api::PlayerCommand::SetStemVolume {
+                stem,
+                volume_percent,
+            } => {
+                <i32>::sse_encode(11, serializer);
+                <u8>::sse_encode(stem, serializer);
+                <u8>::sse_encode(volume_percent, serializer);
+            }
+            crate::api::PlayerCommand::SetStemMuted { stem, muted } => {
+                <i32>::sse_encode(12, serializer);
+                <u8>::sse_encode(stem, serializer);
+                <bool>::sse_encode(muted, serializer);
+            }
+            crate::api::PlayerCommand::SetStemSolo { stem, solo } => {
+                <i32>::sse_encode(13, serializer);
+                <u8>::sse_encode(stem, serializer);
+                <bool>::sse_encode(solo, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -4539,6 +4681,16 @@ impl SseEncode for crate::api::SignInResult {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.token, serializer);
         <crate::api::RightsInfo>::sse_encode(self.rights, serializer);
+    }
+}
+
+impl SseEncode for crate::api::StemChannelView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u8>::sse_encode(self.volume_percent, serializer);
+        <bool>::sse_encode(self.muted, serializer);
+        <bool>::sse_encode(self.solo, serializer);
+        <bool>::sse_encode(self.audible, serializer);
     }
 }
 

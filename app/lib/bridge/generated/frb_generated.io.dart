@@ -154,6 +154,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RegionItem> dco_decode_list_region_item(dynamic raw);
 
   @protected
+  List<StemChannelView> dco_decode_list_stem_channel_view(dynamic raw);
+
+  @protected
   List<UserItem> dco_decode_list_user_item(dynamic raw);
 
   @protected
@@ -233,6 +236,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SignInResult dco_decode_sign_in_result(dynamic raw);
+
+  @protected
+  StemChannelView dco_decode_stem_channel_view(dynamic raw);
 
   @protected
   TargetTempo dco_decode_target_tempo(dynamic raw);
@@ -426,6 +432,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RegionItem> sse_decode_list_region_item(SseDeserializer deserializer);
 
   @protected
+  List<StemChannelView> sse_decode_list_stem_channel_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<UserItem> sse_decode_list_user_item(SseDeserializer deserializer);
 
   @protected
@@ -519,6 +530,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SignInResult sse_decode_sign_in_result(SseDeserializer deserializer);
+
+  @protected
+  StemChannelView sse_decode_stem_channel_view(SseDeserializer deserializer);
 
   @protected
   TargetTempo sse_decode_target_tempo(SseDeserializer deserializer);
@@ -777,6 +791,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_stem_channel_view(
+    List<StemChannelView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_user_item(List<UserItem> self, SseSerializer serializer);
 
   @protected
@@ -889,6 +909,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_sign_in_result(SignInResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_stem_channel_view(
+    StemChannelView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_target_tempo(TargetTempo self, SseSerializer serializer);

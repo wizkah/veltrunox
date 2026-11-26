@@ -107,6 +107,7 @@ mod tests {
     #[test]
     fn key_shift_adds_whole_semitones() {
         let settings = PlaybackSettings {
+            mix: Default::default(),
             key: KeyShift::new(-3).unwrap(),
             ..PlaybackSettings::default()
         };
@@ -119,6 +120,7 @@ mod tests {
     #[test]
     fn tuning_difference_is_twelve_times_the_log_ratio() {
         let settings = PlaybackSettings {
+            mix: Default::default(),
             tuning: TuningHz::new(480.0).unwrap(),
             ..PlaybackSettings::default()
         };
@@ -129,6 +131,7 @@ mod tests {
     #[test]
     fn tuning_below_the_recording_shifts_down_and_adds_to_the_key() {
         let settings = PlaybackSettings {
+            mix: Default::default(),
             tuning: TuningHz::new(432.0).unwrap(),
             key: KeyShift::new(2).unwrap(),
             ..PlaybackSettings::default()

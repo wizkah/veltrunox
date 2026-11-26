@@ -9,6 +9,8 @@ use serde_json::{Value, json};
 use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use support::TestClient;
+use veltrunox_core::{Intent, RecordingId};
 use veltrunox_server_adapters::{
     AppState, SqliteStore, StemStore, SystemClock, UploadStore, router,
 };
@@ -210,6 +212,26 @@ async fn an_exported_package_can_be_imported_again() {
     let (status, body) = send(&server.url, exported).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["stems"], 2);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_mix_is_shared_stored_and_reset_by_new_stems() {
+    let server = server("mix").await;
+    send(&server.url, two_stems(&server.hash)).await;
+    let mut first = TestClient::connect(&server.url);
+    let mut second = TestClient::connect(&server.url);
+    first
+        .connection
+        .send_intent(Intent::SelectRecording(RecordingId::new(server.id)));
+    first.connection.send_intent(Intent::SetStemsEnabled(true));
+    first.connection.send_intent(Intent::SetStemMuted {
+        stem: 1,
+        muted: true,
+    });
+    second.state_where(|state| state.settings.mix.channels[1].muted);
+
+    send(&server.url, two_stems(&server.hash)).await;
+    second.state_where(|state| !state.settings.mix.channels[1].muted);
 }
 
 #[tokio::test]

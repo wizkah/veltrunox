@@ -59,7 +59,7 @@ impl From<StemError> for ApiError {
     fn from(error: StemError) -> Self {
         let status = match error {
             StemError::UnknownRecording => StatusCode::NOT_FOUND,
-            StemError::LengthMismatch => StatusCode::UNPROCESSABLE_ENTITY,
+            StemError::LengthMismatch | StemError::RateMismatch => StatusCode::UNPROCESSABLE_ENTITY,
             StemError::Storage(_) | StemError::Bookmark(_) => return Self::Internal,
         };
         Self::Refused(status, error.reason())
@@ -86,6 +86,9 @@ async fn import_package(
         // Replaced stems, or the files of a refused package, are not referred to any more.
         let _ = store.sweep(app.stem_repository.as_ref());
         let imported = imported?;
+        app.playback
+            .reload_mix(imported.recording.id)
+            .map_err(|_| ApiError::Internal)?;
         Ok(Json(ImportedStemsDto {
             recording: imported.recording.id.value(),
             title: imported.recording.title.as_str().to_owned(),
@@ -160,8 +163,10 @@ async fn remove_stems(
     caller.require(Capability::ManageRecordings)?;
     let store = store_of(&app)?;
     blocking(move || {
-        app.stems
-            .remove(RecordingId::new(recording))
+        let id = RecordingId::new(recording);
+        app.stems.remove(id).map_err(|_| ApiError::Internal)?;
+        app.playback
+            .reload_mix(id)
             .map_err(|_| ApiError::Internal)?;
         let _ = store.sweep(app.stem_repository.as_ref());
         Ok(StatusCode::NO_CONTENT)

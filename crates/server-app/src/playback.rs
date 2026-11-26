@@ -3,9 +3,9 @@
 use crate::ports::{Clock, PlaybackBroadcast, RecordingLengths, RecordingRepository, StorageError};
 use std::sync::{Arc, Mutex, PoisonError};
 use veltrunox_core::{
-    Intent, Millis, PlaybackState, Reason, RecordingId, Refusal, TransportError, end_playback,
-    end_region, pause, play, play_region, seek, select_recording, set_key, set_play_mode,
-    set_speed, set_tuning, set_volume,
+    Intent, Millis, PlaybackState, Reason, RecordingId, Refusal, StemMix, TransportError,
+    end_playback, end_region, pause, play, play_region, seek, select_recording, set_key,
+    set_play_mode, set_speed, set_stem_mix, set_tuning, set_volume,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -76,6 +76,23 @@ impl PlaybackService {
             self.recordings.save_settings(recording, next.settings)?;
         }
         Ok(self.publish(&mut guard, next))
+    }
+
+    /// Takes the stored mix again after the stems of `recording` changed (which resets it),
+    /// if it is the selected one.
+    pub fn reload_mix(&self, recording: RecordingId) -> Result<(), IntentError> {
+        let mut guard = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        if guard.recording != Some(recording) {
+            return Ok(());
+        }
+        let stored = self
+            .recordings
+            .settings(recording)?
+            .ok_or(IntentError::UnknownRecording)?;
+        let mut next = *guard;
+        next.settings.mix = stored.mix;
+        self.publish(&mut guard, next);
+        Ok(())
     }
 
     /// Leaves nothing selected if `recording` is the selected one (it is going away); returns
@@ -174,6 +191,18 @@ impl PlaybackService {
                 play_region(state, range, now)?
             }
             Intent::SetPlayMode(mode) => set_play_mode(state, mode, now)?,
+            Intent::SetStemsEnabled(enabled) => {
+                set_stem_mix(state, |mix| StemMix { enabled, ..mix })?
+            }
+            Intent::SetStemVolume { stem, volume } => set_stem_mix(state, |mix| {
+                mix.with_channel(stem, |channel| channel.volume = volume)
+            })?,
+            Intent::SetStemMuted { stem, muted } => set_stem_mix(state, |mix| {
+                mix.with_channel(stem, |channel| channel.muted = muted)
+            })?,
+            Intent::SetStemSolo { stem, solo } => set_stem_mix(state, |mix| {
+                mix.with_channel(stem, |channel| channel.solo = solo)
+            })?,
         })
     }
 }
@@ -183,7 +212,13 @@ impl PlaybackService {
 fn changes_settings(intent: Intent) -> bool {
     matches!(
         intent,
-        Intent::SetSpeed(_) | Intent::SetTuning(_) | Intent::SetKey(_)
+        Intent::SetSpeed(_)
+            | Intent::SetTuning(_)
+            | Intent::SetKey(_)
+            | Intent::SetStemsEnabled(_)
+            | Intent::SetStemVolume { .. }
+            | Intent::SetStemMuted { .. }
+            | Intent::SetStemSolo { .. }
     )
 }
 

@@ -593,6 +593,20 @@ pub struct PlaybackView {
     pub play_mode: PlayModeChoice,
     pub scrubbing: bool,
     pub volume_percent: u8,
+    /// Whether the stems play instead of the original recording.
+    pub stems_enabled: bool,
+    /// The mix, one entry per possible stem.
+    pub stem_channels: Vec<StemChannelView>,
+}
+
+/// How one stem sounds in the mix.
+#[derive(Clone, Copy)]
+pub struct StemChannelView {
+    pub volume_percent: u8,
+    pub muted: bool,
+    pub solo: bool,
+    /// Whether the stem is heard, with mute and solo of all of them counted.
+    pub audible: bool,
 }
 
 /// A span of the recording in milliseconds.
@@ -674,6 +688,21 @@ pub enum PlayerCommand {
     },
     SetVolume {
         volume_percent: u8,
+    },
+    SetStemsEnabled {
+        enabled: bool,
+    },
+    SetStemVolume {
+        stem: u8,
+        volume_percent: u8,
+    },
+    SetStemMuted {
+        stem: u8,
+        muted: bool,
+    },
+    SetStemSolo {
+        stem: u8,
+        solo: bool,
     },
 }
 
@@ -793,6 +822,20 @@ impl PlaybackView {
             play_mode: state.play_mode.into(),
             scrubbing: state.scrubbing,
             volume_percent: state.volume.percent(),
+            stems_enabled: state.settings.mix.enabled,
+            stem_channels: state
+                .settings
+                .mix
+                .channels
+                .iter()
+                .enumerate()
+                .map(|(index, channel)| StemChannelView {
+                    volume_percent: channel.volume.percent(),
+                    muted: channel.muted,
+                    solo: channel.solo,
+                    audible: state.settings.mix.audible(index),
+                })
+                .collect(),
         }
     }
 }
@@ -864,6 +907,22 @@ impl PlayerCommand {
             )?),
             Self::SetPlayMode { play_mode } => Intent::SetPlayMode(play_mode.into()),
             Self::SetVolume { volume_percent } => Intent::SetVolume(Volume::new(volume_percent)?),
+            Self::SetStemsEnabled { enabled } => Intent::SetStemsEnabled(enabled),
+            Self::SetStemVolume {
+                stem,
+                volume_percent,
+            } => Intent::SetStemVolume {
+                stem: usize::from(stem),
+                volume: Volume::new(volume_percent)?,
+            },
+            Self::SetStemMuted { stem, muted } => Intent::SetStemMuted {
+                stem: usize::from(stem),
+                muted,
+            },
+            Self::SetStemSolo { stem, solo } => Intent::SetStemSolo {
+                stem: usize::from(stem),
+                solo,
+            },
         })
     }
 }

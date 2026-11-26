@@ -4,8 +4,15 @@
 use super::engine::{Engine, Pcm};
 use std::sync::Arc;
 use veltrunox_core::{
-    Millis, PlayMode, PlaybackState, RecordingId, TuningHz, Volume, pitch_shift_semitones,
+    Millis, PlayMode, PlaybackState, RecordingId, StemMix, TuningHz, Volume, pitch_shift_semitones,
 };
+
+/// The audio of a recording, ready to play.
+pub struct Audio {
+    pub original: Arc<Pcm>,
+    /// Empty unless they were asked for and the recording has them.
+    pub stems: Vec<Arc<Pcm>>,
+}
 
 /// A position that differs from the expected one by more than this is a jump
 /// and seeks the engine; smaller differences are timing noise.
@@ -23,6 +30,8 @@ pub enum Command {
     /// The position where playback ends; `None` plays on.
     Stop(Option<u64>),
     Seek(u64),
+    /// Which of original and stems sound, and how loud.
+    Mix(Box<StemMix>),
     /// Plays a short piece at the position, for the dragged position handle.
     Scrub(u64),
     /// The output volume of the room; the output decides how it is applied.
@@ -41,6 +50,9 @@ pub trait CommandSink {
 pub struct PlayerCore {
     loaded: Option<RecordingId>,
     engine_ready: bool,
+    /// Whether the loaded audio was asked for with its stems. They are only decoded once a
+    /// mix uses them, since each costs as much memory as the recording.
+    with_stems: bool,
     last: Option<PlaybackState>,
     /// The pitch shift the engine was last told, so a changed tuning reference
     /// (a finished analysis) reaches it although the state did not change.
@@ -63,6 +75,13 @@ impl PlayerCore {
         self.last
     }
 
+    /// Forgets the loaded audio of the recording, so that the next state loads it again.
+    pub fn stems_changed(&mut self, recording: RecordingId) {
+        if self.loaded == Some(recording) {
+            self.loaded = None;
+        }
+    }
+
     /// Brings the engine in line with `state`. `load` supplies the audio of a
     /// recording (`None` if it has no playable file); `tuning_of` its own tuning.
     pub fn apply(
@@ -70,7 +89,7 @@ impl PlayerCore {
         state: &PlaybackState,
         now: Millis,
         sink: &mut dyn CommandSink,
-        load: &mut dyn FnMut(RecordingId) -> Option<Arc<Pcm>>,
+        load: &mut dyn FnMut(RecordingId, bool) -> Option<Audio>,
         tuning_of: &dyn Fn(RecordingId) -> TuningHz,
     ) {
         // The volume is the room's, so it follows even without a loaded recording.
@@ -78,8 +97,10 @@ impl PlayerCore {
             self.volume = state.volume;
             sink.send(Command::Volume(state.volume));
         }
-        let switched = state.recording != self.loaded;
+        let wants_stems = state.settings.mix.enabled;
+        let switched = state.recording != self.loaded || (wants_stems && !self.with_stems);
         if switched {
+            self.with_stems = wants_stems;
             self.switch_recording(state.recording, sink, load);
         }
         if self.engine_ready {
@@ -92,17 +113,16 @@ impl PlayerCore {
         &mut self,
         recording: Option<RecordingId>,
         sink: &mut dyn CommandSink,
-        load: &mut dyn FnMut(RecordingId) -> Option<Arc<Pcm>>,
+        load: &mut dyn FnMut(RecordingId, bool) -> Option<Audio>,
     ) {
         self.loaded = recording;
         self.engine_ready = false;
         self.pitch = None;
-        match recording.and_then(load) {
-            Some(pcm) => {
-                sink.send(Command::Replace(Box::new(Engine::new(
-                    pcm,
-                    sink.output_rate(),
-                ))));
+        let with_stems = self.with_stems;
+        match recording.and_then(|id| load(id, with_stems)) {
+            Some(audio) => {
+                let engine = Engine::new(audio.original, sink.output_rate());
+                sink.send(Command::Replace(Box::new(engine.with_stems(audio.stems))));
                 self.engine_ready = true;
             }
             None => sink.send(Command::Unload),
@@ -118,6 +138,9 @@ impl PlayerCore {
         tuning_of: &dyn Fn(RecordingId) -> TuningHz,
     ) {
         let previous = self.last.filter(|_| !switched);
+        if previous.is_none_or(|last| last.settings.mix != state.settings.mix) {
+            sink.send(Command::Mix(Box::new(state.settings.mix)));
+        }
         let own_tuning = state.recording.map_or(TuningHz::CONCERT_PITCH, tuning_of);
         let pitch = pitch_shift_semitones(&state.settings, own_tuning);
         if self.pitch != Some(pitch) {
@@ -201,6 +224,7 @@ mod tests {
         Loop(Option<(u64, u64)>),
         Stop(Option<u64>),
         Seek(u64),
+        Mix(bool),
         Scrub(u64),
         Volume(u8),
     }
@@ -222,6 +246,7 @@ mod tests {
                 Command::Loop(range) => Seen::Loop(range),
                 Command::Stop(position) => Seen::Stop(position),
                 Command::Seek(position) => Seen::Seek(position),
+                Command::Mix(mix) => Seen::Mix(mix.enabled),
                 Command::Scrub(position) => Seen::Scrub(position),
                 Command::Volume(volume) => Seen::Volume(volume.percent()),
                 Command::Gain(_) => unreachable!("only the output sends a gain"),
@@ -231,8 +256,11 @@ mod tests {
 
     const ID: RecordingId = RecordingId::new(1);
 
-    fn audio() -> Option<Arc<Pcm>> {
-        Some(Arc::new(Pcm::new(vec![0.0; 44_100 * 2], 44_100)))
+    fn audio() -> Option<Audio> {
+        Some(Audio {
+            original: Arc::new(Pcm::new(vec![0.0; 44_100 * 2], 44_100)),
+            stems: Vec::new(),
+        })
     }
 
     fn selected() -> PlaybackState {
@@ -246,10 +274,38 @@ mod tests {
             state,
             Millis::new(now),
             &mut recorder,
-            &mut |_| audio(),
+            &mut |_, _| audio(),
             &|_| TuningHz::CONCERT_PITCH,
         );
         recorder.0
+    }
+
+    #[test]
+    fn stems_are_loaded_only_once_the_mix_uses_them() {
+        let mut core = PlayerCore::default();
+        let mut asked = Vec::new();
+        let mut apply = |core: &mut PlayerCore, state: &PlaybackState| {
+            core.apply(
+                state,
+                Millis::ZERO,
+                &mut Recorder::default(),
+                &mut |_, with_stems| {
+                    asked.push(with_stems);
+                    audio()
+                },
+                &|_| TuningHz::CONCERT_PITCH,
+            );
+        };
+        let off = selected();
+        let mut on = off;
+        on.settings.mix.enabled = true;
+        apply(&mut core, &off);
+        apply(&mut core, &on);
+        apply(&mut core, &off);
+        apply(&mut core, &on);
+        core.stems_changed(ID);
+        apply(&mut core, &on);
+        assert_eq!(asked, [false, true, true]);
     }
 
     #[test]
@@ -260,6 +316,7 @@ mod tests {
             seen,
             [
                 Seen::Replace,
+                Seen::Mix(false),
                 Seen::Pitch(0.0),
                 Seen::Speed(1.0),
                 Seen::Loop(None),
@@ -398,7 +455,7 @@ mod tests {
         let mut core = PlayerCore::default();
         let state = selected();
         let mut recorder = Recorder::default();
-        let load = &mut |_: RecordingId| audio();
+        let load = &mut |_: RecordingId, _: bool| audio();
         // Settings ask for 440 Hz; the recording is analysed at 466.16 Hz (a semitone up).
         let tuned = |_: RecordingId| TuningHz::new(466.1638).unwrap();
         core.apply(&state, Millis::ZERO, &mut recorder, load, &tuned);
@@ -421,9 +478,13 @@ mod tests {
         let mut core = PlayerCore::default();
         let mut recorder = Recorder::default();
         let state = play(&selected(), Millis::ZERO).unwrap();
-        core.apply(&state, Millis::ZERO, &mut recorder, &mut |_| None, &|_| {
-            TuningHz::CONCERT_PITCH
-        });
+        core.apply(
+            &state,
+            Millis::ZERO,
+            &mut recorder,
+            &mut |_, _| None,
+            &|_| TuningHz::CONCERT_PITCH,
+        );
         assert_eq!(recorder.0, [Seen::Unload]);
     }
 }

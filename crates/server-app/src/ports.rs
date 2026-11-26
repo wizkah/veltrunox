@@ -261,6 +261,8 @@ pub trait PlaybackBroadcast: Send + Sync {
     fn analysis_changed(&self, recording: RecordingId);
     /// Recordings were added, renamed or removed; clients reload the library.
     fn library_changed(&self);
+    /// The stem set of this recording was replaced or removed.
+    fn stems_changed(&self, _recording: RecordingId) {}
 }
 
 /// Port: wall-clock time in seconds since 1970, for session lifetimes and

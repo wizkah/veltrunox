@@ -137,6 +137,19 @@ pub struct PlaybackStateDto {
     pub scrubbing: bool,
     /// Output volume of the server in percent.
     pub volume_percent: u8,
+    /// Whether the stems play instead of the original recording.
+    #[serde(default)]
+    pub stems_enabled: bool,
+    /// The mix, one entry per possible stem; stem `n` of the recording uses entry `n`.
+    #[serde(default)]
+    pub stem_channels: Vec<StemChannelDto>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StemChannelDto {
+    pub volume_percent: u8,
+    pub muted: bool,
+    pub solo: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -226,6 +239,21 @@ pub enum ClientMessageDto {
     },
     SetVolume {
         volume_percent: u8,
+    },
+    SetStemsEnabled {
+        enabled: bool,
+    },
+    SetStemVolume {
+        stem: u8,
+        volume_percent: u8,
+    },
+    SetStemMuted {
+        stem: u8,
+        muted: bool,
+    },
+    SetStemSolo {
+        stem: u8,
+        solo: bool,
     },
 }
 
@@ -567,6 +595,8 @@ mod tests {
     #[test]
     fn state_event_has_a_stable_wire_format() {
         let event = ServerEventDto::State(PlaybackStateDto {
+            stems_enabled: false,
+            stem_channels: Vec::new(),
             revision: 3,
             recording_id: Some(2),
             position_ms: 1500,
@@ -591,7 +621,7 @@ mod tests {
                 r#""position_server_time_ms":90000,"running":true,"speed":0.5,"#,
                 r#""tuning_hz":440.0,"key_shift_semitones":-2,"#,
                 r#""play_range":{"start_ms":1000,"end_ms":2000},"play_mode":"to_region_end","#,
-                r#""scrubbing":false,"volume_percent":70}"#
+                r#""scrubbing":false,"volume_percent":70,"stems_enabled":false,"stem_channels":[]}"#
             )
         );
         assert_eq!(
