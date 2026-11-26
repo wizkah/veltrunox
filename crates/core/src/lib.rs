@@ -7,6 +7,7 @@ mod bookmark_import;
 mod playback;
 mod reason;
 mod recording;
+mod stems;
 mod tempo_pitch;
 mod units;
 mod waveform;
@@ -34,6 +35,7 @@ pub use playback::{
 };
 pub use reason::{Reason, Refusal};
 pub use recording::{InvalidRecording, Recording, RecordingId, RecordingTitle};
+pub use stems::{MAX_STEMS, Section, StemName, section_regions};
 pub use tempo_pitch::{Bpm, TargetSpeed, pitch_shift_semitones, speed_for_target_tempo};
 pub use units::{InvalidValue, KeyShift, Millis, Speed, TimeRange, TuningHz, Volume};
 pub use waveform::{FINEST_BLOCK_FRAMES, Peak, Waveform, WaveformBuilder, WaveformLevel};

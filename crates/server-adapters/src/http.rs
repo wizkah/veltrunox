@@ -6,7 +6,7 @@ use crate::{
     events::events,
     exchange_http,
     state::AppState,
-    tokens_http,
+    stems_http, tokens_http,
     upload::upload,
 };
 use axum::{
@@ -56,6 +56,7 @@ pub fn router(app: AppState) -> Router {
         .merge(accounts_http::routes())
         .merge(exchange_http::routes())
         .merge(tokens_http::routes())
+        .merge(stems_http::routes())
         .with_state(app)
 }
 
@@ -195,6 +196,9 @@ async fn delete_recording(
             && uploads.owns(&path)
         {
             let _ = std::fs::remove_file(path);
+        }
+        if let Some(stems) = app.stem_store.as_ref() {
+            let _ = stems.sweep(app.stem_repository.as_ref());
         }
         Ok(())
     })

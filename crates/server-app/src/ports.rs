@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use veltrunox_core::{
     ApiTokenId, BookmarkId, BookmarkName, Bookmarks, InvalidValue, Label, Millis, NewBookmarks,
     PasswordPolicy, PlaybackSettings, PlaybackState, Recording, RecordingAnalysis, RecordingId,
-    RecordingTitle, Region, Role, TimeRange, TokenName, TokenScope, UserId, UserName, Version,
-    Waveform,
+    RecordingTitle, Region, Role, StemName, TimeRange, TokenName, TokenScope, UserId, UserName,
+    Version, Waveform,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -44,8 +44,37 @@ pub trait MediaCatalog: Send + Sync {
     ) -> Result<Option<Recording>, StorageError>;
     /// The recording whose audio has this hash.
     fn recording_by_hash(&self, content_hash: &str) -> Result<Option<Recording>, StorageError>;
+    /// The hash of the recording's audio; `None` without an audio file.
+    fn content_hash(&self, id: RecordingId) -> Result<Option<String>, StorageError>;
     /// Every audio file a recording refers to.
     fn media_paths(&self) -> Result<Vec<PathBuf>, StorageError>;
+}
+
+/// One stored stem of a recording.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Stem {
+    pub name: StemName,
+    pub path: PathBuf,
+    pub length: Millis,
+    pub waveform: Waveform,
+}
+
+/// The stems of a recording, in their order, with the analysis they came with.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StemSet {
+    pub stems: Vec<Stem>,
+    /// The analysis part of the package as it came, kept to export it again.
+    pub analysis: Option<String>,
+}
+
+/// Port: the stem sets of the recordings. Deleting a recording removes its set.
+pub trait StemRepository: Send + Sync {
+    /// Empty if the recording has no stems or does not exist.
+    fn stem_set(&self, id: RecordingId) -> Result<StemSet, StorageError>;
+    /// Replaces the set as a whole; an empty set removes it.
+    fn replace_stem_set(&self, id: RecordingId, set: &StemSet) -> Result<(), StorageError>;
+    /// Every stem file a recording refers to.
+    fn stem_paths(&self) -> Result<Vec<PathBuf>, StorageError>;
 }
 
 /// Port: stored analysis results. A new result replaces the old one.

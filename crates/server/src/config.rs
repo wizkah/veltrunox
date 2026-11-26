@@ -88,6 +88,11 @@ impl std::error::Error for ConfigError {}
 
 impl Config {
     /// Where uploaded files are kept.
+    /// Where the stem files of the recordings are kept.
+    pub fn stem_directory(&self) -> PathBuf {
+        self.data_dir.join("stems")
+    }
+
     pub fn upload_directory(&self) -> PathBuf {
         self.upload_dir
             .clone()

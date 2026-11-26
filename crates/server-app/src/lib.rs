@@ -6,6 +6,7 @@ mod api_tokens;
 mod bookmarks;
 mod playback;
 mod ports;
+mod stems;
 #[cfg(test)]
 mod testing;
 
@@ -18,9 +19,10 @@ pub use ports::{
     AnalysisFailure, AnalysisRepository, ApiTokenRecord, ApiTokenRepository, BookmarkError,
     BookmarkRepository, Clock, HashFailure, MediaCatalog, Owned, PasswordHasher, PlaybackBroadcast,
     RecordingAnalyzer, RecordingLengths, RecordingRepository, RecordingScan, SessionRepository,
-    SessionTokens, StorageError, UserRecord, UserRepository, UserStoreError, WallClock,
-    WaveformRepository,
+    SessionTokens, Stem, StemRepository, StemSet, StorageError, UserRecord, UserRepository,
+    UserStoreError, WallClock, WaveformRepository,
 };
+pub use stems::{ImportedStems, StemError, StemService, Structure};
 
 use veltrunox_core::Recording;
 

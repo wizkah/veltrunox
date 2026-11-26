@@ -1,13 +1,14 @@
 use crate::analysis_worker::{AnalysisQueue, FileAnalyzer};
 use crate::hooks::{AudioHooks, LengthCache};
 use crate::hub::Hub;
+use crate::stem_package::StemStore;
 use crate::upload::UploadStore;
 use std::sync::Arc;
 use veltrunox_core::{PlaybackState, Volume};
 use veltrunox_server_app::{
     AccountService, AnalysisRepository, AnalysisService, ApiTokenService, BookmarkRepository,
     BookmarkService, Clock, MediaCatalog, PlaybackBroadcast, PlaybackService, RecordingRepository,
-    WaveformRepository,
+    StemRepository, StemService, WaveformRepository,
 };
 
 /// Everything the endpoints share.
@@ -20,6 +21,10 @@ pub struct AppState {
     pub playback: Arc<PlaybackService>,
     pub hub: Arc<Hub>,
     pub clock: Arc<dyn Clock>,
+    pub stems: Arc<StemService>,
+    pub stem_repository: Arc<dyn StemRepository>,
+    /// `None` takes and gives no stem packages.
+    pub stem_store: Option<Arc<StemStore>>,
     pub analysis: Arc<AnalysisService>,
     pub analysis_queue: Arc<AnalysisQueue>,
     /// `None` leaves the server open: everybody may do everything.
@@ -44,6 +49,7 @@ impl AppState {
             + AnalysisRepository
             + WaveformRepository
             + MediaCatalog
+            + StemRepository
             + 'static,
     {
         Self::build(
@@ -69,6 +75,7 @@ impl AppState {
             + AnalysisRepository
             + WaveformRepository
             + MediaCatalog
+            + StemRepository
             + 'static,
     {
         Self::build(store, clock, volume, Some(start_audio))
@@ -86,6 +93,7 @@ impl AppState {
             + AnalysisRepository
             + WaveformRepository
             + MediaCatalog
+            + StemRepository
             + 'static,
     {
         let lengths = Arc::new(LengthCache::new(store.clone()));
@@ -112,7 +120,18 @@ impl AppState {
             clock.clone(),
             broadcast,
         ));
-        let bookmarks = Arc::new(BookmarkService::new(store.clone(), hub.clone(), lengths));
+        let bookmarks = Arc::new(BookmarkService::new(
+            store.clone(),
+            hub.clone(),
+            lengths.clone(),
+        ));
+        let stems = Arc::new(StemService::new(
+            store.clone(),
+            store.clone(),
+            lengths.clone(),
+            bookmarks.clone(),
+            broadcast_for_analysis.clone(),
+        ));
         let analysis = Arc::new(AnalysisService::new(
             store.clone(),
             store.clone(),
@@ -124,6 +143,9 @@ impl AppState {
         Self {
             recordings: store.clone(),
             media: store.clone(),
+            stem_repository: store.clone(),
+            stem_store: None,
+            stems,
             waveforms: store,
             bookmarks,
             playback,
@@ -142,6 +164,12 @@ impl AppState {
     /// Accepts uploads into the store.
     pub fn with_uploads(mut self, uploads: UploadStore) -> Self {
         self.uploads = Some(Arc::new(uploads));
+        self
+    }
+
+    /// Takes and gives stem packages, keeping the stem files in the store.
+    pub fn with_stems(mut self, stems: StemStore) -> Self {
+        self.stem_store = Some(Arc::new(stems));
         self
     }
 

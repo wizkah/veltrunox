@@ -4,8 +4,8 @@ use crate::config::Config;
 use std::{error::Error, sync::Arc};
 use veltrunox_core::RecordingTitle;
 use veltrunox_server_adapters::{
-    AppState, Argon2Hasher, AudioPlayback, RandomTokens, SqliteStore, SystemClock, SystemWallClock,
-    UploadStore, import_directory, system_volume, watch_end,
+    AppState, Argon2Hasher, AudioPlayback, RandomTokens, SqliteStore, StemStore, SystemClock,
+    SystemWallClock, UploadStore, import_directory, system_volume, watch_end,
 };
 use veltrunox_server_app::{AccountService, ApiTokenService, RecordingRepository};
 
@@ -42,6 +42,7 @@ pub fn start_core(config: &Config, seed: Seed) -> Result<AppState, Box<dyn Error
     let clock = Arc::new(SystemClock::new());
     let catalog = store.clone();
     let store_for_uploads = store.clone();
+    let store_for_stems = store.clone();
     let analyses = store.clone();
     let accounts = Arc::new(AccountService::new(
         store.clone(),
@@ -73,6 +74,11 @@ pub fn start_core(config: &Config, seed: Seed) -> Result<AppState, Box<dyn Error
         &config.upload_directory(),
         config.max_upload_bytes,
         store_for_uploads.as_ref(),
+    )?)
+    .with_stems(StemStore::open(
+        &config.stem_directory(),
+        config.max_upload_bytes,
+        store_for_stems.as_ref(),
     )?);
     watch_end(&app);
     queue_pending_analyses(&app);

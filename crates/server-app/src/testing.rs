@@ -177,6 +177,10 @@ impl MediaCatalog for FakeMedia {
         Ok(None)
     }
 
+    fn content_hash(&self, _id: RecordingId) -> Result<Option<String>, StorageError> {
+        Ok(None)
+    }
+
     fn media_paths(&self) -> Result<Vec<PathBuf>, StorageError> {
         Ok(self.0.iter().cloned().collect())
     }

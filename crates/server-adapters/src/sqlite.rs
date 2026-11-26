@@ -128,6 +128,31 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE regions_next RENAME TO regions;
     CREATE INDEX regions_by_recording ON regions(recording_id);
 ",
+    "
+    CREATE TABLE stem_sets (
+        recording_id INTEGER PRIMARY KEY REFERENCES recordings(id) ON DELETE CASCADE,
+        analysis TEXT
+    );
+    CREATE TABLE stems (
+        recording_id INTEGER NOT NULL REFERENCES stem_sets(recording_id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        path TEXT NOT NULL,
+        length_ms INTEGER NOT NULL,
+        sample_rate INTEGER NOT NULL,
+        PRIMARY KEY (recording_id, position)
+    );
+    CREATE TABLE stem_waveform_levels (
+        recording_id INTEGER NOT NULL,
+        position INTEGER NOT NULL,
+        level INTEGER NOT NULL,
+        frames_per_block INTEGER NOT NULL,
+        peaks BLOB NOT NULL,
+        PRIMARY KEY (recording_id, position, level),
+        FOREIGN KEY (recording_id, position) REFERENCES stems(recording_id, position)
+            ON DELETE CASCADE
+    );
+",
 ];
 
 /// Blocking store; callers on an async runtime run it off the runtime threads.
@@ -254,6 +279,19 @@ impl MediaCatalog for SqliteStore {
                 })
             })
             .transpose()
+    }
+
+    fn content_hash(&self, id: RecordingId) -> Result<Option<String>, StorageError> {
+        let hash = self
+            .connection()
+            .query_row(
+                "SELECT content_hash FROM recordings WHERE id = ?1",
+                params![sql_int(id.value())?],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .optional()
+            .map_err(storage)?;
+        Ok(hash.flatten())
     }
 
     fn media_paths(&self) -> Result<Vec<PathBuf>, StorageError> {
@@ -599,14 +637,14 @@ impl WaveformRepository for SqliteStore {
 }
 
 /// Minimum and maximum of each block as consecutive signed bytes.
-fn encode_peaks(peaks: &[Peak]) -> Vec<u8> {
+pub(crate) fn encode_peaks(peaks: &[Peak]) -> Vec<u8> {
     peaks
         .iter()
         .flat_map(|peak| [peak.min.to_le_bytes()[0], peak.max.to_le_bytes()[0]])
         .collect()
 }
 
-fn decode_peaks(bytes: &[u8]) -> Result<Vec<Peak>, StorageError> {
+pub(crate) fn decode_peaks(bytes: &[u8]) -> Result<Vec<Peak>, StorageError> {
     let (pairs, rest) = bytes.as_chunks::<2>();
     if !rest.is_empty() {
         return Err(corrupt("waveform", "odd number of bytes"));
@@ -1164,7 +1202,7 @@ mod tests {
     fn bookmarks_survive_the_change_to_ids_that_are_not_reused() {
         let mut connection = Connection::open_in_memory().unwrap();
         // The schema as it was before the migration, with a label and a region in it.
-        let before = MIGRATIONS.len() - 1;
+        let before = 6;
         for (index, script) in MIGRATIONS.iter().take(before).enumerate() {
             connection.execute_batch(script).unwrap();
             connection
