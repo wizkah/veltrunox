@@ -56,11 +56,11 @@ extension SharingProblemPatterns on SharingProblem {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SharingProblem_NoAccount value)?  noAccount,TResult Function( SharingProblem_PortInUse value)?  portInUse,TResult Function( SharingProblem_Failed value)?  failed,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SharingProblem_NoAccess value)?  noAccess,TResult Function( SharingProblem_PortInUse value)?  portInUse,TResult Function( SharingProblem_Failed value)?  failed,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
-case SharingProblem_NoAccount() when noAccount != null:
-return noAccount(_that);case SharingProblem_PortInUse() when portInUse != null:
+case SharingProblem_NoAccess() when noAccess != null:
+return noAccess(_that);case SharingProblem_PortInUse() when portInUse != null:
 return portInUse(_that);case SharingProblem_Failed() when failed != null:
 return failed(_that);case _:
   return orElse();
@@ -80,11 +80,11 @@ return failed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SharingProblem_NoAccount value)  noAccount,required TResult Function( SharingProblem_PortInUse value)  portInUse,required TResult Function( SharingProblem_Failed value)  failed,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SharingProblem_NoAccess value)  noAccess,required TResult Function( SharingProblem_PortInUse value)  portInUse,required TResult Function( SharingProblem_Failed value)  failed,}){
 final _that = this;
 switch (_that) {
-case SharingProblem_NoAccount():
-return noAccount(_that);case SharingProblem_PortInUse():
+case SharingProblem_NoAccess():
+return noAccess(_that);case SharingProblem_PortInUse():
 return portInUse(_that);case SharingProblem_Failed():
 return failed(_that);}
 }
@@ -100,11 +100,11 @@ return failed(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SharingProblem_NoAccount value)?  noAccount,TResult? Function( SharingProblem_PortInUse value)?  portInUse,TResult? Function( SharingProblem_Failed value)?  failed,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SharingProblem_NoAccess value)?  noAccess,TResult? Function( SharingProblem_PortInUse value)?  portInUse,TResult? Function( SharingProblem_Failed value)?  failed,}){
 final _that = this;
 switch (_that) {
-case SharingProblem_NoAccount() when noAccount != null:
-return noAccount(_that);case SharingProblem_PortInUse() when portInUse != null:
+case SharingProblem_NoAccess() when noAccess != null:
+return noAccess(_that);case SharingProblem_PortInUse() when portInUse != null:
 return portInUse(_that);case SharingProblem_Failed() when failed != null:
 return failed(_that);case _:
   return null;
@@ -123,10 +123,10 @@ return failed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  noAccount,TResult Function()?  portInUse,TResult Function( String detail)?  failed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  noAccess,TResult Function()?  portInUse,TResult Function( String detail)?  failed,required TResult orElse(),}) {final _that = this;
 switch (_that) {
-case SharingProblem_NoAccount() when noAccount != null:
-return noAccount();case SharingProblem_PortInUse() when portInUse != null:
+case SharingProblem_NoAccess() when noAccess != null:
+return noAccess();case SharingProblem_PortInUse() when portInUse != null:
 return portInUse();case SharingProblem_Failed() when failed != null:
 return failed(_that.detail);case _:
   return orElse();
@@ -146,10 +146,10 @@ return failed(_that.detail);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  noAccount,required TResult Function()  portInUse,required TResult Function( String detail)  failed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  noAccess,required TResult Function()  portInUse,required TResult Function( String detail)  failed,}) {final _that = this;
 switch (_that) {
-case SharingProblem_NoAccount():
-return noAccount();case SharingProblem_PortInUse():
+case SharingProblem_NoAccess():
+return noAccess();case SharingProblem_PortInUse():
 return portInUse();case SharingProblem_Failed():
 return failed(_that.detail);}
 }
@@ -165,10 +165,10 @@ return failed(_that.detail);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  noAccount,TResult? Function()?  portInUse,TResult? Function( String detail)?  failed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  noAccess,TResult? Function()?  portInUse,TResult? Function( String detail)?  failed,}) {final _that = this;
 switch (_that) {
-case SharingProblem_NoAccount() when noAccount != null:
-return noAccount();case SharingProblem_PortInUse() when portInUse != null:
+case SharingProblem_NoAccess() when noAccess != null:
+return noAccess();case SharingProblem_PortInUse() when portInUse != null:
 return portInUse();case SharingProblem_Failed() when failed != null:
 return failed(_that.detail);case _:
   return null;
@@ -181,8 +181,8 @@ return failed(_that.detail);case _:
 /// @nodoc
 
 
-class SharingProblem_NoAccount extends SharingProblem {
-  const SharingProblem_NoAccount(): super._();
+class SharingProblem_NoAccess extends SharingProblem {
+  const SharingProblem_NoAccess(): super._();
   
 
 
@@ -192,7 +192,7 @@ class SharingProblem_NoAccount extends SharingProblem {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is SharingProblem_NoAccount);
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is SharingProblem_NoAccess);
 }
 
 
@@ -201,7 +201,7 @@ int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-    return 'SharingProblem.noAccount()';
+    return 'SharingProblem.noAccess()';
 }
 
 

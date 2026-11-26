@@ -115,7 +115,7 @@ async fn status(State(app): State<AppState>) -> Result<Json<StatusDto>, ApiError
     let status = blocking(move || Ok(accounts.status()?)).await?;
     Ok(Json(StatusDto {
         protocol_version: PROTOCOL_VERSION,
-        setup_needed: status.setup_needed,
+        setup_needed: status.setup_needed && !app.setup_closed,
         guest_enabled: status.guest_enabled,
         password_policy: password_policy_to_dto(status.password_policy),
     }))
@@ -125,6 +125,9 @@ async fn setup(
     State(app): State<AppState>,
     Json(body): Json<CredentialsDto>,
 ) -> Result<(StatusCode, Json<SessionDto>), ApiError> {
+    if app.setup_closed {
+        return Err(ApiError::NotFound);
+    }
     let accounts = accounts_of(&app)?;
     let session = blocking(move || Ok(accounts.setup(&body.user_name, &body.password)?)).await?;
     Ok((StatusCode::CREATED, Json(session_to_dto(&session))))

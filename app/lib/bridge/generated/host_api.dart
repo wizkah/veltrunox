@@ -102,7 +102,7 @@ class SharingInfo {
 sealed class SharingProblem with _$SharingProblem {
   const SharingProblem._();
 
-  const factory SharingProblem.noAccount() = SharingProblem_NoAccount;
+  const factory SharingProblem.noAccess() = SharingProblem_NoAccess;
   const factory SharingProblem.portInUse() = SharingProblem_PortInUse;
   const factory SharingProblem.failed({required String detail}) =
       SharingProblem_Failed;

@@ -16,9 +16,9 @@ sealed class SharingProblem {
   const SharingProblem();
 }
 
-/// Without a user account the first browser could take over the server.
-class NoAccountYet extends SharingProblem {
-  const NoAccountYet();
+/// Neither a user nor guest access: no browser could get in.
+class NoAccessYet extends SharingProblem {
+  const NoAccessYet();
 }
 
 class PortInUse extends SharingProblem {

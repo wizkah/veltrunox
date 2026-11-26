@@ -2765,7 +2765,7 @@ impl SseDecode for crate::host_api::SharingProblem {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                return crate::host_api::SharingProblem::NoAccount;
+                return crate::host_api::SharingProblem::NoAccess;
             }
             1 => {
                 return crate::host_api::SharingProblem::PortInUse;
@@ -3636,7 +3636,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::host_api::SharingInfo>
 impl flutter_rust_bridge::IntoDart for crate::host_api::SharingProblem {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::host_api::SharingProblem::NoAccount => [0.into_dart()].into_dart(),
+            crate::host_api::SharingProblem::NoAccess => [0.into_dart()].into_dart(),
             crate::host_api::SharingProblem::PortInUse => [1.into_dart()].into_dart(),
             crate::host_api::SharingProblem::Failed { detail } => {
                 [2.into_dart(), detail.into_into_dart().into_dart()].into_dart()
@@ -4517,7 +4517,7 @@ impl SseEncode for crate::host_api::SharingProblem {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::host_api::SharingProblem::NoAccount => {
+            crate::host_api::SharingProblem::NoAccess => {
                 <i32>::sse_encode(0, serializer);
             }
             crate::host_api::SharingProblem::PortInUse => {

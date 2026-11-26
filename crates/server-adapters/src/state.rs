@@ -31,6 +31,8 @@ pub struct AppState {
     /// A token that stands for the owner of the machine, an admin without an account.
     /// Only for an endpoint that nothing but this machine can reach.
     pub owner_token: Option<Arc<str>>,
+    /// Refuses to create the first admin, for an endpoint whose users are made elsewhere.
+    pub setup_closed: bool,
 }
 
 impl AppState {
@@ -133,6 +135,7 @@ impl AppState {
             api_tokens: None,
             uploads: None,
             owner_token: None,
+            setup_closed: false,
         }
     }
 
@@ -151,6 +154,12 @@ impl AppState {
     /// Accepts the token as the owner of the machine.
     pub fn with_owner_token(mut self, token: &str) -> Self {
         self.owner_token = Some(token.into());
+        self
+    }
+
+    /// Never offers or accepts the set-up of the first admin.
+    pub fn without_setup(mut self) -> Self {
+        self.setup_closed = true;
         self
     }
 

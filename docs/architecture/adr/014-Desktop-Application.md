@@ -13,7 +13,7 @@ Besides the headless server with its browser client, a native application is wan
 - The server wiring is a library (`veltrunox-server`), used by the headless program and, through `veltrunox-client-bridge`, by the application. The bridge depends on it on native targets only.
 - One core runs for as long as the application. The interface always reaches it through HTTP and the real-time channel on a loopback port chosen at start. There is no second, in-process path.
 - The loopback endpoint accepts an owner token, made anew at each start and handed to the interface through the bridge. It has all rights and no account. No other endpoint accepts it.
-- The network endpoint is separate, has a runtime of its own (switching it off ends every connection), requires sign-in as the headless server does, and can use the local certificate authority of ADR-008. It can only be switched on once a user account exists. Port, HTTPS and whether it is on are stored in the data directory.
+- The network endpoint is separate, has a runtime of its own (switching it off ends every connection), requires sign-in as the headless server does, and can use the local certificate authority of ADR-008. It can only be switched on once a user account exists or guest access is on. It never offers or accepts the set-up of the first admin: users and guest access are managed in the application. Port, HTTPS and whether it is on are stored in the data directory.
 - Data is kept in `~/Library/Application Support/Veltrunox`, apart from any headless installation. The built web app is copied into the bundle.
 - The application is not sandboxed, and built for Apple silicon only.
 

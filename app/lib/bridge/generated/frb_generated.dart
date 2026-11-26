@@ -2587,7 +2587,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return SharingProblem_NoAccount();
+        return SharingProblem_NoAccess();
       case 1:
         return SharingProblem_PortInUse();
       case 2:
@@ -3537,7 +3537,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        return SharingProblem_NoAccount();
+        return SharingProblem_NoAccess();
       case 1:
         return SharingProblem_PortInUse();
       case 2:
@@ -4416,7 +4416,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case SharingProblem_NoAccount():
+      case SharingProblem_NoAccess():
         sse_encode_i_32(0, serializer);
       case SharingProblem_PortInUse():
         sse_encode_i_32(1, serializer);

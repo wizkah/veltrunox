@@ -26,8 +26,8 @@ pub struct Places {
 /// Why the network endpoint is not on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SharingError {
-    /// Without an account whoever connects first would become the admin.
-    NoAccount,
+    /// Neither a user nor guest access: no browser could get in.
+    NoAccess,
     PortInUse,
     Failed(String),
 }
@@ -129,12 +129,12 @@ impl Embedded {
     }
 
     fn open(&mut self, wanted: SharingSettings) -> Result<(), SharingError> {
-        self.require_account()?;
+        self.require_a_way_in()?;
         self.sharing = Some(Sharing::open(&self.app, &self.places, wanted)?);
         Ok(())
     }
 
-    fn require_account(&self) -> Result<(), SharingError> {
+    fn require_a_way_in(&self) -> Result<(), SharingError> {
         let failed = |error: String| SharingError::Failed(error);
         let accounts = self
             .app
@@ -144,8 +144,9 @@ impl Embedded {
         let status = accounts
             .status()
             .map_err(|error| failed(error.to_string()))?;
-        if status.setup_needed {
-            return Err(SharingError::NoAccount);
+        // `setup_needed` says that no user exists.
+        if status.setup_needed && !status.guest_enabled {
+            return Err(SharingError::NoAccess);
         }
         Ok(())
     }

@@ -34,12 +34,13 @@ abstract final class SharingTexts {
     'Diese App enthält keine Web-Oberfläche; Browser sehen nichts.',
     'This app holds no web interface; browsers get nothing.',
   );
-  static String get manageUsers => tr('Benutzer anlegen', 'Add users');
+  static String get manageUsers =>
+      tr('Benutzer und Gastzugang', 'Users and guest access');
 
   static String problem(SharingProblem problem) => switch (problem) {
-    NoAccountYet() => tr(
-      'Lege zuerst einen Benutzer an, damit sich Browser anmelden können.',
-      'Add a user first, so that browsers can sign in.',
+    NoAccessYet() => tr(
+      'Schalte zuerst den Gastzugang ein oder lege einen Benutzer an.',
+      'Switch on guest access or add a user first.',
     ),
     PortInUse() => tr(
       'Der Port ist belegt. Wähle einen anderen.',

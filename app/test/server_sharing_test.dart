@@ -68,7 +68,11 @@ void main() {
     tester,
   ) async {
     final source = FakeSharingSource();
-    await pump(tester, SharingDialog(onManageUsers: () {}), source: source);
+    await pump(
+      tester,
+      SharingDialog(onManageUsers: () async {}),
+      source: source,
+    );
 
     await tester.enterText(find.byType(TextField), '9000');
     await tester.pump();
@@ -82,7 +86,11 @@ void main() {
 
   testWidgets('a port out of range cannot be applied', (tester) async {
     final source = FakeSharingSource();
-    await pump(tester, SharingDialog(onManageUsers: () {}), source: source);
+    await pump(
+      tester,
+      SharingDialog(onManageUsers: () async {}),
+      source: source,
+    );
 
     await tester.enterText(find.byType(TextField), '80');
     await tester.pump();
@@ -93,14 +101,14 @@ void main() {
     expect(source.applied, isEmpty);
   });
 
-  testWidgets('without a user account the dialog leads to the users', (
+  testWidgets('without a way in the dialog leads to users and guest access', (
     tester,
   ) async {
     var asked = false;
-    final source = FakeSharingSource()..refusal = const NoAccountYet();
+    final source = FakeSharingSource()..refusal = const NoAccessYet();
     await pump(
       tester,
-      SharingDialog(onManageUsers: () => asked = true),
+      SharingDialog(onManageUsers: () async => asked = true),
       source: source,
     );
 

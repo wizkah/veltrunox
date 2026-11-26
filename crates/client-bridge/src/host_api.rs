@@ -21,7 +21,7 @@ pub struct SharingChoice {
 
 /// Why the network endpoint is not on.
 pub enum SharingProblem {
-    NoAccount,
+    NoAccess,
     PortInUse,
     Failed { detail: String },
 }

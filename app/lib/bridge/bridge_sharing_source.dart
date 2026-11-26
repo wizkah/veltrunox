@@ -41,7 +41,7 @@ class BridgeSharingSource implements SharingSource {
 
   static SharingProblem _problem(rust.SharingProblem problem) =>
       switch (problem) {
-        rust.SharingProblem_NoAccount() => const NoAccountYet(),
+        rust.SharingProblem_NoAccess() => const NoAccessYet(),
         rust.SharingProblem_PortInUse() => const PortInUse(),
         rust.SharingProblem_Failed(:final detail) => SharingFailed(detail),
       };

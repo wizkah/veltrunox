@@ -14,12 +14,12 @@ import 'sharing_texts.dart';
 class SharingDialog extends ConsumerWidget {
   const SharingDialog({required this.onManageUsers, super.key});
 
-  /// Opens the user administration; needed before the first start.
-  final VoidCallback onManageUsers;
+  /// Opens users and guest access; completes when that is closed again.
+  final Future<void> Function() onManageUsers;
 
   static Future<void> show(
     BuildContext context, {
-    required VoidCallback onManageUsers,
+    required Future<void> Function() onManageUsers,
   }) => showDialog<void>(
     context: context,
     builder: (_) => SharingDialog(onManageUsers: onManageUsers),
@@ -62,10 +62,14 @@ class SharingDialog extends ConsumerWidget {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
-            if (problem is NoAccountYet)
+            if (problem is NoAccessYet)
               ActionButton(
                 label: SharingTexts.manageUsers,
-                onPressed: onManageUsers,
+                onPressed: () async {
+                  await onManageUsers();
+                  // The reason may be gone now.
+                  if (context.mounted) ref.invalidate(sharingProvider);
+                },
               ),
             const SizedBox(height: AppSpace.s3),
           ],

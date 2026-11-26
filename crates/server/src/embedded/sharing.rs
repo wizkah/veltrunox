@@ -34,7 +34,10 @@ impl Sharing {
             ..Config::default()
         };
         let tls = tls::prepare(&config).map_err(|error| failed(&error))?;
-        let routes = web::with_web_app(router(app.clone()), places.web_dir.as_deref());
+        let routes = web::with_web_app(
+            router(app.clone().without_setup()),
+            places.web_dir.as_deref(),
+        );
         let runtime = Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()

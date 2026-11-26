@@ -1,6 +1,8 @@
 use super::*;
 use reqwest::StatusCode;
 use std::net::TcpListener;
+use veltrunox_core::Role;
+use veltrunox_server_app::Identity;
 
 fn start(directory: &std::path::Path) -> Embedded {
     Embedded::start(Places {
@@ -59,13 +61,10 @@ fn the_owner_token_works_at_the_local_endpoint_only() {
 }
 
 #[test]
-fn the_network_endpoint_needs_an_account() {
+fn the_network_endpoint_needs_a_user_or_guest_access() {
     let directory = tempfile::tempdir().unwrap();
     let mut embedded = start(directory.path());
-    assert_eq!(
-        embedded.apply(on(free_port())),
-        Err(SharingError::NoAccount)
-    );
+    assert_eq!(embedded.apply(on(free_port())), Err(SharingError::NoAccess));
     assert!(!embedded.status().settings.enabled);
 }
 
@@ -125,4 +124,34 @@ fn a_server_left_on_starts_with_the_app() {
         me(&format!("http://127.0.0.1:{port}"), None),
         Some(StatusCode::UNAUTHORIZED)
     );
+}
+
+#[test]
+fn guest_access_alone_is_enough_and_nobody_on_the_network_can_become_admin() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut embedded = start(directory.path());
+    let owner = Identity {
+        user: None,
+        role: Role::Admin,
+        scope: None,
+    };
+    let accounts = embedded.app.accounts.as_ref().unwrap();
+    accounts.set_guest_enabled(&owner, true).unwrap();
+    let port = free_port();
+    embedded.apply(on(port)).unwrap();
+    let network = format!("http://127.0.0.1:{port}");
+    assert_eq!(me(&network, None), Some(StatusCode::OK));
+
+    let runtime = Builder::new_current_thread().enable_all().build().unwrap();
+    runtime.block_on(async {
+        let client = reqwest::Client::new();
+        let status = client.get(format!("{network}/api/v1/status"));
+        let status = status.send().await.unwrap().text().await.unwrap();
+        assert!(status.contains("\"setup_needed\":false"), "{status}");
+        let setup = client
+            .post(format!("{network}/api/v1/setup"))
+            .header("content-type", "application/json")
+            .body(r#"{"user_name":"eve","password":"secret-123"}"#);
+        assert_eq!(setup.send().await.unwrap().status(), StatusCode::NOT_FOUND);
+    });
 }

@@ -92,7 +92,7 @@ fn info_of(status: SharingStatus) -> SharingInfo {
 
 fn problem_of(error: SharingError) -> SharingProblem {
     match error {
-        SharingError::NoAccount => SharingProblem::NoAccount,
+        SharingError::NoAccess => SharingProblem::NoAccess,
         SharingError::PortInUse => SharingProblem::PortInUse,
         SharingError::Failed(detail) => SharingProblem::Failed { detail },
     }
