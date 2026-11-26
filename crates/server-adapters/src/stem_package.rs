@@ -84,8 +84,21 @@ impl StemStore {
             max_bytes,
             writing: Mutex::new(()),
         };
+        store.remove_temporaries()?;
         store.sweep(stems)?;
         Ok(store)
+    }
+
+    /// What an interrupted import or analysis left behind.
+    fn remove_temporaries(&self) -> Result<(), StorageError> {
+        let entries =
+            fs::read_dir(&self.directory).map_err(|error| StorageError(error.to_string()))?;
+        for path in entries.flatten().map(|entry| entry.path()) {
+            if is_temporary(&path) {
+                let _ = fs::remove_file(path);
+            }
+        }
+        Ok(())
     }
 
     pub fn max_bytes(&self) -> u64 {
@@ -97,18 +110,14 @@ impl StemStore {
     }
 
     /// Removes the stored stem files no recording refers to. Temporary files stay: they
-    /// belong to running work, and `open` finds none of those.
+    /// belong to running work.
     pub fn sweep(&self, stems: &dyn StemRepository) -> Result<(), StorageError> {
         let _guard = self.lock();
         let referenced = stems.stem_paths()?;
         let entries =
             fs::read_dir(&self.directory).map_err(|error| StorageError(error.to_string()))?;
         for path in entries.flatten().map(|entry| entry.path()) {
-            let temporary = path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name.starts_with(TEMPORARY_PREFIX));
-            if path.is_file() && !temporary && !referenced.contains(&path) {
+            if path.is_file() && !is_temporary(&path) && !referenced.contains(&path) {
                 let _ = fs::remove_file(path);
             }
         }
@@ -225,6 +234,12 @@ impl StemStore {
         writer.finish().map_err(invalid)?;
         Ok(target)
     }
+}
+
+fn is_temporary(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.starts_with(TEMPORARY_PREFIX))
 }
 
 fn read_manifest(archive: &mut ZipArchive<File>) -> Result<PackageManifestDto, PackageError> {

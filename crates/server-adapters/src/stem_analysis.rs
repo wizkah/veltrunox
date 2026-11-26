@@ -6,9 +6,10 @@ use std::{
     collections::HashMap,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::{ChildStdout, Command, Stdio},
     sync::{Arc, Mutex, PoisonError, mpsc},
     thread,
+    time::Duration,
 };
 use veltrunox_core::RecordingId;
 use veltrunox_server_app::{
@@ -42,19 +43,41 @@ impl StemSeparator for ProgramSeparator {
             .stdout(Stdio::piped())
             .spawn()
             .map_err(|error| format!("cannot start {}: {error}", self.0.display()))?;
-        if let Some(output) = child.stdout.take() {
-            BufReader::new(output)
-                .lines()
-                .map_while(Result::ok)
-                .filter_map(|line| line.strip_prefix("progress ")?.trim().parse::<u8>().ok())
-                .for_each(|percent| report(percent.min(100)));
-        }
-        let status = child.wait().map_err(|error| error.to_string())?;
+        let progress = child.stdout.take().map(progress_of);
+        // The program's end decides, not the end of its output: that can stay open after it,
+        // held by something the program started.
+        let status = loop {
+            if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
+                break status;
+            }
+            match progress.as_ref().map(|lines| lines.recv_timeout(POLL)) {
+                Some(Ok(percent)) => report(percent),
+                Some(Err(mpsc::RecvTimeoutError::Timeout)) => {}
+                Some(Err(mpsc::RecvTimeoutError::Disconnected)) | None => thread::sleep(POLL),
+            }
+        };
         status
             .success()
             .then_some(())
             .ok_or_else(|| format!("the program ended with {status}"))
     }
+}
+
+/// How often the end of the program is looked for.
+const POLL: Duration = Duration::from_millis(200);
+
+/// The percentages in the program's output, read by a thread of its own.
+fn progress_of(output: ChildStdout) -> mpsc::Receiver<u8> {
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        BufReader::new(output)
+            .lines()
+            .map_while(Result::ok)
+            .filter_map(|line| line.strip_prefix("progress ")?.trim().parse::<u8>().ok())
+            // Once nobody listens the job is over.
+            .try_for_each(|percent| sender.send(percent.min(100)))
+    });
+    receiver
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -191,4 +214,40 @@ fn run(
         .playback
         .reload_mix(installed.recording.id)
         .map_err(|error| failed("storage_failed")(error.to_string()))
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::{os::unix::fs::PermissionsExt, time::Instant};
+
+    fn script(name: &str, body: &str) -> PathBuf {
+        let path = std::env::temp_dir().join(format!("veltrunox-{name}-{}", std::process::id()));
+        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        path
+    }
+
+    fn run(program: &Path) -> Result<(), String> {
+        let unused = Path::new("unused");
+        ProgramSeparator::new(program).separate(unused, "title", unused, &|_| {})
+    }
+
+    #[test]
+    fn the_end_of_the_program_counts_even_if_its_output_stays_open() {
+        let program = script("lingering", "sleep 20 &\necho progress 95");
+        let started = Instant::now();
+        let outcome = run(&program);
+        std::fs::remove_file(program).unwrap();
+        assert_eq!(outcome, Ok(()));
+        assert!(started.elapsed() < Duration::from_secs(10));
+    }
+
+    #[test]
+    fn a_failing_program_is_an_error() {
+        let program = script("failing", "exit 3");
+        let outcome = run(&program);
+        std::fs::remove_file(program).unwrap();
+        assert!(outcome.is_err());
+    }
 }
