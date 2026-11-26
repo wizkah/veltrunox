@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'app_shell/app_shell.dart';
 import 'app_shell/shell_destination.dart';
 import 'composition/library_page.dart';
+import 'composition/mixer_page.dart';
 import 'composition/player_page.dart';
 import 'design/theme/app_theme.dart';
 import 'features/connection/connection_banner.dart';
@@ -58,6 +59,7 @@ class HomePage extends ConsumerWidget {
               child: switch (destination) {
                 ShellDestination.library => const LibraryPage(),
                 ShellDestination.player => const PlayerPage(),
+                ShellDestination.mixer => const MixerPage(),
               },
             ),
           ],

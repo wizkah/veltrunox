@@ -166,6 +166,26 @@ String? _text(ServerReason reason) => switch (reason.code) {
     'Die Position liegt hinter dem Ende der Aufnahme.',
     'The position is beyond the end of the recording.',
   ),
+  'stems_package_invalid' => tr(
+    'Die Datei ist kein gültiges Segmentpaket.',
+    'The file is not a valid stem package.',
+  ),
+  'stems_unknown_recording' => tr(
+    'Die Aufnahme zu diesen Segmenten ist nicht in der Bibliothek.',
+    'The recording of these stems is not in the library.',
+  ),
+  'stems_length_mismatch' => tr(
+    'Ein Segment ist nicht so lang wie die Aufnahme.',
+    'A stem is not as long as the recording.',
+  ),
+  'stems_rate_mismatch' => tr(
+    'Die Segmente haben eine andere Abtastrate als die Aufnahme.',
+    'The stems do not have the sample rate of the recording.',
+  ),
+  'stems_unavailable' => tr(
+    'Dieser Server nimmt keine Segmente an.',
+    'This server takes no stems.',
+  ),
   'bookmark_not_found' => tr(
     'Die Markierung oder Aufnahme wurde nicht gefunden.',
     'The marker or recording was not found.',

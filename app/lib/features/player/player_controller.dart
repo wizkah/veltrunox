@@ -193,6 +193,14 @@ class PlayerController {
 
   Future<void> setKey(int semitones) => _source.setKey(semitones);
   Future<void> setVolume(int percent) => _source.setVolume(percent);
+  Future<void> setStemsEnabled(bool enabled) =>
+      _source.setStemsEnabled(enabled);
+  Future<void> setStemVolume(int stem, int percent) =>
+      _source.setStemVolume(stem, percent);
+  Future<void> setStemMuted(int stem, bool muted) =>
+      _source.setStemMuted(stem, muted);
+  Future<void> setStemSolo(int stem, bool solo) =>
+      _source.setStemSolo(stem, solo);
 
   /// Sets the speed that plays the recording at `targetBpm`. `false` if that
   /// speed is outside the supported range or the tempo is not usable.

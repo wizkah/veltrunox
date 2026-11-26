@@ -187,6 +187,16 @@ class BridgeSession {
     playRange: view.playRange.let(
       (range) => (startMs: range.startMs.toInt(), endMs: range.endMs.toInt()),
     ),
+    stemsEnabled: view.stemsEnabled,
+    stemChannels: [
+      for (final channel in view.stemChannels)
+        StemChannel(
+          volumePercent: channel.volumePercent,
+          muted: channel.muted,
+          solo: channel.solo,
+          audible: channel.audible,
+        ),
+    ],
   );
 }
 

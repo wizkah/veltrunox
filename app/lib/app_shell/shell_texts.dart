@@ -4,5 +4,6 @@ import '../shared_ui/app_language.dart';
 abstract final class ShellTexts {
   static const appName = 'Veltrunox';
   static String get player => tr('Player', 'Player');
+  static String get mixer => tr('Mixer', 'Mixer');
   static String get library => tr('Bibliothek', 'Library');
 }

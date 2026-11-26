@@ -56,6 +56,22 @@ class FakePlayerSource implements PlayerSource {
   Future<void> setTuning(double hertz) async => calls.add('tuning $hertz');
 
   @override
+  Future<void> setStemsEnabled(bool enabled) async =>
+      calls.add('stems $enabled');
+
+  @override
+  Future<void> setStemVolume(int stem, int percent) async =>
+      calls.add('stemVolume $stem $percent');
+
+  @override
+  Future<void> setStemMuted(int stem, bool muted) async =>
+      calls.add('stemMuted $stem $muted');
+
+  @override
+  Future<void> setStemSolo(int stem, bool solo) async =>
+      calls.add('stemSolo $stem $solo');
+
+  @override
   Future<void> setPlayMode(PlayMode mode) async =>
       calls.add('playMode ${mode.name}');
 

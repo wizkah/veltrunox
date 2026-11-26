@@ -34,6 +34,12 @@ abstract interface class PlayerSource {
   Future<void> setVolume(int percent);
   Future<void> setPlayMode(PlayMode mode);
 
+  /// Plays the stems of the recording, or the original.
+  Future<void> setStemsEnabled(bool enabled);
+  Future<void> setStemVolume(int stem, int percent);
+  Future<void> setStemMuted(int stem, bool muted);
+  Future<void> setStemSolo(int stem, bool solo);
+
   /// Plays the region from its start; what happens at its end depends on the
   /// play mode.
   Future<void> playRegion({required int startMs, required int endMs});

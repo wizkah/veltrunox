@@ -22,19 +22,25 @@ class BridgeWaveformSource implements WaveformSource {
     } on Object {
       return null;
     }
-    if (found.levels.isEmpty) return null;
-    return LoadedWaveform(
-      lengthMs: found.lengthMs.toInt(),
-      data: WaveformData(
-        sampleRate: found.sampleRate,
-        levels: [
-          for (final level in found.levels)
-            WaveformLevel(
-              framesPerBlock: level.framesPerBlock,
-              peaks: Int8List.sublistView(level.peaks),
-            ),
-        ],
-      ),
-    );
+    return loadedWaveformOf(found);
   }
+}
+
+/// The waveform of the client core as the interface draws it; `null` without
+/// levels.
+LoadedWaveform? loadedWaveformOf(rust.WaveformData found) {
+  if (found.levels.isEmpty) return null;
+  return LoadedWaveform(
+    lengthMs: found.lengthMs.toInt(),
+    data: WaveformData(
+      sampleRate: found.sampleRate,
+      levels: [
+        for (final level in found.levels)
+          WaveformLevel(
+            framesPerBlock: level.framesPerBlock,
+            peaks: Int8List.sublistView(level.peaks),
+          ),
+      ],
+    ),
+  );
 }

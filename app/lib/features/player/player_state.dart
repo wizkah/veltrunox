@@ -13,6 +13,23 @@ enum PlayMode {
   PlayMode get next => PlayMode.values[(index + 1) % PlayMode.values.length];
 }
 
+/// How one stem sounds in the mix.
+class StemChannel {
+  const StemChannel({
+    this.volumePercent = 100,
+    this.muted = false,
+    this.solo = false,
+    this.audible = true,
+  });
+
+  final int volumePercent;
+  final bool muted;
+  final bool solo;
+
+  /// Whether the stem is heard, with mute and solo of all of them counted.
+  final bool audible;
+}
+
 /// The shared playback state as the interface shows it.
 class PlayerState {
   const PlayerState({
@@ -25,6 +42,8 @@ class PlayerState {
     this.positionMs = 0,
     this.playMode = PlayMode.toEnd,
     this.playRange,
+    this.stemsEnabled = false,
+    this.stemChannels = const [],
   });
 
   final int? recordingId;
@@ -40,6 +59,12 @@ class PlayerState {
   /// position now from the source.
   final int positionMs;
   final PlayMode playMode;
+
+  /// Whether the stems play instead of the original recording.
+  final bool stemsEnabled;
+
+  /// The mix, one entry per possible stem.
+  final List<StemChannel> stemChannels;
 
   /// The region being played, if any.
   final ({int startMs, int endMs})? playRange;

@@ -9,6 +9,7 @@ import 'bridge/bridge_access_source.dart';
 import 'bridge/bridge_connection_source.dart';
 import 'bridge/bridge_exchange_source.dart';
 import 'bridge/bridge_marker_source.dart';
+import 'bridge/bridge_mixer_source.dart';
 import 'bridge/bridge_player_source.dart';
 import 'bridge/bridge_recording_source.dart';
 import 'bridge/bridge_own_password_source.dart';
@@ -29,6 +30,7 @@ import 'features/library/audio_file_picker.dart';
 import 'features/library/library_controller.dart';
 import 'features/library/upload_bar.dart';
 import 'features/markers/marker_controller.dart';
+import 'features/mixer/mixer_source.dart';
 import 'features/player/player_controller.dart';
 import 'features/own_password/own_password_source.dart';
 import 'features/server_sharing/sharing_controller.dart';
@@ -39,6 +41,7 @@ import 'platform/clipboard_adapter.dart';
 import 'platform/file_exchange_adapter.dart';
 import 'platform/file_picker_adapter.dart';
 import 'platform/rust_library.dart';
+import 'platform/stem_package_files_adapter.dart';
 import 'shared_ui/app_language.dart';
 import 'storage/shared_preferences_language_store.dart';
 import 'storage/shared_preferences_token_store.dart';
@@ -105,6 +108,10 @@ Future<void> main() async {
         waveformSourceProvider.overrideWithValue(
           BridgeWaveformSource(serverUrl: serverUrl),
         ),
+        mixerSourceProvider.overrideWithValue(
+          BridgeMixerSource(serverUrl: serverUrl),
+        ),
+        stemPackageFilesProvider.overrideWithValue(SystemStemPackageFiles()),
         audioFilePickerProvider.overrideWithValue(SystemAudioFilePicker()),
         exchangeSourceProvider.overrideWithValue(
           BridgeExchangeSource(serverUrl: serverUrl),

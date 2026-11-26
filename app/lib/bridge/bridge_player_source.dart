@@ -63,6 +63,23 @@ class BridgePlayerSource implements PlayerSource {
       _send(rust.PlayerCommand.setVolume(volumePercent: percent));
 
   @override
+  Future<void> setStemsEnabled(bool enabled) =>
+      _send(rust.PlayerCommand.setStemsEnabled(enabled: enabled));
+
+  @override
+  Future<void> setStemVolume(int stem, int percent) => _send(
+    rust.PlayerCommand.setStemVolume(stem: stem, volumePercent: percent),
+  );
+
+  @override
+  Future<void> setStemMuted(int stem, bool muted) =>
+      _send(rust.PlayerCommand.setStemMuted(stem: stem, muted: muted));
+
+  @override
+  Future<void> setStemSolo(int stem, bool solo) =>
+      _send(rust.PlayerCommand.setStemSolo(stem: stem, solo: solo));
+
+  @override
   Future<void> setPlayMode(PlayMode mode) => _send(
     rust.PlayerCommand.setPlayMode(
       playMode: switch (mode) {
