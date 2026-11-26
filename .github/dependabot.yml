@@ -30,3 +30,9 @@ updates:
     ignore:
       # Its version is the Rust toolchain.
       - dependency-name: dtolnay/rust-toolchain
+  - package-ecosystem: pip
+    directory: /tools/analysis
+    schedule:
+      interval: weekly
+    # A tested set of versions: security updates only, no routine version updates.
+    open-pull-requests-limit: 0
