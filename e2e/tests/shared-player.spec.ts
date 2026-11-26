@@ -52,6 +52,9 @@ test('two browser clients share the playback state', async ({ browser }) => {
 });
 
 test('a client joining during playback shows the running state at once', async ({ browser }) => {
+  // The second app loads while the first one redraws a playing waveform. Without a GPU, as on
+  // a CI runner, that takes more than twice as long and does not fit into the usual limit.
+  test.slow();
   const first = await (await browser.newContext()).newPage();
   await open(first);
   await select(first, 'Soundcheck');

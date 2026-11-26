@@ -27,7 +27,8 @@ export default defineConfig({
   // The first test sets the admin up on a fresh server; the others sign in with it.
   workers: 1,
   // The interface follows the browser's language; the tests read the German texts.
-  use: { baseURL: serverUrl, locale: 'de-DE' },
+  // A trace of a failed test tells where it waited; CI keeps it with the report.
+  use: { baseURL: serverUrl, locale: 'de-DE', trace: 'retain-on-failure' },
   webServer: {
     command: `cargo run -q -p veltrunox-server -- --config ${configFile}`,
     cwd: '..',
