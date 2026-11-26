@@ -23,7 +23,7 @@ Veltrunox is a shared remote control for band rehearsals. One playback instance 
 
 ### 1.2 Out of scope [B]
 
-Server architecture, audio processing, analysis algorithms, real authorization, backup, network latency, audio streaming to clients, cutting/mixing (no DAW features). This document defines UI expectations, not their technical implementation.
+Server architecture, audio processing, analysis algorithms, real authorization, backup, network latency, audio streaming to clients, cutting or editing audio (no DAW features; the practice mix of stems in section 5.7 is not production). This document defines UI expectations, not their technical implementation.
 
 ### 1.3 Scope of v0.1 [B]
 
@@ -55,6 +55,7 @@ Server architecture, audio processing, analysis algorithms, real authorization, 
 - **Region:** a named time range with start and end.
 - **Lane:** a display row for regions, outside the waveform.
 - **Marker:** umbrella term for label or region.
+- **Stem** (German "Segment"): one audio track separated from a recording; shown in the mixer.
 - **Original values:** automatically analysed tuning, key and tempo; they stay visible as a reference where known.
 - **Play mode:** what happens at the end of a region (section 5.3).
 
@@ -144,8 +145,8 @@ Administration of users and guest access: later phase, not in the v0.1 navigatio
 
 ### 4.2 Navigation [V]
 
-- Desktop: compact top navigation **Player / Library**; connection status always visible.
-- Mobile: bottom navigation **Player / Library**, with enough clearance from the device edge.
+- Desktop: compact top navigation **Player / Mixer / Library**; connection status always visible.
+- Mobile: bottom navigation **Player / Mixer / Library**, with enough clearance from the device edge.
 - The library is the way to find a recording; a direct play entry jumps into the player in one step and plays, once the recording's state allows it.
 
 ### 4.3 Rights as UI capabilities [B]
@@ -161,6 +162,8 @@ Administration of users and guest access: later phase, not in the v0.1 navigatio
 | Make and revoke own API tokens | yes | yes | no |
 | Change own password | yes | yes | no |
 | Manage recordings (rename, metadata, delete) | no | yes | no |
+| Mix stems; export a stem package | yes | yes | yes |
+| Import, analyse and delete stems | no | yes | no |
 | Manage users, switch guest access | no | yes | no |
 
 A guest has the rights of a user without signing in and exists only while the admin has enabled guest access. The rows "manage recordings", "export bookmarks", "import bookmarks", "API tokens" and "change own password" are [V] (the product rules do not name them); importing needs the same right as editing labels and regions, and a guest has no account to hold tokens or a password. The UI receives **effective capabilities**; disallowed actions do not appear. Real authorization is outside this document.
@@ -254,6 +257,31 @@ The icon, a text label and the state colour must show the active state; tapping 
 ### 5.6 Volume [B]
 
 A volume control belongs to the shared playback state. Every client shows the current value and any client may change it. It sits with the other playback settings, not inside the transport row.
+
+### 5.7 Mixer [B for the behaviour, V for the arrangement]
+
+The mixer is the second view of the selected recording, next to the player in the navigation. Transport, play mode and the panels for tempo, pitch and volume stay as in the player; the single waveform and the marker list are replaced by the stem lanes.
+
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ Recording title          [Stems ● on]   [Analyse] [Import] [Export]  │
+├───────────────────────┬──────────────────────────────────────────────┤
+│ Drums  ───●── [S][M]  │ ▁▃▇▂▁▃▇▂ waveform │                         │
+│ Bass   ─────● [S][M]  │ ▂▂▃▃▂▂▃▃          │                         │
+│ Vocals ──●─── [S][M]  │    ▃▅▆▃    ▅▆     │ one playhead            │
+│ Other  ───●── [S][M]  │ ▃▃▃▄▃▃▃▄          │                         │
+├───────────────────────┴──────────────────────────────────────────────┤
+│ Transport · Tempo · Tuning / Key · Volume                            │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+- [B] One lane per stem, stacked, all on the same time axis with **one** playhead through all lanes. Zoom, scroll, tap to set the position and scrubbing behave as in section 6.
+- [B] Left of each waveform: name, volume control, **Solo** and **Mute** toggles. With any solo only soloed stems sound; mute wins over solo. A silent lane is dimmed and says why.
+- [B] The switch "Stems" chooses between the stem mix and the original recording. Off: the lane controls stay visible but inactive, with a hint that the original plays.
+- [B] Switch and lane values are shared state (section 7.1) and are stored with the recording.
+- [B] Without stems the mixer shows an empty state with the allowed actions "Analyse" (only where an analysis program is set up) and "Import".
+- [V] Analysis shows its progress; failure is reported in words. Import and analysis replace existing stems only after a confirmation.
+- [V] Mobile: lane controls above each waveform; S and M keep 48 px targets.
 
 ## 6. Waveform – component contract
 
@@ -374,7 +402,7 @@ The region form creates a region from a name, a start and an end time, and edits
 | Playback state (play/pause/stop) | Open panel / bottom sheet |
 | Playhead / playback position | Library search and filter input |
 | Play mode | Hover, local focus, scroll position |
-| Tempo, pitch and volume settings | Current selection / drag preview of a marker |
+| Tempo, pitch and volume settings; stem mix | Current selection / drag preview of a marker |
 | Stored labels and regions | Provisional text editing until it is committed |
 
 When another person changes the global position, the visible playback display follows the shared state [B]. A local zoom is not reset by this [V].
@@ -570,6 +598,9 @@ Rules [V]:
 | `TokenDialog` | list/making/secret shown/error | API tokens of the signed-in person |
 | `TokenSecretNotice` | shown | the new token text once, with copy action |
 | `ToastNotice` | info/success/warning/error | non-blocking feedback |
+| `MixerLane` | audible/silent/inactive | one stem: controls and waveform |
+| `StemControls` | normal/disabled | volume, solo, mute of one stem |
+| `StemSetActions` | empty/ready/analysing/error | analyse, import, export, delete |
 
 ### 11.1 Component contract form [V]
 
@@ -665,6 +696,9 @@ Scenarios for UI acceptance tests; test data suffices, no real audio or server i
 | UI-AC-32 | Submit the password dialog with an empty field, a new password that breaks the policy, or a differing repeat | The problem is named at its field; nothing is sent |
 | UI-AC-33 | Enter a wrong current password | A message in the dialog names the current-password field; the dialog stays open |
 | UI-AC-34 | Change the own password successfully | The person is signed out and sees the sign-in screen with the note; the new password signs in, the old one does not |
+| UI-AC-35 | Open the mixer for a recording with stems | One lane per stem with volume, solo and mute; one playhead through all lanes |
+| UI-AC-36 | Solo and mute stems; switch "Stems" off | Silent lanes are marked in words; off, the controls are inactive and the original is announced |
+| UI-AC-37 | Open the mixer without stems as a user without management rights | An empty state, no "Analyse" or "Import" |
 
 These are target criteria, not statements about existing code.
 
@@ -699,6 +733,8 @@ These are target criteria, not statements about existing code.
 - **D-25:** bookmarks leave and enter the app as files (JSON and CSV); an import replaces all labels and regions of each recording it lists and always goes through a preview that shows what is added, changed and removed (section 9.5).
 - **D-26:** API tokens are made, listed and revoked in a dialog of the account menu; the token text is shown exactly once (section 9.6).
 - **D-27:** every account changes its own password in a dialog of the account menu, with its current password; afterwards the person is signed out everywhere, this device included, and signs in with the new password (section 9.7).
+
+- **D-28:** a recording with stems has a mixer view next to the player: one waveform lane per stem with volume, solo and mute, one playhead; a switch chooses between stem mix and original; the mix is shared and stored with the recording (section 5.7).
 
 ### 15.2 Proposals to validate [V]
 
