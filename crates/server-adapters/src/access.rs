@@ -58,6 +58,11 @@ pub(crate) fn identify(
     }
 }
 
+/// Whether the token is the owner token of this endpoint.
+pub(crate) fn is_owner(owner_token: Option<&str>, token: &str) -> bool {
+    owner_token.is_some_and(|owner| owner == token)
+}
+
 /// Why a request is refused before any work is done.
 #[derive(Debug)]
 pub enum AccessError {
@@ -96,6 +101,10 @@ impl FromRequestParts<AppState> for Caller {
         };
         // No token means a guest, while guests are let in; a wrong token never does.
         let token = bearer_token(&parts.headers).map(str::to_owned);
+        let owner = app.owner_token.as_deref();
+        if token.as_deref().is_some_and(|token| is_owner(owner, token)) {
+            return Ok(Self(open_identity()));
+        }
         let api_tokens = app.api_tokens.clone();
         // Looking up a session reads and writes the database, which blocks.
         let found = tokio::task::spawn_blocking(move || match token {
@@ -124,6 +133,13 @@ mod tests {
     fn the_bearer_token_is_read_from_the_header() {
         assert_eq!(bearer_token(&headers("Bearer abc")), Some("abc"));
         assert_eq!(bearer_token(&headers("bearer abc")), Some("abc"));
+    }
+
+    #[test]
+    fn only_the_exact_token_is_the_owner_and_only_where_one_is_set() {
+        assert!(is_owner(Some("secret"), "secret"));
+        assert!(!is_owner(Some("secret"), "other"));
+        assert!(!is_owner(None, "secret"));
     }
 
     #[test]

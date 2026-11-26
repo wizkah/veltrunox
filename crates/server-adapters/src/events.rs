@@ -1,7 +1,7 @@
 //! The real-time channel: greets, publishes state, takes intents.
 
 use crate::{
-    access::{identify, open_identity},
+    access::{identify, is_owner, open_identity},
     accounts_http::identity_to_dto,
     state::AppState,
 };
@@ -277,7 +277,11 @@ async fn authenticate(app: &AppState, socket: &mut WebSocket) -> Option<Identity
     .await
     .ok()
     .flatten();
+    let owner = app.owner_token.clone();
     let found = match first.and_then(|text| serde_json::from_str::<ClientMessageDto>(&text).ok()) {
+        Some(ClientMessageDto::Auth {
+            token: Some(token), ..
+        }) if is_owner(owner.as_deref(), &token) => Ok(open_identity()),
         Some(ClientMessageDto::Auth { token, guest }) => {
             let resolved = tokio::task::spawn_blocking(move || match (token, guest) {
                 (Some(token), _) => identify(&accounts, api_tokens.as_deref(), &token)

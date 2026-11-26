@@ -164,6 +164,23 @@ fn current_names() -> ServerNames {
     ServerNames::new(&hostname(), addresses.iter().map(|found| found.ip()))
 }
 
+/// The local name and the IPv4 addresses under which other devices reach this
+/// machine; nothing that only works on the machine itself.
+pub fn reachable_hosts() -> Vec<String> {
+    current_names()
+        .all()
+        .into_iter()
+        .filter(|host| is_for_others(host))
+        .collect()
+}
+
+fn is_for_others(host: &str) -> bool {
+    match host.parse::<std::net::IpAddr>() {
+        Ok(address) => address.is_ipv4() && !address.is_loopback(),
+        Err(_) => host != "localhost",
+    }
+}
+
 fn server_config(issued: &Issued) -> Result<Arc<ServerConfig>, TlsError> {
     let chain = CertificateDer::pem_slice_iter(issued.chain_pem.as_bytes())
         .collect::<Result<Vec<_>, _>>()?;

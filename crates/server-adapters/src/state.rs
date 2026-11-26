@@ -28,6 +28,9 @@ pub struct AppState {
     pub api_tokens: Option<Arc<ApiTokenService>>,
     /// `None` refuses uploads.
     pub uploads: Option<Arc<UploadStore>>,
+    /// A token that stands for the owner of the machine, an admin without an account.
+    /// Only for an endpoint that nothing but this machine can reach.
+    pub owner_token: Option<Arc<str>>,
 }
 
 impl AppState {
@@ -129,6 +132,7 @@ impl AppState {
             accounts: None,
             api_tokens: None,
             uploads: None,
+            owner_token: None,
         }
     }
 
@@ -141,6 +145,12 @@ impl AppState {
     /// Accepts API tokens and lets signed-in users make them; only useful with accounts.
     pub fn with_api_tokens(mut self, api_tokens: Arc<ApiTokenService>) -> Self {
         self.api_tokens = Some(api_tokens);
+        self
+    }
+
+    /// Accepts the token as the owner of the machine.
+    pub fn with_owner_token(mut self, token: &str) -> Self {
+        self.owner_token = Some(token.into());
         self
     }
 
