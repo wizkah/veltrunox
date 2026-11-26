@@ -38,7 +38,7 @@ class MixerBoard extends ConsumerStatefulWidget {
   final PlayerState state;
   final bool connected;
 
-  static const laneHeight = 96.0;
+  static const laneHeight = 72.0;
 
   @override
   ConsumerState<MixerBoard> createState() => _MixerBoardState();
