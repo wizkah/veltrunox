@@ -5,6 +5,7 @@ mod channel;
 mod diagnostics;
 mod events;
 mod exchange;
+mod stems;
 mod timer;
 
 pub use access::rights_from_dto;
@@ -42,10 +43,10 @@ use veltrunox_protocol::{
     REGIONS_PATH, ReasonDto, RecordingListDto, RegionDto, RegionRefDto, RenameRecordingDto,
     SETUP_PATH, SPLIT_REGION_PATH, STATUS_PATH, SessionDto, SetPasswordPolicyDto, SplitRegionDto,
     StatusDto, TOKEN_PATH, TOKENS_PATH, UPLOAD_ID_HEADER, USER_PATH, USERS_PATH, UpdateLabelDto,
-    UpdateRegionDto, UpdateUserDto, UploadedRecordingDto, UserDto, WAVEFORM_LEVEL_PATH,
-    WAVEFORM_PATH, WaveformInfoDto, bookmarks_from_dto, label_from_dto, library_entry_from_dto,
-    password_policy_from_dto, password_policy_to_dto, peaks_from_bytes, range_to_dto,
-    region_from_dto, role_to_dto, token_scope_to_dto,
+    UpdateRegionDto, UpdateUserDto, UploadedRecordingDto, UserDto, WAVEFORM_PATH, WaveformInfoDto,
+    bookmarks_from_dto, label_from_dto, library_entry_from_dto, password_policy_from_dto,
+    password_policy_to_dto, peaks_from_bytes, range_to_dto, region_from_dto, role_to_dto,
+    token_scope_to_dto,
 };
 
 pub struct HttpServerLink {
@@ -116,9 +117,8 @@ fn checked(response: Response) -> Result<Response, LinkError> {
 }
 
 impl HttpServerLink {
-    async fn waveform_info(&self, recording: RecordingId) -> Result<WaveformInfoDto, LinkError> {
-        let path = WAVEFORM_PATH.replace("{id}", &recording.value().to_string());
-        self.get(format!("{}{}", self.base_url, path))
+    async fn waveform_info(&self, url: &str) -> Result<WaveformInfoDto, LinkError> {
+        self.get(url.to_owned())
             .send()
             .await
             .map_err(|error| LinkError::Unreachable(error.to_string()))
@@ -128,25 +128,43 @@ impl HttpServerLink {
             .map_err(|error| LinkError::InvalidResponse(error.to_string()))
     }
 
-    async fn waveform_level(
-        &self,
-        recording: RecordingId,
-        level: usize,
-    ) -> Result<Vec<veltrunox_core::Peak>, LinkError> {
-        let path = WAVEFORM_LEVEL_PATH
-            .replace("{id}", &recording.value().to_string())
-            .replace("{level}", &level.to_string());
-        let bytes = self
-            .get(format!("{}{}", self.base_url, path))
-            .send()
-            .await
-            .map_err(|error| LinkError::Unreachable(error.to_string()))
-            .and_then(checked)?
-            .bytes()
-            .await
-            .map_err(|error| LinkError::Unreachable(error.to_string()))?;
-        peaks_from_bytes(&bytes).ok_or_else(|| {
-            LinkError::InvalidResponse("waveform level is not whole blocks".to_owned())
+    /// The waveform described at `url`, with its levels below it.
+    pub(crate) async fn waveform_at(&self, url: &str) -> Result<RecordingWaveform, LinkError> {
+        let info = self.waveform_info(url).await?;
+        let length = Millis::position(info.length_ms)
+            .map_err(|error| LinkError::InvalidResponse(error.to_string()))?;
+        let mut levels = Vec::with_capacity(info.levels.len());
+        for (index, described) in info.levels.iter().enumerate() {
+            let bytes = self
+                .get(format!("{url}/{index}"))
+                .send()
+                .await
+                .map_err(|error| LinkError::Unreachable(error.to_string()))
+                .and_then(checked)?
+                .bytes()
+                .await
+                .map_err(|error| LinkError::Unreachable(error.to_string()))?;
+            let peaks = peaks_from_bytes(&bytes).ok_or_else(|| {
+                LinkError::InvalidResponse("waveform level is not whole blocks".to_owned())
+            })?;
+            if peaks.len() != described.blocks as usize {
+                return Err(LinkError::InvalidResponse(format!(
+                    "waveform level {index} has {} blocks, not {}",
+                    peaks.len(),
+                    described.blocks
+                )));
+            }
+            levels.push(WaveformLevel {
+                frames_per_block: described.frames_per_block,
+                peaks,
+            });
+        }
+        Ok(RecordingWaveform {
+            length,
+            waveform: Waveform {
+                sample_rate: info.sample_rate,
+                levels,
+            },
         })
     }
 
@@ -208,9 +226,13 @@ impl HttpServerLink {
                     retry_after_seconds: seconds,
                 })
             }
-            StatusCode::BAD_REQUEST | StatusCode::CONFLICT | StatusCode::NOT_FOUND => {
-                Err(refusal_of(response).await)
-            }
+            StatusCode::BAD_REQUEST
+            | StatusCode::CONFLICT
+            | StatusCode::NOT_FOUND
+            | StatusCode::UNPROCESSABLE_ENTITY
+            | StatusCode::PAYLOAD_TOO_LARGE
+            | StatusCode::UNSUPPORTED_MEDIA_TYPE
+            | StatusCode::SERVICE_UNAVAILABLE => Err(refusal_of(response).await),
             status => Err(LinkError::Unreachable(format!("server answered {status}"))),
         }
     }
@@ -334,37 +356,15 @@ impl ServerLink for HttpServerLink {
     }
 
     async fn fetch_length(&self, recording: RecordingId) -> Result<Millis, LinkError> {
-        let info = self.waveform_info(recording).await?;
+        let url = self.url(WAVEFORM_PATH, recording.value());
+        let info = self.waveform_info(&url).await?;
         Millis::position(info.length_ms)
             .map_err(|error| LinkError::InvalidResponse(error.to_string()))
     }
 
     async fn fetch_waveform(&self, recording: RecordingId) -> Result<RecordingWaveform, LinkError> {
-        let info = self.waveform_info(recording).await?;
-        let length = Millis::position(info.length_ms)
-            .map_err(|error| LinkError::InvalidResponse(error.to_string()))?;
-        let mut levels = Vec::with_capacity(info.levels.len());
-        for (index, described) in info.levels.iter().enumerate() {
-            let peaks = self.waveform_level(recording, index).await?;
-            if peaks.len() != described.blocks as usize {
-                return Err(LinkError::InvalidResponse(format!(
-                    "waveform level {index} has {} blocks, not {}",
-                    peaks.len(),
-                    described.blocks
-                )));
-            }
-            levels.push(WaveformLevel {
-                frames_per_block: described.frames_per_block,
-                peaks,
-            });
-        }
-        Ok(RecordingWaveform {
-            length,
-            waveform: Waveform {
-                sample_rate: info.sample_rate,
-                levels,
-            },
-        })
+        let base = self.url(WAVEFORM_PATH, recording.value());
+        self.waveform_at(&base).await
     }
 
     async fn create_label(

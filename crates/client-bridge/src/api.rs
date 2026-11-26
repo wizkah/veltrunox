@@ -14,10 +14,11 @@ use veltrunox_client_app::{
 };
 use veltrunox_client_app::{
     ChannelAccess, ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkError, LinkEvent,
-    ScrubThrottle, ServerEvent, SessionView, ViewChange, WaveformCache, add_label, add_recording,
-    add_region, analyse_again, convert_label_to_region, convert_region_to_label, delete_label,
-    delete_recording, delete_region, edit_label, edit_region, load_bookmarks, load_library,
-    load_waveform, merge_regions as merge_regions_use_case, rename_recording,
+    RecordingWaveform, ScrubThrottle, ServerEvent, SessionView, StemLink, ViewChange,
+    WaveformCache, add_label, add_recording, add_region, analyse_again, convert_label_to_region,
+    convert_region_to_label, delete_label, delete_recording, delete_region, edit_label,
+    edit_region, load_bookmarks, load_library, load_waveform,
+    merge_regions as merge_regions_use_case, rename_recording,
     split_region as split_region_use_case,
 };
 use veltrunox_client_app::{
@@ -170,6 +171,87 @@ pub async fn upload_recording(
     })
 }
 
+/// One stem of a recording.
+pub struct StemItem {
+    pub name: String,
+    /// Changes with the content of the stem.
+    pub key: String,
+}
+
+/// What an imported stem package gave.
+pub struct ImportedStemsItem {
+    pub recording_id: u64,
+    pub title: String,
+    pub stems: u32,
+    pub regions_added: u32,
+}
+
+/// The stems of a recording; empty if it has none.
+pub async fn recording_stems(
+    server_url: String,
+    recording_id: u64,
+) -> Result<Vec<StemItem>, String> {
+    let stems = link(&server_url)
+        .fetch_stems(RecordingId::new(recording_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(stems
+        .into_iter()
+        .map(|stem| StemItem {
+            name: stem.name,
+            key: stem.key,
+        })
+        .collect())
+}
+
+pub async fn stem_waveform(
+    server_url: String,
+    recording_id: u64,
+    stem: u32,
+) -> Result<WaveformData, String> {
+    let found = link(&server_url)
+        .fetch_stem_waveform(RecordingId::new(recording_id), stem as usize)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(waveform_data(&found))
+}
+
+pub async fn import_stem_package(
+    server_url: String,
+    package: Vec<u8>,
+) -> Result<ImportedStemsItem, RecordingActionError> {
+    let imported = link(&server_url)
+        .send_stem_package(package)
+        .await
+        .map_err(action_failure)?;
+    Ok(ImportedStemsItem {
+        recording_id: imported.recording.value(),
+        title: imported.title,
+        stems: imported.stems,
+        regions_added: imported.regions_added,
+    })
+}
+
+pub async fn export_stem_package(
+    server_url: String,
+    recording_id: u64,
+) -> Result<Vec<u8>, RecordingActionError> {
+    link(&server_url)
+        .fetch_stem_package(RecordingId::new(recording_id))
+        .await
+        .map_err(action_failure)
+}
+
+pub async fn delete_stems(
+    server_url: String,
+    recording_id: u64,
+) -> Result<(), RecordingActionError> {
+    link(&server_url)
+        .remove_stems(RecordingId::new(recording_id))
+        .await
+        .map_err(action_failure)
+}
+
 /// Gives a recording another title (admin only).
 pub async fn rename_recording_to(
     server_url: String,
@@ -233,7 +315,11 @@ pub async fn recording_waveform(
     let found = load_waveform(&link, &WAVEFORMS, RecordingId::new(recording_id))
         .await
         .map_err(|error| error.to_string())?;
-    Ok(WaveformData {
+    Ok(waveform_data(&found))
+}
+
+fn waveform_data(found: &RecordingWaveform) -> WaveformData {
+    WaveformData {
         length_ms: found.length.value(),
         sample_rate: found.waveform.sample_rate,
         levels: found
@@ -249,7 +335,7 @@ pub async fn recording_waveform(
                     .collect(),
             })
             .collect(),
-    })
+    }
 }
 
 /// A point marker of a recording.

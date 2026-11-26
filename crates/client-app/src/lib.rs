@@ -5,6 +5,7 @@ mod connection;
 mod exchange;
 mod reconnect;
 mod session;
+mod stems;
 mod waveform;
 
 pub use access::{
@@ -17,6 +18,7 @@ pub use exchange::{
 };
 pub use reconnect::{CLOCK_SYNC_INTERVAL, ReconnectPolicy, Timer};
 pub use session::{ScrubThrottle, ServerEvent, SessionView, ViewChange};
+pub use stems::{ImportedPackage, StemLink, StemSummary};
 pub use waveform::{RecordingWaveform, WaveformCache, cached_waveform};
 
 /// What the real-time channel reports: its own lifecycle or a message from the server.

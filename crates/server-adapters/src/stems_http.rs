@@ -149,6 +149,11 @@ async fn stems(
             .iter()
             .map(|stem| StemDto {
                 name: stem.name.as_str().to_owned(),
+                key: stem
+                    .path
+                    .file_stem()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
                 length_ms: stem.length.value(),
             })
             .collect(),

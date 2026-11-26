@@ -120,6 +120,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ImportStatusInfo dco_decode_import_status_info(dynamic raw);
 
   @protected
+  ImportedStemsItem dco_decode_imported_stems_item(dynamic raw);
+
+  @protected
   LabelItem dco_decode_label_item(dynamic raw);
 
   @protected
@@ -157,6 +160,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<StemChannelView> dco_decode_list_stem_channel_view(dynamic raw);
+
+  @protected
+  List<StemItem> dco_decode_list_stem_item(dynamic raw);
 
   @protected
   List<UserItem> dco_decode_list_user_item(dynamic raw);
@@ -241,6 +247,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   StemChannelView dco_decode_stem_channel_view(dynamic raw);
+
+  @protected
+  StemItem dco_decode_stem_item(dynamic raw);
 
   @protected
   TargetTempo dco_decode_target_tempo(dynamic raw);
@@ -388,6 +397,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ImportStatusInfo sse_decode_import_status_info(SseDeserializer deserializer);
 
   @protected
+  ImportedStemsItem sse_decode_imported_stems_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LabelItem sse_decode_label_item(SseDeserializer deserializer);
 
   @protected
@@ -437,6 +451,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<StemChannelView> sse_decode_list_stem_channel_view(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<StemItem> sse_decode_list_stem_item(SseDeserializer deserializer);
 
   @protected
   List<UserItem> sse_decode_list_user_item(SseDeserializer deserializer);
@@ -535,6 +552,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   StemChannelView sse_decode_stem_channel_view(SseDeserializer deserializer);
+
+  @protected
+  StemItem sse_decode_stem_item(SseDeserializer deserializer);
 
   @protected
   TargetTempo sse_decode_target_tempo(SseDeserializer deserializer);
@@ -730,6 +750,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_imported_stems_item(
+    ImportedStemsItem self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_label_item(LabelItem self, SseSerializer serializer);
 
   @protected
@@ -797,6 +823,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     List<StemChannelView> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_stem_item(List<StemItem> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_user_item(List<UserItem> self, SseSerializer serializer);
@@ -917,6 +946,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     StemChannelView self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_stem_item(StemItem self, SseSerializer serializer);
 
   @protected
   void sse_encode_target_tempo(TargetTempo self, SseSerializer serializer);

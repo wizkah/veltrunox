@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `access`, `action_failure`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `view`, `with_channel`, `with_scrub`, `write_failure`
+// These functions are ignored because they are not marked as `pub`: `access`, `action_failure`, `bookmark_name`, `channel_access`, `forward`, `from_state`, `into_intent`, `invalid`, `link`, `range_of`, `send_intent`, `set_access`, `signed_in`, `target_tempo`, `tuning_in_range`, `view`, `waveform_data`, `with_channel`, `with_scrub`, `write_failure`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Access`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
@@ -40,6 +40,49 @@ Future<UploadedRecordingItem> uploadRecording({
   fileName: fileName,
   uploadId: uploadId,
   content: content,
+);
+
+/// The stems of a recording; empty if it has none.
+Future<List<StemItem>> recordingStems({
+  required String serverUrl,
+  required BigInt recordingId,
+}) => RustLib.instance.api.crateApiRecordingStems(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+);
+
+Future<WaveformData> stemWaveform({
+  required String serverUrl,
+  required BigInt recordingId,
+  required int stem,
+}) => RustLib.instance.api.crateApiStemWaveform(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+  stem: stem,
+);
+
+Future<ImportedStemsItem> importStemPackage({
+  required String serverUrl,
+  required List<int> package,
+}) => RustLib.instance.api.crateApiImportStemPackage(
+  serverUrl: serverUrl,
+  package: package,
+);
+
+Future<Uint8List> exportStemPackage({
+  required String serverUrl,
+  required BigInt recordingId,
+}) => RustLib.instance.api.crateApiExportStemPackage(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+);
+
+Future<void> deleteStems({
+  required String serverUrl,
+  required BigInt recordingId,
+}) => RustLib.instance.api.crateApiDeleteStems(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
 );
 
 /// Gives a recording another title (admin only).
@@ -675,6 +718,38 @@ enum ImportStatusInfo {
   unknownRecording,
 }
 
+/// What an imported stem package gave.
+class ImportedStemsItem {
+  final BigInt recordingId;
+  final String title;
+  final int stems;
+  final int regionsAdded;
+
+  const ImportedStemsItem({
+    required this.recordingId,
+    required this.title,
+    required this.stems,
+    required this.regionsAdded,
+  });
+
+  @override
+  int get hashCode =>
+      recordingId.hashCode ^
+      title.hashCode ^
+      stems.hashCode ^
+      regionsAdded.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImportedStemsItem &&
+          runtimeType == other.runtimeType &&
+          recordingId == other.recordingId &&
+          title == other.title &&
+          stems == other.stems &&
+          regionsAdded == other.regionsAdded;
+}
+
 /// A point marker of a recording.
 class LabelItem {
   final BigInt id;
@@ -1159,6 +1234,27 @@ class StemChannelView {
           muted == other.muted &&
           solo == other.solo &&
           audible == other.audible;
+}
+
+/// One stem of a recording.
+class StemItem {
+  final String name;
+
+  /// Changes with the content of the stem.
+  final String key;
+
+  const StemItem({required this.name, required this.key});
+
+  @override
+  int get hashCode => name.hashCode ^ key.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StemItem &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          key == other.key;
 }
 
 /// The speed that plays a recording of `recording_bpm` at `target_bpm`.

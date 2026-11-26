@@ -64,6 +64,8 @@ pub struct PackageSectionDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StemDto {
     pub name: String,
+    /// Changes with the content of the stem, so a client knows when to fetch its waveform.
+    pub key: String,
     pub length_ms: u64,
 }
 

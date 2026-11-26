@@ -10,6 +10,8 @@ use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use support::TestClient;
+use veltrunox_client_adapters::HttpServerLink;
+use veltrunox_client_app::{LinkError, StemLink};
 use veltrunox_core::{Intent, RecordingId};
 use veltrunox_server_adapters::{
     AppState, SqliteStore, StemStore, SystemClock, UploadStore, router,
@@ -251,6 +253,31 @@ async fn stems_of_another_rate_than_the_recording_are_refused() {
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(body["code"], "stems_rate_mismatch");
+}
+
+#[tokio::test]
+async fn the_client_adapter_imports_lists_exports_and_removes() {
+    let server = server("client").await;
+    let link = HttpServerLink::new(&server.url);
+    let id = RecordingId::new(server.id);
+
+    let imported = link
+        .send_stem_package(two_stems(&server.hash))
+        .await
+        .unwrap();
+    assert_eq!((imported.stems, imported.regions_added), (2, 2));
+    assert_eq!(link.fetch_stems(id).await.unwrap()[1].name, "other");
+    let waveform = link.fetch_stem_waveform(id, 0).await.unwrap();
+    assert!(!waveform.waveform.levels.is_empty());
+    let package = link.fetch_stem_package(id).await.unwrap();
+    link.remove_stems(id).await.unwrap();
+    assert!(link.fetch_stems(id).await.unwrap().is_empty());
+    assert!(link.send_stem_package(package).await.is_ok());
+
+    let refused = link.send_stem_package(two_stems("unknown")).await;
+    assert!(
+        matches!(refused, Err(LinkError::Refused(reason)) if reason.code == "stems_unknown_recording")
+    );
 }
 
 #[tokio::test]
