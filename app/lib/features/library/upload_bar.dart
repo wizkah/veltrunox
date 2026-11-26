@@ -11,6 +11,10 @@ import 'upload_state.dart';
 /// How many refused files the summary of a batch names.
 const _failuresShown = 3;
 
+/// Whether the files are on the machine of the application's own server.
+/// Overridden at the application root.
+final localFilesProvider = Provider<bool>((ref) => false);
+
 /// The upload button with what the upload is doing: sending, done or failed.
 class UploadBar extends ConsumerWidget {
   const UploadBar({super.key});
@@ -19,23 +23,28 @@ class UploadBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(uploadControllerProvider);
     final controller = ref.read(uploadControllerProvider.notifier);
+    final local = ref.watch(localFilesProvider);
     return Wrap(
       spacing: AppSpace.s3,
       runSpacing: AppSpace.s2,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         ActionButton(
-          label: LibraryTexts.upload,
-          icon: Icons.upload_file,
+          label: LibraryTexts.upload(local: local),
+          icon: local ? Icons.folder_open : Icons.upload_file,
           kind: ActionKind.secondary,
           onPressed: state is UploadSending ? null : controller.chooseAndUpload,
         ),
-        ..._status(state, controller.dismiss),
+        ..._status(state, controller.dismiss, local: local),
       ],
     );
   }
 
-  static List<Widget> _status(UploadState state, VoidCallback dismiss) {
+  static List<Widget> _status(
+    UploadState state,
+    VoidCallback dismiss, {
+    required bool local,
+  }) {
     final status = switch (state) {
       UploadIdle() => null,
       UploadSending(
@@ -51,6 +60,7 @@ class UploadBar extends ConsumerWidget {
             position: position,
             total: total,
             percent: percent,
+            local: local,
           ),
         ),
       UploadBatchDone(:final uploaded, :final existing, :final failures) =>
@@ -61,6 +71,7 @@ class UploadBar extends ConsumerWidget {
               uploaded: uploaded,
               existing: existing,
               failed: failures.length,
+              local: local,
             ),
             for (final failure in failures.take(_failuresShown))
               LibraryTexts.uploadFailed(failure.fileName, failure.reason),
@@ -70,7 +81,7 @@ class UploadBar extends ConsumerWidget {
         state: ActivityState.success,
         label: existing
             ? LibraryTexts.uploadedAlready(title)
-            : LibraryTexts.uploaded(title),
+            : LibraryTexts.uploaded(title, local: local),
       ),
       UploadFailed(:final fileName, :final reason) => ActivityStatus(
         state: ActivityState.error,

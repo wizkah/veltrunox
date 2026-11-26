@@ -41,7 +41,11 @@ abstract final class LibraryTexts {
   static String get notAnalysed =>
       tr('Noch nicht analysiert', 'Not analysed yet');
 
-  static String get upload => tr('Aufnahmen hochladen', 'Upload recordings');
+  /// [local]: the files are on the machine of the application's own server,
+  /// so the person opens them rather than uploading them.
+  static String upload({bool local = false}) => local
+      ? tr('Aufnahmen öffnen', 'Open recordings')
+      : tr('Aufnahmen hochladen', 'Upload recordings');
   static String get uploadDismiss => tr('Meldung schließen', 'Dismiss message');
   static String get rename => tr('Umbenennen', 'Rename');
   static String get renameTitle =>
@@ -63,17 +67,24 @@ abstract final class LibraryTexts {
     int position = 1,
     int total = 1,
     int? percent,
+    bool local = false,
   }) {
     final count = total > 1 ? ' ($position/$total)' : '';
     final done = percent == null ? '' : ' – $percent\u00a0%';
-    return tr(
-      'Wird hochgeladen: $fileName$count$done',
-      'Uploading: $fileName$count$done',
-    );
+    return local
+        ? tr(
+            'Wird geöffnet: $fileName$count$done',
+            'Opening: $fileName$count$done',
+          )
+        : tr(
+            'Wird hochgeladen: $fileName$count$done',
+            'Uploading: $fileName$count$done',
+          );
   }
 
-  static String uploaded(String title) =>
-      tr('Hochgeladen: $title', 'Uploaded: $title');
+  static String uploaded(String title, {bool local = false}) => local
+      ? tr('Geöffnet: $title', 'Opened: $title')
+      : tr('Hochgeladen: $title', 'Uploaded: $title');
   static String uploadedAlready(String title) => tr(
     'Schon vorhanden: $title (nicht noch einmal angelegt)',
     'Already there: $title (not added again)',
@@ -86,14 +97,15 @@ abstract final class LibraryTexts {
     required int uploaded,
     required int existing,
     required int failed,
+    bool local = false,
   }) {
     final de = [
-      if (uploaded > 0) '$uploaded hochgeladen',
+      if (uploaded > 0) '$uploaded ${local ? 'geöffnet' : 'hochgeladen'}',
       if (existing > 0) '$existing schon vorhanden',
       if (failed > 0) '$failed fehlgeschlagen',
     ];
     final en = [
-      if (uploaded > 0) '$uploaded uploaded',
+      if (uploaded > 0) '$uploaded ${local ? 'opened' : 'uploaded'}',
       if (existing > 0) '$existing already there',
       if (failed > 0) '$failed failed',
     ];

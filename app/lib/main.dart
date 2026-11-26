@@ -27,6 +27,7 @@ import 'features/exchange/file_exchange.dart';
 import 'features/language/language_controller.dart';
 import 'features/library/audio_file_picker.dart';
 import 'features/library/library_controller.dart';
+import 'features/library/upload_bar.dart';
 import 'features/markers/marker_controller.dart';
 import 'features/player/player_controller.dart';
 import 'features/own_password/own_password_source.dart';
@@ -87,6 +88,7 @@ Future<void> main() async {
               : OwnerTokenStore(host.ownerToken),
         ),
         localOwnerProvider.overrideWithValue(host != null),
+        localFilesProvider.overrideWithValue(host != null),
         sharingSourceProvider.overrideWithValue(
           host == null ? null : BridgeSharingSource(),
         ),

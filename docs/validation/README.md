@@ -300,4 +300,4 @@ Limits:
 
 **Checked by tests only:** the owner token being refused by the network endpoint, a busy port, the server starting again after a restart, HTTPS (through the Dart bindings, not the application).
 
-**Not checked:** keyboard input in the application (background automation could not type into it, so this needs a check by hand), upload through the file dialog, saving exports, clipboard, keyboard shortcuts, audible output, access from a second device and the firewall prompt it may cause, a debug build.
+**Not checked:** keyboard input in the application (background automation could not type into it, so this needs a check by hand), adding a recording through the file dialog (the dialog opens; a first build lacked the file access entitlement), saving exports, clipboard, keyboard shortcuts, audible output, access from a second device and the firewall prompt it may cause, a debug build.
