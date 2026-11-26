@@ -14,7 +14,7 @@ For practising, single parts of a recording (drums, bass, vocals, the rest) shal
 
 **Storage.** Stem files are content-addressed files in the server's media storage, as ADR-004 stores recordings; the database holds name, order, hash and waveform of each. Audio is not stored inside the database. Stems are lossy compressed, Ogg Vorbis recommended (about 190 kbit/s), which has no encoder delay that would shift stems against each other.
 
-**Package.** Stems travel as a ZIP file: `manifest.json` (format version, content hash and title of the recording, stem names and files, optionally tempo, beats, downbeats and sections) plus the audio files. Importing assigns it to the recording with that content hash, replaces an existing stem set as a whole, and adds the sections as regions. Everything is checked before anything is stored. Exporting writes the same format.
+**Package.** Stems travel as a ZIP file: `manifest.json` (format version, content hash and title of the recording, stem names and files, optionally tempo, beats, downbeats and sections) plus the audio files, which have the sample rate of the recording so the engine can mix them frame by frame. Importing assigns it to the recording with that content hash, replaces an existing stem set as a whole, and adds the sections as regions. Everything is checked before anything is stored. Exporting writes the same format.
 
 **Sections as regions.** Names are the section label with a running number ("Verse 1"). Start and end move to the nearest downbeat. A section is not added when a region with the same name or nearly the same range exists.
 

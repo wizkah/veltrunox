@@ -301,3 +301,14 @@ Limits:
 **Checked by tests only:** the owner token being refused by the network endpoint, a busy port, the server starting again after a restart, HTTPS (through the Dart bindings, not the application).
 
 **Not checked:** keyboard input in the application (background automation could not type into it, so this needs a check by hand), adding a recording through the file dialog (the dialog opens; a first build lacked the file access entitlement), saving exports, clipboard, keyboard shortcuts, audible output, access from a second device and the firewall prompt it may cause, a debug build.
+
+## Stems, mixer and structure analysis (ADR-015), 2026-11-26
+
+Environment: macOS, Apple M3, 8 GB; debug server, release web build in the built-in Chromium pane.
+
+- Rust workspace tests and Clippy, Flutter analysis and tests (348), `wasm32` build of the bridge, `flutter build macos` and the Playwright suites (16 + reconnect) passed. One export test of the Playwright suite failed once on a notice found twice and passed on the repeat.
+- Tests cover: package import, export and delete through the endpoints; refusal of unusable packages; the mix shared between clients and reset by new stems; gains of the engine on synthetic stems (mute, solo, change without a jump); analysis jobs with a stand-in program.
+- One real run of the analysis program (environment of the trial, not installed with `install.sh`) on a 194.6 s song: about 57 s, four stems of 14 MB together, eleven section regions.
+- Mixer in the browser at 1400×900 and 375×812: four lanes, one playhead, switch, mute and solo.
+
+Limits: nothing was **heard** (the server had no audio device); the section boundaries and labels were not checked by ear; the macOS application was built but not started; file dialogs for packages, the install script, rights of non-admins for stem actions, the Raspberry Pi and memory use were not checked. Original and stems are decoded by different decoders (analysis: ffmpeg); a small offset between them for MP3 originals is possible and unmeasured.
