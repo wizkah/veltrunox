@@ -15,17 +15,32 @@ class BridgeMixerSource implements MixerSource {
   final String serverUrl;
 
   @override
-  Future<List<Stem>> stems(int recordingId) async {
+  Future<StemOverview> stems(int recordingId) async {
     try {
       final found = await rust.recordingStems(
         serverUrl: serverUrl,
         recordingId: BigInt.from(recordingId),
       );
-      return [for (final stem in found) Stem(name: stem.name, key: stem.key)];
+      return StemOverview(
+        stems: [
+          for (final stem in found.stems) Stem(name: stem.name, key: stem.key),
+        ],
+        analysisAvailable: found.analysisAvailable,
+        analysingPercent: found.analysing ? found.percent : null,
+        failureCode: found.failureCode,
+      );
     } on Object {
-      return const [];
+      return const StemOverview();
     }
   }
+
+  @override
+  Future<void> analyse(int recordingId) => _reasoned(
+    () => rust.analyseStems(
+      serverUrl: serverUrl,
+      recordingId: BigInt.from(recordingId),
+    ),
+  );
 
   @override
   Future<LoadedWaveform?> waveform(int recordingId, int stem) async {

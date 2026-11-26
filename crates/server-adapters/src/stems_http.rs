@@ -4,6 +4,7 @@ use crate::{
     access::Caller,
     http::{ApiError, blocking},
     state::AppState,
+    stem_analysis::JobState,
     stem_package::{PackageError, StemStore},
 };
 use axum::{
@@ -19,9 +20,9 @@ use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use veltrunox_core::{Capability, Reason, RecordingId, Refusal};
 use veltrunox_protocol::{
-    ImportedStemsDto, PackageRecordingDto, STEM_PACKAGE_PATH, STEM_PACKAGES_PATH,
-    STEM_WAVEFORM_LEVEL_PATH, STEM_WAVEFORM_PATH, STEMS_PATH, StemDto, StemListDto,
-    WaveformInfoDto, peaks_to_bytes, waveform_info_to_dto,
+    ImportedStemsDto, PackageRecordingDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH,
+    STEM_PACKAGES_PATH, STEM_WAVEFORM_LEVEL_PATH, STEM_WAVEFORM_PATH, STEMS_PATH, StemAnalysisDto,
+    StemDto, StemListDto, WaveformInfoDto, peaks_to_bytes, waveform_info_to_dto,
 };
 use veltrunox_server_app::{Stem, StemError, list_recordings};
 
@@ -30,6 +31,7 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(STEM_PACKAGES_PATH, post(import_package))
         .route(STEMS_PATH, get(stems).delete(remove_stems))
         .route(STEM_PACKAGE_PATH, get(export_package))
+        .route(STEM_ANALYSIS_PATH, post(analyse))
         .route(STEM_WAVEFORM_PATH, get(waveform_info))
         .route(STEM_WAVEFORM_LEVEL_PATH, get(waveform_level))
 }
@@ -137,13 +139,20 @@ async fn stems(
     Path(recording): Path<u64>,
 ) -> Result<Json<StemListDto>, ApiError> {
     let _ = &caller;
-    let set = blocking(move || {
-        app.stems
-            .stem_set(RecordingId::new(recording))
-            .map_err(|_| ApiError::Internal)
-    })
-    .await?;
+    let id = RecordingId::new(recording);
+    let jobs = app.stem_jobs.clone();
+    let set = blocking(move || app.stems.stem_set(id).map_err(|_| ApiError::Internal)).await?;
+    let analysis = match jobs.as_ref().and_then(|jobs| jobs.state(id)) {
+        None => StemAnalysisDto::None,
+        Some(JobState::Queued) => StemAnalysisDto::Queued,
+        Some(JobState::Running(percent)) => StemAnalysisDto::Running { percent },
+        Some(JobState::Failed(code)) => StemAnalysisDto::Failed {
+            code: code.to_owned(),
+        },
+    };
     Ok(Json(StemListDto {
+        analysis_available: jobs.is_some(),
+        analysis,
         stems: set
             .stems
             .iter()
@@ -158,6 +167,36 @@ async fn stems(
             })
             .collect(),
     }))
+}
+
+async fn analyse(
+    State(app): State<AppState>,
+    caller: Caller,
+    Path(recording): Path<u64>,
+) -> Result<StatusCode, ApiError> {
+    caller.require(Capability::ManageRecordings)?;
+    let jobs = app.stem_jobs.clone().ok_or_else(|| {
+        ApiError::Refused(
+            StatusCode::SERVICE_UNAVAILABLE,
+            Reason::coded(
+                "stems_analysis_unavailable",
+                "no analysis program is set up on this server",
+            ),
+        )
+    })?;
+    let id = RecordingId::new(recording);
+    let known = blocking(move || {
+        Ok(list_recordings(app.recordings.as_ref())
+            .map_err(|_| ApiError::Internal)?
+            .iter()
+            .any(|recording| recording.id == id))
+    })
+    .await?;
+    if !known {
+        return Err(ApiError::NotFound);
+    }
+    jobs.enqueue(id);
+    Ok(StatusCode::ACCEPTED)
 }
 
 async fn remove_stems(

@@ -15,6 +15,27 @@ class Stem {
   int get hashCode => Object.hash(name, key);
 }
 
+/// The stems of a recording and what can become of them.
+class StemOverview {
+  const StemOverview({
+    this.stems = const [],
+    this.analysisAvailable = false,
+    this.analysingPercent,
+    this.failureCode,
+  });
+
+  final List<Stem> stems;
+
+  /// Whether the server can analyse recordings.
+  final bool analysisAvailable;
+
+  /// Percent done while a job waits or runs; `null` without one.
+  final int? analysingPercent;
+
+  /// Why the last job failed.
+  final String? failureCode;
+}
+
 /// What an imported stem package gave.
 class ImportedStems {
   const ImportedStems({

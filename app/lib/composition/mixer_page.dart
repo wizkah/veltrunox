@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../app_shell/shell_destination.dart';
+import '../design/tokens/app_colors.dart';
 import '../design/tokens/app_geometry.dart';
 import '../features/access/access_controller.dart';
 import '../features/connection/connection_controller.dart';
@@ -14,6 +15,7 @@ import '../features/player/player_controller.dart';
 import '../features/player/player_screen.dart';
 import '../features/waveform/waveform_view_controller.dart';
 import '../shared_ui/app_icon_button.dart';
+import '../shared_ui/server_reason.dart';
 import '../shared_ui/state_notice.dart';
 import 'loaded_recording.dart';
 import 'mixer_board.dart';
@@ -75,15 +77,18 @@ class _MixerArea extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(playerStateProvider).value;
-    final stems = ref.watch(stemsProvider(recordingId)).value;
+    final overview = ref.watch(stemsProvider(recordingId)).value;
     final canManage = ref.watch(rightsProvider)?.canManageRecordings ?? false;
     final busy = ref.watch(stemSetBusyProvider);
-    if (state == null || stems == null) {
+    if (state == null || overview == null) {
       return StateNotice(message: MixerTexts.loading, busy: true);
     }
     final actions = StemSetActions(context, ref, recordingId);
     final player = ref.read(playerControllerProvider);
+    final stems = overview.stems;
     final hasStems = stems.isNotEmpty;
+    final percent = overview.analysingPercent;
+    final failure = overview.failureCode;
     final view = ref.read(waveformViewProvider(recordingId).notifier);
     final length = lengthMs;
     Future<void> zoom(double factor) async {
@@ -94,6 +99,13 @@ class _MixerArea extends ConsumerWidget {
     final bar = StemActionsBar(
       stemsEnabled: state.stemsEnabled,
       onEnabled: hasStems && connected ? player.setStemsEnabled : null,
+      onAnalyse:
+          canManage &&
+              connected &&
+              overview.analysisAvailable &&
+              percent == null
+          ? () => actions.analyse(replacing: hasStems)
+          : null,
       onImport: canManage && connected
           ? () => actions.import(replacing: hasStems)
           : null,
@@ -139,6 +151,16 @@ class _MixerArea extends ConsumerWidget {
           children: [
             bar,
             if (hasStems && !state.stemsEnabled) Text(MixerTexts.originalPlays),
+            if (percent != null)
+              Semantics(
+                liveRegion: true,
+                child: Text(MixerTexts.analysing(percent)),
+              ),
+            if (failure != null)
+              Text(
+                serverReasonText(ServerReason(failure)),
+                style: const TextStyle(color: AppColors.error),
+              ),
             const SizedBox(height: AppSpace.s2),
             if (bounds.hasBoundedHeight) Flexible(child: board) else board,
           ],

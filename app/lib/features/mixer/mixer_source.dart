@@ -16,8 +16,11 @@ class StemFailure implements Exception {
 /// Port: the stems of the recordings on the server. The writing actions throw
 /// [StemFailure].
 abstract interface class MixerSource {
-  /// Empty if the recording has none or they cannot be read.
-  Future<List<Stem>> stems(int recordingId);
+  /// Without stems if the recording has none or they cannot be read.
+  Future<StemOverview> stems(int recordingId);
+
+  /// Starts the analysis of the recording; it shows in [stems].
+  Future<void> analyse(int recordingId);
 
   /// `null` if it cannot be read.
   Future<LoadedWaveform?> waveform(int recordingId, int stem);
@@ -49,7 +52,7 @@ final stemPackageFilesProvider = Provider<StemPackageFiles>(
 );
 
 /// The stems of a recording; invalidated when they may have changed.
-final stemsProvider = FutureProvider.family<List<Stem>, int>(
+final stemsProvider = FutureProvider.family<StemOverview, int>(
   (ref, recordingId) => ref.watch(mixerSourceProvider).stems(recordingId),
 );
 

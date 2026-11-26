@@ -186,6 +186,14 @@ String? _text(ServerReason reason) => switch (reason.code) {
     'Dieser Server nimmt keine Segmente an.',
     'This server takes no stems.',
   ),
+  'stems_analysis_unavailable' => tr(
+    'Auf diesem Server ist kein Analyseprogramm eingerichtet.',
+    'No analysis program is set up on this server.',
+  ),
+  'stems_analysis_failed' => tr(
+    'Die Analyse in Segmente ist fehlgeschlagen.',
+    'The analysis into stems failed.',
+  ),
   'bookmark_not_found' => tr(
     'Die Markierung oder Aufnahme wurde nicht gefunden.',
     'The marker or recording was not found.',

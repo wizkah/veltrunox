@@ -54,6 +54,23 @@ class StemSetActions {
     });
   }
 
+  Future<void> analyse({required bool replacing}) async {
+    if (replacing &&
+        !await ConfirmDialog.ask(
+          context,
+          title: MixerTexts.replaceTitle,
+          message: MixerTexts.replaceMessage,
+          confirmLabel: MixerTexts.replace,
+          cancelLabel: MixerTexts.cancel,
+        )) {
+      return;
+    }
+    await _run(() async {
+      await _source.analyse(recordingId);
+      return null;
+    });
+  }
+
   Future<void> export(String title) => _run(() async {
     final package = await _source.exportPackage(recordingId);
     final saved = await ref

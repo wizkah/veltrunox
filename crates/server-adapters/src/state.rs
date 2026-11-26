@@ -1,6 +1,7 @@
 use crate::analysis_worker::{AnalysisQueue, FileAnalyzer};
 use crate::hooks::{AudioHooks, LengthCache};
 use crate::hub::Hub;
+use crate::stem_analysis::{JobContext, StemJobs};
 use crate::stem_package::StemStore;
 use crate::upload::UploadStore;
 use std::sync::Arc;
@@ -8,7 +9,7 @@ use veltrunox_core::{PlaybackState, Volume};
 use veltrunox_server_app::{
     AccountService, AnalysisRepository, AnalysisService, ApiTokenService, BookmarkRepository,
     BookmarkService, Clock, MediaCatalog, PlaybackBroadcast, PlaybackService, RecordingRepository,
-    StemRepository, StemService, WaveformRepository,
+    StemRepository, StemSeparator, StemService, WaveformRepository,
 };
 
 /// Everything the endpoints share.
@@ -25,6 +26,8 @@ pub struct AppState {
     pub stem_repository: Arc<dyn StemRepository>,
     /// `None` takes and gives no stem packages.
     pub stem_store: Option<Arc<StemStore>>,
+    /// `None` cannot analyse: no program is configured.
+    pub stem_jobs: Option<Arc<StemJobs>>,
     pub analysis: Arc<AnalysisService>,
     pub analysis_queue: Arc<AnalysisQueue>,
     /// `None` leaves the server open: everybody may do everything.
@@ -146,6 +149,7 @@ impl AppState {
             media: store.clone(),
             stem_repository: store.clone(),
             stem_store: None,
+            stem_jobs: None,
             stems,
             waveforms: store,
             bookmarks,
@@ -171,6 +175,25 @@ impl AppState {
     /// Takes and gives stem packages, keeping the stem files in the store.
     pub fn with_stems(mut self, stems: StemStore) -> Self {
         self.stem_store = Some(Arc::new(stems));
+        self
+    }
+
+    /// Analyses recordings into stems with the separator; needs `with_stems` first.
+    pub fn with_stem_analysis(mut self, separator: Arc<dyn StemSeparator>) -> Self {
+        self.stem_jobs = self.stem_store.clone().map(|store| {
+            Arc::new(StemJobs::start(
+                separator,
+                JobContext {
+                    recordings: self.recordings.clone(),
+                    media: self.media.clone(),
+                    stem_repository: self.stem_repository.clone(),
+                    stems: self.stems.clone(),
+                    store,
+                    playback: self.playback.clone(),
+                    broadcast: self.hub.clone(),
+                },
+            ))
+        });
         self
     }
 

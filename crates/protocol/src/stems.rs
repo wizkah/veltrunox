@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub const STEM_PACKAGES_PATH: &str = "/api/v1/stem-packages";
 /// The stems of one recording (`GET` lists them, `DELETE` removes them).
 pub const STEMS_PATH: &str = "/api/v1/recordings/{id}/stems";
+/// Starts the analysis of one recording into stems (`POST`).
+pub const STEM_ANALYSIS_PATH: &str = "/api/v1/recordings/{id}/stems/analysis";
 /// The stem package of one recording as a ZIP file.
 pub const STEM_PACKAGE_PATH: &str = "/api/v1/recordings/{id}/stems/package";
 /// Waveform description of one stem (`WaveformInfoDto`); `{index}` counts from 0.
@@ -72,6 +74,24 @@ pub struct StemDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StemListDto {
     pub stems: Vec<StemDto>,
+    /// Whether this server can analyse recordings into stems.
+    pub analysis_available: bool,
+    pub analysis: StemAnalysisDto,
+}
+
+/// The analysis job of one recording.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum StemAnalysisDto {
+    /// No job waits or runs.
+    None,
+    Queued,
+    Running {
+        percent: u8,
+    },
+    Failed {
+        code: String,
+    },
 }
 
 /// Answer to an imported package.

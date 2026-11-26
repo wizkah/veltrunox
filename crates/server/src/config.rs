@@ -28,6 +28,9 @@ pub struct Config {
     pub web_dir: Option<PathBuf>,
     /// Directory for uploaded audio files; `<data_dir>/media` if unset.
     pub upload_dir: Option<PathBuf>,
+    /// Program that analyses recordings into stems; `<data_dir>/analysis/run` if unset and
+    /// present.
+    pub analysis_program: Option<PathBuf>,
     /// Largest accepted upload in bytes.
     pub max_upload_bytes: u64,
     /// Transport security of the endpoint.
@@ -61,6 +64,7 @@ impl Default for Config {
             allowed_origin: None,
             web_dir: None,
             upload_dir: None,
+            analysis_program: None,
             max_upload_bytes: 512 << 20,
             tls: TlsMode::Off,
             tls_cert_file: None,
@@ -87,10 +91,17 @@ impl fmt::Display for ConfigError {
 impl std::error::Error for ConfigError {}
 
 impl Config {
-    /// Where uploaded files are kept.
     /// Where the stem files of the recordings are kept.
     pub fn stem_directory(&self) -> PathBuf {
         self.data_dir.join("stems")
+    }
+
+    /// The analysis program to use, if there is one.
+    pub fn stem_analysis_program(&self) -> Option<PathBuf> {
+        let installed = self.data_dir.join("analysis").join("run");
+        self.analysis_program
+            .clone()
+            .or_else(|| installed.is_file().then_some(installed))
     }
 
     pub fn upload_directory(&self) -> PathBuf {

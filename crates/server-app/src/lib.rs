@@ -19,8 +19,8 @@ pub use ports::{
     AnalysisFailure, AnalysisRepository, ApiTokenRecord, ApiTokenRepository, BookmarkError,
     BookmarkRepository, Clock, HashFailure, MediaCatalog, Owned, PasswordHasher, PlaybackBroadcast,
     RecordingAnalyzer, RecordingLengths, RecordingRepository, RecordingScan, SessionRepository,
-    SessionTokens, Stem, StemRepository, StemSet, StorageError, UserRecord, UserRepository,
-    UserStoreError, WallClock, WaveformRepository,
+    SessionTokens, Stem, StemRepository, StemSeparator, StemSet, StorageError, UserRecord,
+    UserRepository, UserStoreError, WallClock, WaveformRepository,
 };
 pub use stems::{ImportedStems, StemError, StemService, Structure};
 

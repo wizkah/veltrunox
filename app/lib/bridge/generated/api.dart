@@ -42,11 +42,18 @@ Future<UploadedRecordingItem> uploadRecording({
   content: content,
 );
 
-/// The stems of a recording; empty if it has none.
-Future<List<StemItem>> recordingStems({
+Future<StemOverviewItem> recordingStems({
   required String serverUrl,
   required BigInt recordingId,
 }) => RustLib.instance.api.crateApiRecordingStems(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+);
+
+Future<void> analyseStems({
+  required String serverUrl,
+  required BigInt recordingId,
+}) => RustLib.instance.api.crateApiAnalyseStems(
   serverUrl: serverUrl,
   recordingId: recordingId,
 );
@@ -1255,6 +1262,48 @@ class StemItem {
           runtimeType == other.runtimeType &&
           name == other.name &&
           key == other.key;
+}
+
+/// The stems of a recording and the state of its analysis.
+class StemOverviewItem {
+  final List<StemItem> stems;
+  final bool analysisAvailable;
+
+  /// Whether a job waits or runs.
+  final bool analysing;
+
+  /// Percent done of a running job.
+  final int percent;
+
+  /// The code of why the last job failed.
+  final String? failureCode;
+
+  const StemOverviewItem({
+    required this.stems,
+    required this.analysisAvailable,
+    required this.analysing,
+    required this.percent,
+    this.failureCode,
+  });
+
+  @override
+  int get hashCode =>
+      stems.hashCode ^
+      analysisAvailable.hashCode ^
+      analysing.hashCode ^
+      percent.hashCode ^
+      failureCode.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StemOverviewItem &&
+          runtimeType == other.runtimeType &&
+          stems == other.stems &&
+          analysisAvailable == other.analysisAvailable &&
+          analysing == other.analysing &&
+          percent == other.percent &&
+          failureCode == other.failureCode;
 }
 
 /// The speed that plays a recording of `recording_bpm` at `target_bpm`.

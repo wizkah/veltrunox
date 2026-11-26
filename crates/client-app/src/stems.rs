@@ -11,6 +11,25 @@ pub struct StemSummary {
     pub key: String,
 }
 
+/// The analysis job of a recording.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StemJob {
+    None,
+    Queued,
+    Running(u8),
+    /// The code of the reason.
+    Failed(String),
+}
+
+/// The stems of a recording and what can become of them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StemOverview {
+    pub stems: Vec<StemSummary>,
+    /// Whether the server can analyse recordings.
+    pub analysis_available: bool,
+    pub job: StemJob,
+}
+
 /// What importing a stem package came to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedPackage {
@@ -22,11 +41,15 @@ pub struct ImportedPackage {
 
 /// Port: stem requests to the server. As with `ServerLink` the futures need not be `Send`.
 pub trait StemLink {
-    /// Empty if the recording has no stems.
     fn fetch_stems(
         &self,
         recording: RecordingId,
-    ) -> impl Future<Output = Result<Vec<StemSummary>, LinkError>>;
+    ) -> impl Future<Output = Result<StemOverview, LinkError>>;
+    /// Asks the server to analyse the recording into stems; the job shows in the overview.
+    fn request_stem_analysis(
+        &self,
+        recording: RecordingId,
+    ) -> impl Future<Output = Result<(), LinkError>>;
     /// Length and peaks of the stem at `index`, counted from 0.
     fn fetch_stem_waveform(
         &self,

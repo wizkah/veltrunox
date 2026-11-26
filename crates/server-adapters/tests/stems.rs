@@ -11,11 +11,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use support::TestClient;
 use veltrunox_client_adapters::HttpServerLink;
-use veltrunox_client_app::{LinkError, StemLink};
+use veltrunox_client_app::{LinkError, StemJob, StemLink, StemOverview};
 use veltrunox_core::{Intent, RecordingId};
 use veltrunox_server_adapters::{
     AppState, SqliteStore, StemStore, SystemClock, UploadStore, router,
 };
+use veltrunox_server_app::StemSeparator;
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 const LOW: &[u8] = include_bytes!("fixtures/stem-110.ogg");
@@ -51,6 +52,32 @@ struct Server {
 }
 
 async fn server(name: &str) -> Server {
+    server_with(name, None).await
+}
+
+/// Writes the package it was prepared with, as the analysis program would.
+struct Prepared {
+    package: std::sync::Mutex<Vec<u8>>,
+}
+
+impl StemSeparator for Prepared {
+    fn separate(
+        &self,
+        _audio: &Path,
+        _title: &str,
+        package: &Path,
+        report: &dyn Fn(u8),
+    ) -> Result<(), String> {
+        report(50);
+        let bytes = self.package.lock().unwrap().clone();
+        if bytes.is_empty() {
+            return Err("nothing prepared".to_owned());
+        }
+        std::fs::write(package, bytes).map_err(|error| error.to_string())
+    }
+}
+
+async fn server_with(name: &str, separator: Option<Arc<Prepared>>) -> Server {
     let root = std::env::temp_dir().join(format!("veltrunox-stems-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let store = Arc::new(SqliteStore::in_memory().unwrap());
@@ -58,6 +85,10 @@ async fn server(name: &str) -> Server {
     let app = AppState::new(store.clone(), Arc::new(SystemClock::new()))
         .with_uploads(UploadStore::open(&root.join("media"), 1 << 20, store.as_ref()).unwrap())
         .with_stems(StemStore::open(&stems, 1 << 20, store.as_ref()).unwrap());
+    let app = match separator {
+        Some(separator) => app.with_stem_analysis(separator),
+        None => app,
+    };
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(listener, router(app)).await.unwrap() });
@@ -266,18 +297,74 @@ async fn the_client_adapter_imports_lists_exports_and_removes() {
         .await
         .unwrap();
     assert_eq!((imported.stems, imported.regions_added), (2, 2));
-    assert_eq!(link.fetch_stems(id).await.unwrap()[1].name, "other");
+    assert_eq!(link.fetch_stems(id).await.unwrap().stems[1].name, "other");
     let waveform = link.fetch_stem_waveform(id, 0).await.unwrap();
     assert!(!waveform.waveform.levels.is_empty());
     let package = link.fetch_stem_package(id).await.unwrap();
     link.remove_stems(id).await.unwrap();
-    assert!(link.fetch_stems(id).await.unwrap().is_empty());
+    assert!(link.fetch_stems(id).await.unwrap().stems.is_empty());
     assert!(link.send_stem_package(package).await.is_ok());
 
     let refused = link.send_stem_package(two_stems("unknown")).await;
     assert!(
         matches!(refused, Err(LinkError::Refused(reason)) if reason.code == "stems_unknown_recording")
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_analysis_job_gives_the_recording_what_the_program_wrote() {
+    let separator = Arc::new(Prepared {
+        package: Default::default(),
+    });
+    let server = server_with("analysis", Some(separator.clone())).await;
+    *separator.package.lock().unwrap() = two_stems(&server.hash);
+    let link = HttpServerLink::new(&server.url);
+    let id = RecordingId::new(server.id);
+
+    assert!(link.fetch_stems(id).await.unwrap().analysis_available);
+    link.request_stem_analysis(id).await.unwrap();
+    let done = wait_for_job(&link, id).await;
+    assert_eq!(done.job, StemJob::None);
+    assert_eq!(done.stems.len(), 2);
+
+    // A second run adds no region twice; a failing one keeps the stems.
+    link.request_stem_analysis(id).await.unwrap();
+    wait_for_job(&link, id).await;
+    let (_, bookmarks) = get(format!(
+        "{}/api/v1/recordings/{}/bookmarks",
+        server.url, server.id
+    ))
+    .await;
+    assert_eq!(json_of(&bookmarks)["regions"].as_array().unwrap().len(), 2);
+
+    separator.package.lock().unwrap().clear();
+    link.request_stem_analysis(id).await.unwrap();
+    let failed = wait_for_job(&link, id).await;
+    assert_eq!(
+        failed.job,
+        StemJob::Failed("stems_analysis_failed".to_owned())
+    );
+    assert_eq!(failed.stems.len(), 2);
+}
+
+async fn wait_for_job(link: &HttpServerLink, id: RecordingId) -> StemOverview {
+    for _ in 0..500 {
+        let overview = link.fetch_stems(id).await.unwrap();
+        if !matches!(overview.job, StemJob::Queued | StemJob::Running(_)) {
+            return overview;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    panic!("the job did not finish");
+}
+
+#[tokio::test]
+async fn without_a_program_nothing_can_be_analysed() {
+    let server = server("no-program").await;
+    let link = HttpServerLink::new(&server.url);
+    let id = RecordingId::new(server.id);
+    assert!(!link.fetch_stems(id).await.unwrap().analysis_available);
+    assert!(link.request_stem_analysis(id).await.is_err());
 }
 
 #[tokio::test]

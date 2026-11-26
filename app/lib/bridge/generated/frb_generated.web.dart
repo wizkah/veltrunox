@@ -252,6 +252,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   StemItem dco_decode_stem_item(dynamic raw);
 
   @protected
+  StemOverviewItem dco_decode_stem_overview_item(dynamic raw);
+
+  @protected
   TargetTempo dco_decode_target_tempo(dynamic raw);
 
   @protected
@@ -555,6 +558,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   StemItem sse_decode_stem_item(SseDeserializer deserializer);
+
+  @protected
+  StemOverviewItem sse_decode_stem_overview_item(SseDeserializer deserializer);
 
   @protected
   TargetTempo sse_decode_target_tempo(SseDeserializer deserializer);
@@ -949,6 +955,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_stem_item(StemItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_stem_overview_item(
+    StemOverviewItem self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_target_tempo(TargetTempo self, SseSerializer serializer);

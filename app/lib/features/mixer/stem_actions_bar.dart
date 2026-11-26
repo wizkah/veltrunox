@@ -11,6 +11,7 @@ class StemActionsBar extends StatelessWidget {
   const StemActionsBar({
     required this.stemsEnabled,
     this.onEnabled,
+    this.onAnalyse,
     this.onImport,
     this.onExport,
     this.onDelete,
@@ -21,6 +22,7 @@ class StemActionsBar extends StatelessWidget {
 
   final bool stemsEnabled;
   final ValueChanged<bool>? onEnabled;
+  final VoidCallback? onAnalyse;
   final VoidCallback? onImport;
   final VoidCallback? onExport;
   final VoidCallback? onDelete;
@@ -47,6 +49,13 @@ class StemActionsBar extends StatelessWidget {
               Text(MixerTexts.stems),
             ],
           ),
+        ),
+      if (onAnalyse != null)
+        ActionButton(
+          label: MixerTexts.analyse,
+          icon: Icons.auto_awesome,
+          kind: ActionKind.secondary,
+          onPressed: busy ? null : onAnalyse,
         ),
       if (onImport != null)
         ActionButton(

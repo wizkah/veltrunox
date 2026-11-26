@@ -77,6 +77,20 @@ pub trait StemRepository: Send + Sync {
     fn stem_paths(&self) -> Result<Vec<PathBuf>, StorageError>;
 }
 
+/// Port: separates an audio file into stems and finds its structure, as a stem package
+/// written to `package` (ADR-015). Runs for minutes and blocks.
+pub trait StemSeparator: Send + Sync {
+    /// `report` is told how far it has come in percent. `Err` describes what went wrong,
+    /// for the log.
+    fn separate(
+        &self,
+        audio: &Path,
+        title: &str,
+        package: &Path,
+        report: &dyn Fn(u8),
+    ) -> Result<(), String>;
+}
+
 /// Port: stored analysis results. A new result replaces the old one.
 pub trait AnalysisRepository: Send + Sync {
     /// `None` if the recording has no result (yet) or does not exist.

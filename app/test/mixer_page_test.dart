@@ -16,7 +16,10 @@ import 'fake_player_source.dart';
 
 class _NoWaveforms implements MixerSource {
   @override
-  Future<List<Stem>> stems(int recordingId) async => const [];
+  Future<StemOverview> stems(int recordingId) async => const StemOverview();
+
+  @override
+  Future<void> analyse(int recordingId) async {}
 
   @override
   Future<LoadedWaveform?> waveform(int recordingId, int stem) async => null;

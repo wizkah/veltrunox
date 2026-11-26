@@ -14,7 +14,7 @@ use veltrunox_client_app::{
 };
 use veltrunox_client_app::{
     ChannelAccess, ChannelEvent, ConnectionMonitor, ConnectionStatus, LinkError, LinkEvent,
-    RecordingWaveform, ScrubThrottle, ServerEvent, SessionView, StemLink, ViewChange,
+    RecordingWaveform, ScrubThrottle, ServerEvent, SessionView, StemJob, StemLink, ViewChange,
     WaveformCache, add_label, add_recording, add_region, analyse_again, convert_label_to_region,
     convert_region_to_label, delete_label, delete_recording, delete_region, edit_label,
     edit_region, load_bookmarks, load_library, load_waveform,
@@ -178,6 +178,18 @@ pub struct StemItem {
     pub key: String,
 }
 
+/// The stems of a recording and the state of its analysis.
+pub struct StemOverviewItem {
+    pub stems: Vec<StemItem>,
+    pub analysis_available: bool,
+    /// Whether a job waits or runs.
+    pub analysing: bool,
+    /// Percent done of a running job.
+    pub percent: u8,
+    /// The code of why the last job failed.
+    pub failure_code: Option<String>,
+}
+
 /// What an imported stem package gave.
 pub struct ImportedStemsItem {
     pub recording_id: u64,
@@ -186,22 +198,44 @@ pub struct ImportedStemsItem {
     pub regions_added: u32,
 }
 
-/// The stems of a recording; empty if it has none.
 pub async fn recording_stems(
     server_url: String,
     recording_id: u64,
-) -> Result<Vec<StemItem>, String> {
-    let stems = link(&server_url)
+) -> Result<StemOverviewItem, String> {
+    let overview = link(&server_url)
         .fetch_stems(RecordingId::new(recording_id))
         .await
         .map_err(|error| error.to_string())?;
-    Ok(stems
-        .into_iter()
-        .map(|stem| StemItem {
-            name: stem.name,
-            key: stem.key,
-        })
-        .collect())
+    let (analysing, percent, failure_code) = match overview.job {
+        StemJob::None => (false, 0, None),
+        StemJob::Queued => (true, 0, None),
+        StemJob::Running(percent) => (true, percent, None),
+        StemJob::Failed(code) => (false, 0, Some(code)),
+    };
+    Ok(StemOverviewItem {
+        stems: overview
+            .stems
+            .into_iter()
+            .map(|stem| StemItem {
+                name: stem.name,
+                key: stem.key,
+            })
+            .collect(),
+        analysis_available: overview.analysis_available,
+        analysing,
+        percent,
+        failure_code,
+    })
+}
+
+pub async fn analyse_stems(
+    server_url: String,
+    recording_id: u64,
+) -> Result<(), RecordingActionError> {
+    link(&server_url)
+        .request_stem_analysis(RecordingId::new(recording_id))
+        .await
+        .map_err(action_failure)
 }
 
 pub async fn stem_waveform(

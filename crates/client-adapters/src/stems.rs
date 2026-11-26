@@ -2,11 +2,13 @@
 
 use crate::{HttpServerLink, checked};
 use reqwest::header::CONTENT_TYPE;
-use veltrunox_client_app::{ImportedPackage, LinkError, RecordingWaveform, StemLink, StemSummary};
+use veltrunox_client_app::{
+    ImportedPackage, LinkError, RecordingWaveform, StemJob, StemLink, StemOverview, StemSummary,
+};
 use veltrunox_core::RecordingId;
 use veltrunox_protocol::{
-    ImportedStemsDto, STEM_PACKAGE_PATH, STEM_PACKAGES_PATH, STEM_WAVEFORM_PATH, STEMS_PATH,
-    StemListDto,
+    ImportedStemsDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH, STEM_PACKAGES_PATH,
+    STEM_WAVEFORM_PATH, STEMS_PATH, StemAnalysisDto, StemListDto,
 };
 
 fn invalid(error: reqwest::Error) -> LinkError {
@@ -18,7 +20,7 @@ fn unreachable(error: reqwest::Error) -> LinkError {
 }
 
 impl StemLink for HttpServerLink {
-    async fn fetch_stems(&self, recording: RecordingId) -> Result<Vec<StemSummary>, LinkError> {
+    async fn fetch_stems(&self, recording: RecordingId) -> Result<StemOverview, LinkError> {
         let response = self
             .get(self.url(STEMS_PATH, recording.value()))
             .send()
@@ -26,14 +28,28 @@ impl StemLink for HttpServerLink {
             .map_err(unreachable)
             .and_then(checked)?;
         let list: StemListDto = response.json().await.map_err(invalid)?;
-        Ok(list
-            .stems
-            .into_iter()
-            .map(|stem| StemSummary {
-                name: stem.name,
-                key: stem.key,
-            })
-            .collect())
+        Ok(StemOverview {
+            stems: list
+                .stems
+                .into_iter()
+                .map(|stem| StemSummary {
+                    name: stem.name,
+                    key: stem.key,
+                })
+                .collect(),
+            analysis_available: list.analysis_available,
+            job: match list.analysis {
+                StemAnalysisDto::None => StemJob::None,
+                StemAnalysisDto::Queued => StemJob::Queued,
+                StemAnalysisDto::Running { percent } => StemJob::Running(percent),
+                StemAnalysisDto::Failed { code } => StemJob::Failed(code),
+            },
+        })
+    }
+
+    async fn request_stem_analysis(&self, recording: RecordingId) -> Result<(), LinkError> {
+        let request = self.post(self.url(STEM_ANALYSIS_PATH, recording.value()));
+        Self::account_call(request).await.map(|_| ())
     }
 
     async fn fetch_stem_waveform(

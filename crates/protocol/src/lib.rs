@@ -6,8 +6,9 @@ mod stems;
 
 pub use stems::{
     ImportedStemsDto, MANIFEST_FILE, PACKAGE_FORMAT, PackageAnalysisDto, PackageManifestDto,
-    PackageRecordingDto, PackageSectionDto, PackageStemDto, STEM_PACKAGE_PATH, STEM_PACKAGES_PATH,
-    STEM_WAVEFORM_LEVEL_PATH, STEM_WAVEFORM_PATH, STEMS_PATH, StemDto, StemListDto,
+    PackageRecordingDto, PackageSectionDto, PackageStemDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH,
+    STEM_PACKAGES_PATH, STEM_WAVEFORM_LEVEL_PATH, STEM_WAVEFORM_PATH, STEMS_PATH, StemAnalysisDto,
+    StemDto, StemListDto,
 };
 
 pub use accounts::{

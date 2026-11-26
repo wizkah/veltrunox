@@ -13,6 +13,10 @@ abstract final class MixerTexts {
   );
   static String get loading =>
       tr('Segmente werden geladen …', 'Loading stems …');
+  static String get analyse => tr('Analysieren', 'Analyse');
+  static String analysing(int percent) => percent == 0
+      ? tr('Analyse läuft …', 'Analysing …')
+      : tr('Analyse läuft ($percent %)', 'Analysing ($percent %)');
   static String get import => tr('Importieren', 'Import');
   static String get export => tr('Exportieren', 'Export');
   static String get delete => tr('Löschen', 'Delete');
