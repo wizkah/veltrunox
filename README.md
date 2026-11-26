@@ -66,6 +66,17 @@ The result lands in `dist/veltrunox-server-<target>/`. Copy the Pi folder to the
 
 Without the `embedded-web` feature (the default for `cargo run`), the server serves a built web app only if `web_dir` is set (for example `web_dir = "app/build/web"`); `address` sets address and port, and the app uses the address it was loaded from, so nothing needs rebuilding. An app served from elsewhere (for example `flutter run`) needs `--dart-define=VELTRUNOX_SERVER_URL=...` and `allowed_origin = "<origin of the web app>"` in the configuration.
 
+## macOS application
+
+The interface and the server in one program (ADR-014). It needs Xcode and, for the web app it offers to browsers, a prior web build.
+
+```sh
+./scripts/build-web.sh
+cd app && flutter build macos
+```
+
+The application lands in `app/build/macos/Build/Products/Release/Veltrunox.app` and keeps its data in `~/Library/Application Support/Veltrunox`. The server for the network is off until switched on in the settings (gear icon).
+
 ## HTTPS
 
 Set `tls = "local-ca"` in the configuration and restart. The server then serves `https://<hostname>.local:<port>` (plain `http://` no longer answers) with a certificate from its own authority, which needs no internet. Install the authority once on each device: download `https://<hostname>.local:<port>/ca.crt` (confirm the browser's warning this one time) and compare its SHA-256 fingerprint with the one in the log (`journalctl -u veltrunox`).
