@@ -16,7 +16,6 @@ axum = { workspace = true, features = ["ws"] }
 tokio = { workspace = true, features = ["fs", "io-util"] }
 futures-util = { version = "0.3", default-features = false }
 thiserror.workspace = true
-tower-http = { version = "0.7", features = ["cors"] }
 serde_json = "1"
 serde.workspace = true
 csv = "1.4"
