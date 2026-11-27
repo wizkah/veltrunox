@@ -1,10 +1,22 @@
 # Veltrunox
 
+[![CI](https://github.com/wizkah/veltrunox/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/wizkah/veltrunox/actions/workflows/ci.yml)
+
 **V**ersatile **E**ngine for **L**ooping, **T**uning, **R**ehearsal, **U**ploads, **N**avigation, **O**rganization & e**X**change.
 
 <p align="center"><img src="docs/logo/veltrunox-logo.png" alt="Veltrunox" width="320"></p>
 
 Veltrunox helps bands during rehearsals. Recordings live on a server together with bookmarks: labels mark points, regions mark sections. A client plays the whole recording, starts at a label, or loops a region, so nobody searches for the same passage again and again. All connected clients see and control the same playback in real time.
+
+## Screenshots
+
+Taken in a desktop browser with synthesised demo recordings.
+
+![Player with waveform, labels, regions, tempo and pitch](docs/screenshots/player.png)
+
+![Library with the details of one recording](docs/screenshots/library.png)
+
+<img src="docs/screenshots/player-narrow.png" alt="Player in a phone-sized window" width="300">
 
 ## Features
 
@@ -127,6 +139,7 @@ The tools are `list_recordings`, `get_recording`, `get_bookmarks` and `set_bookm
 | `docs/development/GUI-Architecture.md` | GUI architecture |
 | `docs/design/` | Design specification and design tokens |
 | `docs/logo/` | Logo |
+| `docs/screenshots/` | Screenshots used in this README |
 | `docs/validation/` | Verification results and their limits |
 | `CONTRIBUTING.md` | How to report problems and contribute |
 | `CHANGELOG.md` | Changes |
