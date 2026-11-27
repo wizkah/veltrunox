@@ -70,7 +70,7 @@ jobs:
       - run: scripts/build-web.sh
       - name: Generated bridge code is up to date
         run: git diff --exit-code -- app/lib/bridge/generated crates/client-bridge/src/frb_generated.rs
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
