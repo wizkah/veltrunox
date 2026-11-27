@@ -1,3 +1,5 @@
+import 'app_language.dart';
+
 /// A time as "1:07", or "1:02:03" from an hour on; seconds are cut, not rounded.
 String formatClock(int milliseconds) {
   final total = milliseconds ~/ 1000;
@@ -29,7 +31,8 @@ int? parseClock(String text) {
       (fraction.isEmpty ? 0 : int.parse(fraction));
 }
 
-/// Like [formatClock], but keeps fractions of a second, as "1:07,5"; for
+/// Like [formatClock], but keeps fractions of a second, as "1:07,5" or
+/// "1:07.5" by language; for
 /// fields that are edited, so saving loses nothing.
 String formatClockExact(int milliseconds) {
   final fraction = milliseconds % 1000;
@@ -39,10 +42,11 @@ String formatClockExact(int milliseconds) {
       .toString()
       .padLeft(3, '0')
       .replaceFirst(RegExp(r'0+$'), '');
-  return '$whole,$digits';
+  return '$whole$decimalSeparator$digits';
 }
 
-/// Like [formatClock], with tenths of a second, as "1:07,5"; for a position
-/// that is shown while it moves.
+/// Like [formatClock], with tenths of a second, as "1:07,5" or "1:07.5"
+/// by language; for a position that is shown while it moves.
 String formatClockTenths(int milliseconds) =>
-    '${formatClock(milliseconds)},${milliseconds ~/ 100 % 10}';
+    '${formatClock(milliseconds)}$decimalSeparator'
+    '${milliseconds ~/ 100 % 10}';

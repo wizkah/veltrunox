@@ -1,9 +1,11 @@
+import '../../shared_ui/app_language.dart';
+
 /// Formats a playback position as minutes, seconds and tenths.
 String formatPosition(int positionMs) {
   final tenths = positionMs ~/ 100 % 10;
   final seconds = positionMs ~/ 1000 % 60;
   final minutes = positionMs ~/ 60000;
-  return '$minutes:${seconds.toString().padLeft(2, '0')}.$tenths';
+  return '$minutes:${seconds.toString().padLeft(2, '0')}$decimalSeparator$tenths';
 }
 
 /// How long to wait until the displayed tenth changes, at the given speed. A

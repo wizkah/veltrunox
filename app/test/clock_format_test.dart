@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:veltrunox_app/features/player/position_display.dart';
+import 'package:veltrunox_app/shared_ui/app_language.dart';
 import 'package:veltrunox_app/shared_ui/clock_format.dart';
 
 void main() {
@@ -12,6 +14,15 @@ void main() {
     expect(formatClockExact(67000), '1:07');
     expect(formatClockExact(67500), '1:07,5');
     expect(formatClockExact(67050), '1:07,05');
+  });
+
+  test('writes fractions with a decimal point in English', () {
+    AppLanguage.current = AppLanguage.en;
+    addTearDown(() => AppLanguage.current = AppLanguage.de);
+
+    expect(formatClockExact(67050), '1:07.05');
+    expect(formatClockTenths(67500), '1:07.5');
+    expect(formatPosition(67500), '1:07.5');
   });
 
   test('reads the usual spellings of a time', () {

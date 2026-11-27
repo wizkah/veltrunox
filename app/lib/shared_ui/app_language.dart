@@ -31,11 +31,10 @@ enum AppLanguage {
 String tr(String de, String en) =>
     AppLanguage.current == AppLanguage.de ? de : en;
 
+/// The decimal separator of the current language.
+String get decimalSeparator => tr(',', '.');
+
 /// One decimal with the decimal separator of the current language: "96,5" or
 /// "96.5".
-String decimalText(double value) {
-  final text = value.toStringAsFixed(1);
-  return AppLanguage.current == AppLanguage.de
-      ? text.replaceAll('.', ',')
-      : text;
-}
+String decimalText(double value) =>
+    value.toStringAsFixed(1).replaceAll('.', decimalSeparator);

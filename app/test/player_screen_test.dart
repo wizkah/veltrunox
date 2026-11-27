@@ -322,8 +322,8 @@ void main() {
   });
 
   test('positions are shown as minutes, seconds and tenths', () {
-    expect(formatPosition(0), '0:00.0');
-    expect(formatPosition(83_456), '1:23.4');
+    expect(formatPosition(0), '0:00,0');
+    expect(formatPosition(83_456), '1:23,4');
   });
 
   testWidgets('the volume slider shows the shared volume and sends changes', (
@@ -452,7 +452,7 @@ void main() {
       final slider = tester.widget<Slider>(_sliderOf('Position'));
       expect(slider.value, 30000);
       expect(slider.max, 180000);
-      expect(find.text('0:30.0'), findsWidgets);
+      expect(find.text('0:30,0'), findsWidgets);
       // The clock beside the transport shows position and length.
       expect(find.text('0:30,0 / 3:00'), findsOneWidget);
     });
