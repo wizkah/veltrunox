@@ -1249,6 +1249,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gloo-timers"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4460540da666acdb5722b2a62ac47d18f627fcfc0c728d04dc7226b3f6d40a7"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "h2"
 version = "0.4.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2670,7 +2680,7 @@ checksum = "a32c58978411ec8609e5d2dcbdb2be16b1d03745e0031d5060d5d272358e3788"
 dependencies = [
  "crossbeam-utils",
  "futures-core",
- "gloo-timers",
+ "gloo-timers 0.3.0",
  "pin-project-lite",
  "rclite",
  "smallvec",
@@ -3654,7 +3664,7 @@ name = "veltrunox-client-adapters"
 version = "0.0.0"
 dependencies = [
  "ewebsock",
- "gloo-timers",
+ "gloo-timers 0.4.1",
  "reqwest",
  "serde",
  "serde_json",
