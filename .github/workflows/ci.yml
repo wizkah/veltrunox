@@ -57,7 +57,7 @@ jobs:
           channel: stable
       - name: Cache build tools
         id: tools
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/flutter_rust_bridge_codegen
