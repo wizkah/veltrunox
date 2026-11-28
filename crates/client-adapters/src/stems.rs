@@ -8,7 +8,8 @@ use veltrunox_client_app::{
 use veltrunox_core::{RecordingId, SplitModel};
 use veltrunox_protocol::{
     ImportedStemsDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH, STEM_PACKAGES_PATH, STEM_REGIONS_PATH,
-    STEM_WAVEFORM_PATH, STEMS_PATH, StemAnalysisDto, StemListDto,
+    STEM_SELECTION_PATH, STEM_WAVEFORM_PATH, STEMS_PATH, SelectStemsDto, StemAnalysisDto,
+    StemListDto,
 };
 
 fn invalid(error: reqwest::Error) -> LinkError {
@@ -30,6 +31,8 @@ impl StemLink for HttpServerLink {
         let list: StemListDto = response.json().await.map_err(invalid)?;
         Ok(StemOverview {
             creating_regions: list.creating_regions,
+            sets: list.sets,
+            selected: list.selected,
             stems: list
                 .stems
                 .into_iter()
@@ -99,8 +102,23 @@ impl StemLink for HttpServerLink {
         Ok(response.bytes().await.map_err(unreachable)?.to_vec())
     }
 
-    async fn remove_stems(&self, recording: RecordingId) -> Result<(), LinkError> {
-        let request = self.delete(self.url(STEMS_PATH, recording.value()));
+    async fn select_stems(&self, recording: RecordingId, set: &str) -> Result<(), LinkError> {
+        let url = self.url(STEM_SELECTION_PATH, recording.value());
+        let request = self.put(url).json(&SelectStemsDto {
+            model: set.to_owned(),
+        });
+        Self::send_write(request).await.map(|_| ())
+    }
+
+    async fn remove_stems(
+        &self,
+        recording: RecordingId,
+        set: Option<&str>,
+    ) -> Result<(), LinkError> {
+        let mut request = self.delete(self.url(STEMS_PATH, recording.value()));
+        if let Some(set) = set {
+            request = request.query(&[("model", set)]);
+        }
         Self::send_write(request).await.map(|_| ())
     }
 }

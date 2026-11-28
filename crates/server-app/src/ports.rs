@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use veltrunox_core::{
     ApiTokenId, BookmarkId, BookmarkName, Bookmarks, InvalidValue, Label, Millis, NewBookmarks,
     PasswordPolicy, PlaybackSettings, PlaybackState, Recording, RecordingAnalysis, RecordingId,
-    RecordingTitle, Region, Role, SplitModel, StemName, TimeRange, TokenName, TokenScope, UserId,
-    UserName, Version, Waveform,
+    RecordingTitle, Region, Role, SplitModel, StemName, StemSource, TimeRange, TokenName,
+    TokenScope, UserId, UserName, Version, Waveform,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -62,19 +62,43 @@ pub struct Stem {
 /// The stems of a recording, in their order, with the analysis they came with.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StemSet {
+    pub source: StemSource,
     pub stems: Vec<Stem>,
     /// The analysis part of the package as it came, kept to export it again.
     pub analysis: Option<String>,
 }
 
-/// Port: the stem sets of the recordings. Deleting a recording removes its set.
+/// The sets a recording has, by where they came from, and the one in use.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StemSources {
+    pub all: Vec<StemSource>,
+    pub selected: Option<StemSource>,
+}
+
+/// Port: the stem sets of the recordings. A recording keeps one set per source, one of
+/// them selected. Whatever changes which stems are selected resets the stored mix.
+/// Deleting a recording removes its sets.
 pub trait StemRepository: Send + Sync {
-    /// Empty if the recording has no stems or does not exist.
+    /// The selected set; empty if the recording has no stems or does not exist.
     fn stem_set(&self, id: RecordingId) -> Result<StemSet, StorageError>;
-    /// Replaces the set as a whole; an empty set removes it.
-    fn replace_stem_set(&self, id: RecordingId, set: &StemSet) -> Result<(), StorageError>;
+    fn stem_sources(&self, id: RecordingId) -> Result<StemSources, StorageError>;
+    /// Adds the set or replaces the one of its source, and selects it.
+    fn put_stem_set(&self, id: RecordingId, set: &StemSet) -> Result<(), StorageError>;
+    /// `false` if there is no set of this source.
+    fn select_stem_set(&self, id: RecordingId, source: &StemSource) -> Result<bool, StorageError>;
+    /// Removes the set of this source, or all; another one is selected if one remains.
+    fn remove_stem_sets(
+        &self,
+        id: RecordingId,
+        source: Option<&StemSource>,
+    ) -> Result<(), StorageError>;
     /// Keeps the analysis of an existing set; the stems and their mix stay.
-    fn set_stem_analysis(&self, id: RecordingId, analysis: &str) -> Result<(), StorageError>;
+    fn set_stem_analysis(
+        &self,
+        id: RecordingId,
+        source: &StemSource,
+        analysis: &str,
+    ) -> Result<(), StorageError>;
     /// The recordings that have stems.
     fn recordings_with_stems(&self) -> Result<Vec<RecordingId>, StorageError>;
     /// Every stem file a recording refers to.

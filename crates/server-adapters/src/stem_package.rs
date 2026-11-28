@@ -12,7 +12,7 @@ use std::{
         atomic::{AtomicU64, Ordering},
     },
 };
-use veltrunox_core::{MAX_STEMS, Millis, Section, StemName, WaveformBuilder};
+use veltrunox_core::{MAX_STEMS, Millis, Section, StemName, StemSource, WaveformBuilder};
 use veltrunox_protocol::{
     MANIFEST_FILE, PACKAGE_FORMAT, PackageAnalysisDto, PackageManifestDto, PackageRecordingDto,
     PackageStemDto,
@@ -65,6 +65,7 @@ impl Drop for TemporaryFile {
 
 /// A package that was read and checked; its files wait under temporary names.
 pub struct PreparedPackage {
+    pub source: StemSource,
     pub content_hash: String,
     pub structure: Structure,
     analysis: Option<String>,
@@ -167,7 +168,15 @@ impl StemStore {
             .map(serde_json::to_string)
             .transpose()
             .map_err(invalid)?;
+        let source = manifest
+            .model
+            .as_deref()
+            .map(StemSource::new)
+            .transpose()
+            .map_err(invalid)?
+            .unwrap_or_default();
         Ok(PreparedPackage {
+            source,
             content_hash: manifest.recording.content_hash,
             structure: manifest.analysis.map(structure_of).unwrap_or_default(),
             analysis,
@@ -182,6 +191,7 @@ impl StemStore {
             fs::copy(temporary.path(), &stem.path)?;
         }
         Ok(StemSet {
+            source: package.source.clone(),
             stems: package.stems.iter().map(|(stem, _)| stem.clone()).collect(),
             analysis: package.analysis.clone(),
         })
@@ -221,6 +231,7 @@ impl StemStore {
         let manifest = PackageManifestDto {
             format_version: PACKAGE_FORMAT,
             recording,
+            model: (set.source != StemSource::imported()).then(|| set.source.as_str().to_owned()),
             stems: entries,
             analysis: set
                 .analysis

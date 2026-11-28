@@ -32,7 +32,12 @@ abstract interface class MixerSource {
   /// The package says which recording it belongs to.
   Future<ImportedStems> importPackage(Uint8List package);
   Future<Uint8List> exportPackage(int recordingId);
-  Future<void> remove(int recordingId);
+
+  /// Makes this set of the recording the one that plays.
+  Future<void> select(int recordingId, String set);
+
+  /// Removes this set; the others stay.
+  Future<void> remove(int recordingId, String set);
 }
 
 /// Port: stem packages on the person's device.

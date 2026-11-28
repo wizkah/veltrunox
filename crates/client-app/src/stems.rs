@@ -30,6 +30,9 @@ pub struct StemOverview {
     pub job: StemJob,
     /// Whether the job creates regions rather than stems.
     pub creating_regions: bool,
+    /// The sets the recording has, by model name, and the one the stems are of.
+    pub sets: Vec<String>,
+    pub selected: Option<String>,
 }
 
 /// What importing a stem package came to.
@@ -73,5 +76,16 @@ pub trait StemLink {
         &self,
         recording: RecordingId,
     ) -> impl Future<Output = Result<Vec<u8>, LinkError>>;
-    fn remove_stems(&self, recording: RecordingId) -> impl Future<Output = Result<(), LinkError>>;
+    /// Makes the set of this model the one in use.
+    fn select_stems(
+        &self,
+        recording: RecordingId,
+        set: &str,
+    ) -> impl Future<Output = Result<(), LinkError>>;
+    /// Removes the set of one model, or all sets.
+    fn remove_stems(
+        &self,
+        recording: RecordingId,
+        set: Option<&str>,
+    ) -> impl Future<Output = Result<(), LinkError>>;
 }

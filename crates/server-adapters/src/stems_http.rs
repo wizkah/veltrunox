@@ -13,19 +13,19 @@ use axum::{
     extract::{Path, Query, State},
     http::{StatusCode, header},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use futures_util::StreamExt;
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
-use veltrunox_core::SplitModel;
 use veltrunox_core::{Capability, Reason, RecordingId, Refusal};
+use veltrunox_core::{SplitModel, StemSource};
 use veltrunox_protocol::{
     ImportedStemsDto, PackageRecordingDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH,
-    STEM_PACKAGES_PATH, STEM_REGIONS_PATH, STEM_WAVEFORM_LEVEL_PATH, STEM_WAVEFORM_PATH,
-    STEMS_PATH, StemAnalysisDto, StemDto, StemListDto, WaveformInfoDto, peaks_to_bytes,
-    waveform_info_to_dto,
+    STEM_PACKAGES_PATH, STEM_REGIONS_PATH, STEM_SELECTION_PATH, STEM_WAVEFORM_LEVEL_PATH,
+    STEM_WAVEFORM_PATH, STEMS_PATH, SelectStemsDto, StemAnalysisDto, StemDto, StemListDto,
+    WaveformInfoDto, peaks_to_bytes, waveform_info_to_dto,
 };
 use veltrunox_server_app::{Stem, StemError, list_recordings};
 
@@ -33,6 +33,7 @@ pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route(STEM_PACKAGES_PATH, post(import_package))
         .route(STEMS_PATH, get(stems).delete(remove_stems))
+        .route(STEM_SELECTION_PATH, put(select_stems))
         .route(STEM_PACKAGE_PATH, get(export_package))
         .route(STEM_ANALYSIS_PATH, post(analyse))
         .route(STEM_REGIONS_PATH, post(create_regions))
@@ -145,7 +146,12 @@ async fn stems(
     let _ = &caller;
     let id = RecordingId::new(recording);
     let jobs = app.stem_jobs.clone();
-    let set = blocking(move || app.stems.stem_set(id).map_err(|_| ApiError::Internal)).await?;
+    let (set, sources) = blocking(move || {
+        let set = app.stems.stem_set(id).map_err(|_| ApiError::Internal)?;
+        let sources = app.stems.stem_sources(id).map_err(|_| ApiError::Internal)?;
+        Ok((set, sources))
+    })
+    .await?;
     let job = jobs.as_ref().and_then(|jobs| jobs.state(id));
     let creating_regions = matches!(
         job,
@@ -166,6 +172,12 @@ async fn stems(
         analysis_available: jobs.is_some(),
         analysis,
         creating_regions,
+        sets: sources
+            .all
+            .iter()
+            .map(|source| source.as_str().to_owned())
+            .collect(),
+        selected: sources.selected.map(|source| source.as_str().to_owned()),
         stems: set
             .stems
             .iter()
@@ -240,6 +252,7 @@ async fn create_regions(
         if set.stems.is_empty() {
             return Err(ApiError::NotFound);
         }
+        let set_of = set.clone();
         let Some(analysis) = set.analysis else {
             return Ok(false);
         };
@@ -247,7 +260,8 @@ async fn create_regions(
         if structure.sections.is_empty() {
             return Ok(false);
         }
-        app.stems.add_structure(id, &structure, &analysis)?;
+        app.stems
+            .add_structure(id, &set_of, &structure, &analysis)?;
         Ok(true)
     })
     .await?;
@@ -268,20 +282,60 @@ fn no_program() -> ApiError {
     )
 }
 
+#[derive(Deserialize)]
+struct RemoveQuery {
+    /// The set to remove; all of them if not said.
+    model: Option<String>,
+}
+
+fn source_of(name: &str) -> Result<StemSource, ApiError> {
+    StemSource::new(name).map_err(|_| ApiError::NotFound)
+}
+
 async fn remove_stems(
     State(app): State<AppState>,
     caller: Caller,
     Path(recording): Path<u64>,
+    Query(query): Query<RemoveQuery>,
 ) -> Result<StatusCode, ApiError> {
     caller.require(Capability::ManageRecordings)?;
     let store = store_of(&app)?;
+    let source = query.model.as_deref().map(source_of).transpose()?;
     blocking(move || {
         let id = RecordingId::new(recording);
-        app.stems.remove(id).map_err(|_| ApiError::Internal)?;
+        app.stems
+            .remove(id, source.as_ref())
+            .map_err(|_| ApiError::Internal)?;
         app.playback
             .reload_mix(id)
             .map_err(|_| ApiError::Internal)?;
         let _ = store.sweep(app.stem_repository.as_ref());
+        Ok(StatusCode::NO_CONTENT)
+    })
+    .await
+}
+
+/// Changes which stems play, so it needs the right that the mix needs.
+async fn select_stems(
+    State(app): State<AppState>,
+    caller: Caller,
+    Path(recording): Path<u64>,
+    Json(wanted): Json<SelectStemsDto>,
+) -> Result<StatusCode, ApiError> {
+    caller.require(Capability::PlayControl)?;
+    let source = source_of(&wanted.model)?;
+    blocking(move || {
+        let id = RecordingId::new(recording);
+        if !app
+            .stems
+            .select(id, &source)
+            .map_err(|_| ApiError::Internal)?
+        {
+            return Err(ApiError::NotFound);
+        }
+        app.playback
+            .reload_mix(id)
+            .map_err(|_| ApiError::Internal)?;
         Ok(StatusCode::NO_CONTENT)
     })
     .await

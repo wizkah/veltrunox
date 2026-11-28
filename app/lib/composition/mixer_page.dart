@@ -11,6 +11,7 @@ import '../features/library/library_controller.dart';
 import '../features/mixer/mixer_source.dart';
 import '../features/mixer/mixer_texts.dart';
 import '../features/mixer/stem_actions_bar.dart';
+import '../features/mixer/stem_set_picker.dart';
 import '../features/player/player_controller.dart';
 import '../features/player/player_screen.dart';
 import '../features/waveform/waveform_view_controller.dart';
@@ -79,6 +80,7 @@ class _MixerArea extends ConsumerWidget {
     final state = ref.watch(playerStateProvider).value;
     final overview = ref.watch(stemsProvider(recordingId)).value;
     final canManage = ref.watch(rightsProvider)?.canManageRecordings ?? false;
+    final canControl = ref.watch(rightsProvider)?.canControlPlayback ?? false;
     final busy = ref.watch(stemSetBusyProvider);
     if (state == null || overview == null) {
       return StateNotice(message: MixerTexts.loading, busy: true);
@@ -101,8 +103,19 @@ class _MixerArea extends ConsumerWidget {
     final bar = StemActionsBar(
       stemsEnabled: state.stemsEnabled,
       onEnabled: hasStems && connected ? player.setStemsEnabled : null,
-      // A recording is split once.
-      onSplit: canAnalyse && !hasStems ? actions.split : null,
+      onSplit: canAnalyse ? actions.split : null,
+      existingSets: overview.sets.toSet(),
+      setPicker: switch (overview.selectedSet) {
+        final selected? => StemSetPicker(
+          sets: overview.sets,
+          selected: selected,
+          onSelect: canControl && connected && !busy ? actions.select : null,
+          onDelete: canManage && connected && !busy && percent == null
+              ? () => actions.delete(selected)
+              : null,
+        ),
+        null => null,
+      },
       onCreateRegions: canAnalyse && hasStems ? actions.createRegions : null,
       onImport: canManage && connected
           ? () => actions.import(replacing: hasStems)

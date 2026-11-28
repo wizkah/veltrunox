@@ -34,6 +34,22 @@ abstract final class MixerTexts {
     };
   }
 
+  /// [set] is the name of its model, or `imported`.
+  static String setName(String set) {
+    for (final model in SplitModel.values) {
+      if (model.name == set) return splitModel(model);
+    }
+    return set == 'imported' ? tr('Importiert', 'Imported') : set;
+  }
+
+  static String get deleteSet =>
+      tr('Diese Segmente löschen', 'Delete these stems');
+  static String get deleteTitle => tr('Segmente löschen?', 'Delete the stems?');
+  static String deleteMessage(String set) => tr(
+    '„$set“ wird gelöscht. Die anderen Segmente und die Regionen bleiben.',
+    '"$set" is deleted. The other stems and the regions stay.',
+  );
+  static String get delete => tr('Löschen', 'Delete');
   static String splitting(int percent) => percent == 0
       ? tr('Wird aufgeteilt …', 'Splitting …')
       : tr('Wird aufgeteilt ($percent %)', 'Splitting ($percent %)');
@@ -52,10 +68,10 @@ abstract final class MixerTexts {
   static String get replaceTitle =>
       tr('Segmente ersetzen?', 'Replace the stems?');
   static String get replaceMessage => tr(
-    'Die vorhandenen Segmente der Aufnahme im Paket werden ersetzt, '
-        'ihre Mischung wird zurückgesetzt.',
-    'The existing stems of the recording in the package are replaced and '
-        'their mix is reset.',
+    'Segmente desselben Modells im Paket ersetzen die vorhandenen; die '
+        'anderen bleiben. Die Mischung wird zurückgesetzt.',
+    'Stems of the same model in the package replace the existing ones; the '
+        'others stay. The mix is reset.',
   );
   static String get replace => tr('Ersetzen', 'Replace');
   static String imported(String title, int stems, int regions) => tr(

@@ -154,6 +154,53 @@ const MIGRATIONS: &[&str] = &[
     );
 ",
     "ALTER TABLE recordings ADD COLUMN stem_mix BLOB;",
+    // A stem set per source instead of one per recording; the stored ones are selected.
+    "
+    CREATE TABLE stem_sets_next (
+        recording_id INTEGER NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+        source TEXT NOT NULL,
+        selected INTEGER NOT NULL,
+        analysis TEXT,
+        PRIMARY KEY (recording_id, source)
+    );
+    CREATE TABLE stems_next (
+        recording_id INTEGER NOT NULL,
+        source TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        path TEXT NOT NULL,
+        length_ms INTEGER NOT NULL,
+        sample_rate INTEGER NOT NULL,
+        PRIMARY KEY (recording_id, source, position),
+        FOREIGN KEY (recording_id, source) REFERENCES stem_sets_next(recording_id, source)
+            ON DELETE CASCADE
+    );
+    CREATE TABLE stem_waveform_levels_next (
+        recording_id INTEGER NOT NULL,
+        source TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        level INTEGER NOT NULL,
+        frames_per_block INTEGER NOT NULL,
+        peaks BLOB NOT NULL,
+        PRIMARY KEY (recording_id, source, position, level),
+        FOREIGN KEY (recording_id, source, position)
+            REFERENCES stems_next(recording_id, source, position) ON DELETE CASCADE
+    );
+    INSERT INTO stem_sets_next
+        SELECT recording_id, 'imported', 1, analysis FROM stem_sets;
+    INSERT INTO stems_next
+        SELECT recording_id, 'imported', position, name, path, length_ms, sample_rate
+        FROM stems;
+    INSERT INTO stem_waveform_levels_next
+        SELECT recording_id, 'imported', position, level, frames_per_block, peaks
+        FROM stem_waveform_levels;
+    DROP TABLE stem_waveform_levels;
+    DROP TABLE stems;
+    DROP TABLE stem_sets;
+    ALTER TABLE stem_sets_next RENAME TO stem_sets;
+    ALTER TABLE stems_next RENAME TO stems;
+    ALTER TABLE stem_waveform_levels_next RENAME TO stem_waveform_levels;
+",
 ];
 
 const MIX_MUTED: u8 = 1;

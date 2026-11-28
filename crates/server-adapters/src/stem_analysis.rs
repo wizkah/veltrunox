@@ -260,10 +260,12 @@ fn split(
         .map_err(|error| failed("stems_package_invalid")(error.to_string()))?;
     let installed = {
         let _guard = context.store.lock();
-        let set = context
+        let mut set = context
             .store
             .keep(&package)
             .map_err(|error| failed("storage_failed")(error.to_string()))?;
+        // The job knows the model; the program need not say it.
+        set.source = model.into();
         context
             .stems
             .install(&package.content_hash, &set, &package.structure)
@@ -302,7 +304,7 @@ fn create_regions(
         .map_err(|error| failed("stems_analysis_failed")(error.to_string()))?;
     context
         .stems
-        .add_structure(id, &structure, &analysis)
+        .add_structure(id, &set, &structure, &analysis)
         .map(|_| ())
         .map_err(|error| failed("stems_analysis_failed")(error.to_string()))
 }

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 323168579;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1827173439;
 
 // Section: executor
 
@@ -696,12 +696,14 @@ fn wire__crate__api__delete_stems_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_server_url = <String>::sse_decode(&mut deserializer);
             let api_recording_id = <u64>::sse_decode(&mut deserializer);
+            let api_set = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, crate::api::RecordingActionError>(
                     (move || async move {
                         let output_ok =
-                            crate::api::delete_stems(api_server_url, api_recording_id).await?;
+                            crate::api::delete_stems(api_server_url, api_recording_id, api_set)
+                                .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -1581,6 +1583,46 @@ fn wire__crate__api__scrub_to_impl(
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok = crate::api::scrub_to(api_position_ms).await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__select_stems_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "select_stems",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_server_url = <String>::sse_decode(&mut deserializer);
+            let api_recording_id = <u64>::sse_decode(&mut deserializer);
+            let api_set = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::RecordingActionError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::select_stems(api_server_url, api_recording_id, api_set)
+                                .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -3139,6 +3181,8 @@ impl SseDecode for crate::api::StemOverviewItem {
         let mut var_analysing = <bool>::sse_decode(deserializer);
         let mut var_percent = <u8>::sse_decode(deserializer);
         let mut var_failureCode = <Option<String>>::sse_decode(deserializer);
+        let mut var_sets = <Vec<String>>::sse_decode(deserializer);
+        let mut var_selected = <Option<String>>::sse_decode(deserializer);
         return crate::api::StemOverviewItem {
             stems: var_stems,
             analysis_available: var_analysisAvailable,
@@ -3146,6 +3190,8 @@ impl SseDecode for crate::api::StemOverviewItem {
             analysing: var_analysing,
             percent: var_percent,
             failure_code: var_failureCode,
+            sets: var_sets,
+            selected: var_selected,
         };
     }
 }
@@ -3322,20 +3368,21 @@ fn pde_ffi_dispatcher_primary_impl(
         36 => wire__crate__api__resume_sign_in_impl(port, ptr, rust_vec_len, data_len),
         37 => wire__crate__api__revoke_api_token_impl(port, ptr, rust_vec_len, data_len),
         38 => wire__crate__api__scrub_to_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__send_command_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__set_up_admin_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__host_api__sharing_info_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__sign_in_with_password_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__sign_out_now_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__speed_for_target_bpm_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__split_region_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__host_api__start_local_host_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__stem_waveform_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__switch_guest_access_impl(port, ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__switch_password_policy_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__tuning_supported_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__upload_recording_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__watch_session_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__select_stems_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__send_command_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__set_up_admin_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__host_api__sharing_info_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__sign_in_with_password_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__sign_out_now_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__speed_for_target_bpm_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__split_region_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__host_api__start_local_host_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__stem_waveform_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__switch_guest_access_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__switch_password_policy_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__tuning_supported_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__upload_recording_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__watch_session_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -4130,6 +4177,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::StemOverviewItem {
             self.analysing.into_into_dart().into_dart(),
             self.percent.into_into_dart().into_dart(),
             self.failure_code.into_into_dart().into_dart(),
+            self.sets.into_into_dart().into_dart(),
+            self.selected.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5092,6 +5141,8 @@ impl SseEncode for crate::api::StemOverviewItem {
         <bool>::sse_encode(self.analysing, serializer);
         <u8>::sse_encode(self.percent, serializer);
         <Option<String>>::sse_encode(self.failure_code, serializer);
+        <Vec<String>>::sse_encode(self.sets, serializer);
+        <Option<String>>::sse_encode(self.selected, serializer);
     }
 }
 

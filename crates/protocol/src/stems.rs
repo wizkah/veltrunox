@@ -4,8 +4,11 @@ use serde::{Deserialize, Serialize};
 
 /// Takes a stem package (`POST`, the ZIP file as the raw body).
 pub const STEM_PACKAGES_PATH: &str = "/api/v1/stem-packages";
-/// The stems of one recording (`GET` lists them, `DELETE` removes them).
+/// The stems of one recording (`GET` lists the selected set, `DELETE` removes all sets, with
+/// `?model=NAME` that one).
 pub const STEMS_PATH: &str = "/api/v1/recordings/{id}/stems";
+/// Which stem set of a recording is in use (`PUT`, `SelectStemsDto`).
+pub const STEM_SELECTION_PATH: &str = "/api/v1/recordings/{id}/stems/selected";
 /// Starts the analysis of one recording into stems (`POST`); `?model=NAME` names the
 /// separation model (`demucs4` if not said).
 pub const STEM_ANALYSIS_PATH: &str = "/api/v1/recordings/{id}/stems/analysis";
@@ -27,6 +30,9 @@ pub const PACKAGE_FORMAT: u32 = 1;
 pub struct PackageManifestDto {
     pub format_version: u32,
     pub recording: PackageRecordingDto,
+    /// The model the stems were split with, if known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
     /// In the order in which they are shown.
     pub stems: Vec<PackageStemDto>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -83,6 +89,17 @@ pub struct StemListDto {
     /// Whether that job creates regions rather than stems.
     #[serde(default)]
     pub creating_regions: bool,
+    /// The sets the recording has, by model name (`imported` if unknown).
+    #[serde(default)]
+    pub sets: Vec<String>,
+    /// The set whose stems are listed.
+    #[serde(default)]
+    pub selected: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SelectStemsDto {
+    pub model: String,
 }
 
 /// The analysis job of one recording.

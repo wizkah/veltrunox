@@ -85,12 +85,25 @@ Future<Uint8List> exportStemPackage({
   recordingId: recordingId,
 );
 
+Future<void> selectStems({
+  required String serverUrl,
+  required BigInt recordingId,
+  required String set_,
+}) => RustLib.instance.api.crateApiSelectStems(
+  serverUrl: serverUrl,
+  recordingId: recordingId,
+  set_: set_,
+);
+
+/// Removes the stem set of one model, or all of them.
 Future<void> deleteStems({
   required String serverUrl,
   required BigInt recordingId,
+  String? set_,
 }) => RustLib.instance.api.crateApiDeleteStems(
   serverUrl: serverUrl,
   recordingId: recordingId,
+  set_: set_,
 );
 
 /// Gives a recording another title (admin only).
@@ -1288,6 +1301,10 @@ class StemOverviewItem {
   /// The code of why the last job failed.
   final String? failureCode;
 
+  /// The sets the recording has, by model name, and the one in use.
+  final List<String> sets;
+  final String? selected;
+
   const StemOverviewItem({
     required this.stems,
     required this.analysisAvailable,
@@ -1295,6 +1312,8 @@ class StemOverviewItem {
     required this.analysing,
     required this.percent,
     this.failureCode,
+    required this.sets,
+    this.selected,
   });
 
   @override
@@ -1304,7 +1323,9 @@ class StemOverviewItem {
       creatingRegions.hashCode ^
       analysing.hashCode ^
       percent.hashCode ^
-      failureCode.hashCode;
+      failureCode.hashCode ^
+      sets.hashCode ^
+      selected.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1316,7 +1337,9 @@ class StemOverviewItem {
           creatingRegions == other.creatingRegions &&
           analysing == other.analysing &&
           percent == other.percent &&
-          failureCode == other.failureCode;
+          failureCode == other.failureCode &&
+          sets == other.sets &&
+          selected == other.selected;
 }
 
 /// The speed that plays a recording of `recording_bpm` at `target_bpm`.

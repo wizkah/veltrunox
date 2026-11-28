@@ -14,6 +14,8 @@ class StemActionsBar extends StatelessWidget {
     required this.stemsEnabled,
     this.onEnabled,
     this.onSplit,
+    this.existingSets = const {},
+    this.setPicker,
     this.onCreateRegions,
     this.onImport,
     this.onExport,
@@ -27,6 +29,12 @@ class StemActionsBar extends StatelessWidget {
 
   /// Told which model to split with.
   final ValueChanged<SplitModel>? onSplit;
+
+  /// Models the recording has stems of.
+  final Set<String> existingSets;
+
+  /// Which set of stems is shown, if there is one.
+  final Widget? setPicker;
   final VoidCallback? onCreateRegions;
   final VoidCallback? onImport;
   final VoidCallback? onExport;
@@ -54,7 +62,10 @@ class StemActionsBar extends StatelessWidget {
             ],
           ),
         ),
-      if (onSplit != null) SplitMenuButton(onSplit: busy ? null : onSplit),
+      if (setPicker != null)
+        SizedBox(width: AppSpace.s2 * 47, child: setPicker),
+      if (onSplit != null)
+        SplitMenuButton(onSplit: busy ? null : onSplit, existing: existingSets),
       if (onCreateRegions != null)
         ActionButton(
           label: MixerTexts.createRegions,

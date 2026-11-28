@@ -23,9 +23,17 @@ class StemOverview {
     this.analysingPercent,
     this.creatingRegions = false,
     this.failureCode,
+    this.sets = const [],
+    this.selectedSet,
   });
 
+  /// The stems of the selected set.
   final List<Stem> stems;
+
+  /// The sets the recording has, by the name of their model ([SplitModel] or
+  /// `imported`), and the one whose [stems] these are.
+  final List<String> sets;
+  final String? selectedSet;
 
   /// Whether the server can analyse recordings.
   final bool analysisAvailable;

@@ -8,7 +8,10 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 target="${1:?usage: install.sh DATA_DIR [ROFORMER_DIR]}/analysis"
 roformer="${2:+$(cd "$2" && pwd)}"
-mkdir -p "$target"
+mkdir -p "$target/tmp"
+# Downloads and temporary files stay on the disk of the installation.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$target/cache/uv}"
+export TMPDIR="$target/tmp"
 uv venv --python 3.11 "$target/venv"
 uv pip install --python "$target/venv/bin/python" -r "$here/requirements.txt"
 cp "$here/analyze.py" "$here/guard.py" "$here/openvino_demucs.py" "$here/roformer.py" "$target/"
@@ -33,7 +36,11 @@ done <<'SUMS'
 SUMS
 cat > "$target/run" <<'RUN'
 #!/bin/sh
-here="$(cd "$(dirname "$0")" && pwd)"
+here="$(cd "$(dirname "$0")" && pwd -P)"
+# The structure model's download and the temporary audio stay next to the program.
+mkdir -p "$here/tmp"
+export TMPDIR="$here/tmp" XDG_CACHE_HOME="$here/cache" TORCH_HOME="$here/cache/torch"
+export HF_HOME="$here/cache/huggingface"
 exec "$here/venv/bin/python" "$here/analyze.py" "$@"
 RUN
 chmod +x "$target/run"

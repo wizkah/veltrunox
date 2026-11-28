@@ -6,16 +6,25 @@ import 'stem_models.dart';
 
 /// "Split" with the choice of the model. Without a callback it is disabled.
 class SplitMenuButton extends StatelessWidget {
-  const SplitMenuButton({required this.onSplit, super.key});
+  const SplitMenuButton({
+    required this.onSplit,
+    this.existing = const {},
+    super.key,
+  });
 
   final ValueChanged<SplitModel>? onSplit;
+
+  /// Models whose stems are there already; they are not offered until deleted.
+  final Set<String> existing;
 
   @override
   Widget build(BuildContext context) => MenuAnchor(
     menuChildren: [
       for (final model in SplitModel.values)
         MenuItemButton(
-          onPressed: onSplit == null ? null : () => onSplit!(model),
+          onPressed: onSplit == null || existing.contains(model.name)
+              ? null
+              : () => onSplit!(model),
           child: Text(MixerTexts.splitModel(model)),
         ),
     ],

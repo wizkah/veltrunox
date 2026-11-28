@@ -3,10 +3,10 @@
 use crate::bookmarks::BookmarkService;
 use crate::ports::{
     BookmarkError, MediaCatalog, PlaybackBroadcast, RecordingLengths, StemRepository, StemSet,
-    StorageError, WaveformRepository,
+    StemSources, StorageError, WaveformRepository,
 };
 use std::sync::Arc;
-use veltrunox_core::{Millis, Recording, RecordingId, Section, section_regions};
+use veltrunox_core::{Millis, Recording, RecordingId, Section, StemSource, section_regions};
 
 /// How far the length of a stem may differ from the length of its recording.
 const LENGTH_TOLERANCE_MS: u64 = 1_000;
@@ -106,7 +106,7 @@ impl StemService {
         {
             return Err(StemError::RateMismatch);
         }
-        self.stems.replace_stem_set(recording.id, set)?;
+        self.stems.put_stem_set(recording.id, set)?;
         self.broadcast.stems_changed(recording.id);
         let regions_added = self.add_sections(recording.id, structure, length)?;
         self.broadcast.library_changed();
@@ -117,17 +117,17 @@ impl StemService {
         })
     }
 
-    /// Adds the sections of the structure as regions and keeps `analysis`, so they can be
-    /// added again without finding them anew. Returns how many regions are new.
+    /// Adds the sections of the structure of `set` as regions and keeps `analysis`, so they
+    /// can be added again without finding them anew. Returns how many regions are new.
     pub fn add_structure(
         &self,
         id: RecordingId,
+        set: &StemSet,
         structure: &Structure,
         analysis: &str,
     ) -> Result<usize, StemError> {
-        let set = self.stems.stem_set(id)?;
-        let length = checked_length(&set, self.lengths.length(id))?;
-        self.stems.set_stem_analysis(id, analysis)?;
+        let length = checked_length(set, self.lengths.length(id))?;
+        self.stems.set_stem_analysis(id, &set.source, analysis)?;
         let added = self.add_sections(id, structure, length)?;
         self.broadcast.library_changed();
         Ok(added)
@@ -152,8 +152,23 @@ impl StemService {
         self.stems.recordings_with_stems()
     }
 
-    pub fn remove(&self, id: RecordingId) -> Result<(), StorageError> {
-        self.stems.replace_stem_set(id, &StemSet::default())?;
+    pub fn stem_sources(&self, id: RecordingId) -> Result<StemSources, StorageError> {
+        self.stems.stem_sources(id)
+    }
+
+    /// `false` if the recording has no set of this source.
+    pub fn select(&self, id: RecordingId, source: &StemSource) -> Result<bool, StorageError> {
+        let found = self.stems.select_stem_set(id, source)?;
+        if found {
+            self.broadcast.stems_changed(id);
+            self.broadcast.library_changed();
+        }
+        Ok(found)
+    }
+
+    /// Removes the set of this source, or all of them.
+    pub fn remove(&self, id: RecordingId, source: Option<&StemSource>) -> Result<(), StorageError> {
+        self.stems.remove_stem_sets(id, source)?;
         self.broadcast.stems_changed(id);
         self.broadcast.library_changed();
         Ok(())

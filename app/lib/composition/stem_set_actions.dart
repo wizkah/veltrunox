@@ -21,7 +21,7 @@ final stemSetBusyProvider = NotifierProvider<StemSetBusy, bool>(
   StemSetBusy.new,
 );
 
-/// Splitting, regions, import and export of a recording's stems, with the questions before
+/// Splitting, choosing and deleting stem sets, regions, import and export of a recording's stems, with the questions before
 /// and the notices after. Used by the mixer page.
 class StemSetActions {
   const StemSetActions(this.context, this.ref, this.recordingId);
@@ -59,6 +59,27 @@ class StemSetActions {
     await _source.split(recordingId, model);
     return null;
   });
+
+  Future<void> select(String set) => _run(() async {
+    await _source.select(recordingId, set);
+    return null;
+  });
+
+  Future<void> delete(String set) async {
+    if (!await ConfirmDialog.ask(
+      context,
+      title: MixerTexts.deleteTitle,
+      message: MixerTexts.deleteMessage(MixerTexts.setName(set)),
+      confirmLabel: MixerTexts.delete,
+      cancelLabel: MixerTexts.cancel,
+    )) {
+      return;
+    }
+    await _run(() async {
+      await _source.remove(recordingId, set);
+      return null;
+    });
+  }
 
   Future<void> createRegions() => _run(() async {
     await _source.createRegions(recordingId);

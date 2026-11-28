@@ -317,7 +317,7 @@ async fn the_client_adapter_imports_lists_exports_and_removes() {
     let waveform = link.fetch_stem_waveform(id, 0).await.unwrap();
     assert!(!waveform.waveform.levels.is_empty());
     let package = link.fetch_stem_package(id).await.unwrap();
-    link.remove_stems(id).await.unwrap();
+    link.remove_stems(id, None).await.unwrap();
     assert!(link.fetch_stems(id).await.unwrap().stems.is_empty());
     assert!(link.send_stem_package(package).await.is_ok());
 
@@ -456,4 +456,65 @@ async fn unusable_packages_are_refused_and_leave_nothing_behind() {
     let (status, _) = send(&server.url, broken).await;
     assert_eq!(status, StatusCode::UNSUPPORTED_MEDIA_TYPE);
     assert_eq!(count_files(&server.stems), 0);
+}
+
+/// `package` as one split with `model`.
+fn of_model(package: Vec<u8>, model: &str) -> Vec<u8> {
+    let mut archive = zip::ZipArchive::new(Cursor::new(package)).unwrap();
+    let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+    for index in 0..archive.len() {
+        let mut entry = archive.by_index(index).unwrap();
+        let name = entry.name().unwrap().into_owned();
+        let mut bytes = Vec::new();
+        std::io::Read::read_to_end(&mut entry, &mut bytes).unwrap();
+        if name == "manifest.json" {
+            let mut manifest: Value = serde_json::from_slice(&bytes).unwrap();
+            manifest["model"] = json!(model);
+            bytes = manifest.to_string().into_bytes();
+        }
+        writer
+            .start_file(name, SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(&bytes).unwrap();
+    }
+    writer.finish().unwrap().into_inner()
+}
+
+#[tokio::test]
+async fn a_set_per_model_is_kept_until_it_is_removed() {
+    let server = server("sets").await;
+    let link = HttpServerLink::new(&server.url);
+    let id = RecordingId::new(server.id);
+    link.send_stem_package(two_stems(&server.hash))
+        .await
+        .unwrap();
+    let one = package(&server.hash, &[("vocals", "stems/v.ogg", LOW)], Value::Null);
+    link.send_stem_package(of_model(one, "vocals"))
+        .await
+        .unwrap();
+
+    let both = link.fetch_stems(id).await.unwrap();
+    assert_eq!(both.sets, ["imported", "vocals"]);
+    assert_eq!(both.selected.as_deref(), Some("vocals"));
+    assert_eq!(both.stems.len(), 1);
+
+    link.select_stems(id, "imported").await.unwrap();
+    assert_eq!(link.fetch_stems(id).await.unwrap().stems.len(), 2);
+    assert!(link.select_stems(id, "bs4").await.is_err());
+
+    // The exported package names its model, so it comes back as the same set.
+    link.select_stems(id, "vocals").await.unwrap();
+    let exported = link.fetch_stem_package(id).await.unwrap();
+    link.remove_stems(id, Some("vocals")).await.unwrap();
+    let one_left = link.fetch_stems(id).await.unwrap();
+    assert_eq!(one_left.selected.as_deref(), Some("imported"));
+    link.send_stem_package(exported).await.unwrap();
+    assert_eq!(
+        link.fetch_stems(id).await.unwrap().sets,
+        ["imported", "vocals"]
+    );
+
+    link.remove_stems(id, None).await.unwrap();
+    let none = link.fetch_stems(id).await.unwrap();
+    assert!(none.stems.is_empty() && none.sets.is_empty() && none.selected.is_none());
 }

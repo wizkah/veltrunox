@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:veltrunox_app/composition/mixer_board.dart';
 import 'package:veltrunox_app/features/mixer/mixer_source.dart';
+import 'package:veltrunox_app/features/mixer/split_menu_button.dart';
+import 'package:veltrunox_app/features/mixer/stem_set_picker.dart';
 import 'package:veltrunox_app/features/mixer/stem_actions_bar.dart';
 import 'package:veltrunox_app/features/mixer/stem_controls.dart';
 import 'package:veltrunox_app/features/mixer/stem_models.dart';
@@ -37,7 +39,10 @@ class _NoWaveforms implements MixerSource {
       throw UnimplementedError();
 
   @override
-  Future<void> remove(int recordingId) async {}
+  Future<void> select(int recordingId, String set) async {}
+
+  @override
+  Future<void> remove(int recordingId, String set) async {}
 }
 
 void main() {
@@ -145,6 +150,44 @@ void main() {
     expect(find.text('Aufteilen'), findsNothing);
     expect(find.text('Regionen erstellen'), findsOneWidget);
     expect(find.text('Löschen'), findsNothing);
+  });
+
+  testWidgets('sets can be chosen and deleted; their models are not offered', (
+    tester,
+  ) async {
+    final chosen = <String>[];
+    var deleted = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              StemSetPicker(
+                sets: const ['bs4', 'imported'],
+                selected: 'bs4',
+                onSelect: chosen.add,
+                onDelete: () => deleted++,
+              ),
+              SplitMenuButton(onSplit: (_) {}, existing: const {'bs4'}),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.textContaining('BS-RoFormer: 4'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Importiert').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    expect(chosen, ['imported']);
+    expect(deleted, 1);
+
+    await tester.tap(find.text('Aufteilen'));
+    await tester.pumpAndSettle();
+    final entry = tester.widget<MenuItemButton>(
+      find.widgetWithText(MenuItemButton, 'BS-RoFormer: 4 Segmente'),
+    );
+    expect(entry.onPressed, isNull);
   });
 
   testWidgets('fits a phone', (tester) async {

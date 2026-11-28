@@ -337,3 +337,13 @@ Environment: as above; openmirlab `bs-roformer-infer` e3ad851 and `melband-rofor
 - Rust Clippy, Flutter analysis and tests passed; in the full Rust test run `repeated_failures_delay_even_the_right_password` has failed, and passes when run with only its file.
 
 Limits: nothing was heard; no full song with a RoFormer model; memory of the RoFormer runs was not recorded for the whole run; the Split menu was exercised in a widget test only.
+
+## Several stem sets per recording (2026-11-28)
+
+Environment: as above; debug server on a throwaway data directory, release web build in the built-in browser.
+
+- Rust workspace tests and Clippy, Flutter analysis and tests passed.
+- The new migration, applied to a copy of a database with 3 stem sets, kept all rows without foreign-key violations.
+- In the browser: split a 20 s excerpt with Demucs (4 stems), then with the vocals model; the Demucs entry was disabled for a second split; switched between the sets and deleted one, the other remained.
+
+Limits: nothing was heard; switching during playback, a second client, and the macOS application were not checked.

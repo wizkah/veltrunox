@@ -38,6 +38,14 @@ tools/analysis/install.sh DATA_DIR /path/to/models
 
 Song structure needs drums, bass and vocals, so there are no regions for `vocals` stems.
 
+To keep everything on another disk (environment, models, downloads, temporary files), install
+there and link the folder into the data directory:
+
+```sh
+tools/analysis/install.sh /Volumes/DISK/veltrunox-analysis /path/to/models
+ln -s /Volumes/DISK/veltrunox-analysis/analysis DATA_DIR/analysis
+```
+
 ## Resources
 
 On an Apple M3 with 8 GB, Demucs splits a 3-minute song in about a minute. The RoFormer models

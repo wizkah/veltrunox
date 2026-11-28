@@ -106,6 +106,43 @@ impl StemMix {
     }
 }
 
+/// Where a stem set of a recording came from: the name of the model it was split with, or
+/// of an imported package that names none. A recording has at most one set of each.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StemSource(String);
+
+impl StemSource {
+    const IMPORTED: &str = "imported";
+
+    pub fn new(text: &str) -> Result<Self, InvalidValue> {
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            return Err(InvalidValue::EmptyName);
+        }
+        Ok(Self(trimmed.chars().take(MAX_NAME_CHARS).collect()))
+    }
+
+    pub fn imported() -> Self {
+        Self(Self::IMPORTED.to_owned())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Default for StemSource {
+    fn default() -> Self {
+        Self::imported()
+    }
+}
+
+impl From<SplitModel> for StemSource {
+    fn from(model: SplitModel) -> Self {
+        Self(model.id().to_owned())
+    }
+}
+
 /// The non-empty, trimmed name of a stem ("drums", "bass" …).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StemName(String);

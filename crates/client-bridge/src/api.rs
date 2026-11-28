@@ -185,6 +185,9 @@ pub struct StemOverviewItem {
     pub percent: u8,
     /// The code of why the last job failed.
     pub failure_code: Option<String>,
+    /// The sets the recording has, by model name, and the one in use.
+    pub sets: Vec<String>,
+    pub selected: Option<String>,
 }
 
 /// What an imported stem package gave.
@@ -223,6 +226,8 @@ pub async fn recording_stems(
         analysing,
         percent,
         failure_code,
+        sets: overview.sets,
+        selected: overview.selected,
     })
 }
 
@@ -288,12 +293,25 @@ pub async fn export_stem_package(
         .map_err(action_failure)
 }
 
+pub async fn select_stems(
+    server_url: String,
+    recording_id: u64,
+    set: String,
+) -> Result<(), RecordingActionError> {
+    link(&server_url)
+        .select_stems(RecordingId::new(recording_id), &set)
+        .await
+        .map_err(action_failure)
+}
+
+/// Removes the stem set of one model, or all of them.
 pub async fn delete_stems(
     server_url: String,
     recording_id: u64,
+    set: Option<String>,
 ) -> Result<(), RecordingActionError> {
     link(&server_url)
-        .remove_stems(RecordingId::new(recording_id))
+        .remove_stems(RecordingId::new(recording_id), set.as_deref())
         .await
         .map_err(action_failure)
 }

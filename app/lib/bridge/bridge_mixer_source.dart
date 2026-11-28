@@ -29,6 +29,8 @@ class BridgeMixerSource implements MixerSource {
         creatingRegions: found.creatingRegions,
         analysingPercent: found.analysing ? found.percent : null,
         failureCode: found.failureCode,
+        sets: found.sets,
+        selectedSet: found.selected,
       );
     } on Object {
       return const StemOverview();
@@ -89,10 +91,20 @@ class BridgeMixerSource implements MixerSource {
   );
 
   @override
-  Future<void> remove(int recordingId) => _reasoned(
+  Future<void> select(int recordingId, String set) => _reasoned(
+    () => rust.selectStems(
+      serverUrl: serverUrl,
+      recordingId: BigInt.from(recordingId),
+      set_: set,
+    ),
+  );
+
+  @override
+  Future<void> remove(int recordingId, String set) => _reasoned(
     () => rust.deleteStems(
       serverUrl: serverUrl,
       recordingId: BigInt.from(recordingId),
+      set_: set,
     ),
   );
 
