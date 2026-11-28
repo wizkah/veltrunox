@@ -56,6 +56,7 @@ Server architecture, audio processing, analysis algorithms, real authorization, 
 - **Lane:** a display row for regions, outside the waveform.
 - **Marker:** umbrella term for label or region.
 - **Stem** (German "Segment"): one audio track separated from a recording; shown in the mixer.
+- **Stem set:** the stems of one separation model, or of an imported package, of a recording. A recording may have several; one is selected.
 - **Original values:** automatically analysed tuning, key and tempo; they stay visible as a reference where known.
 - **Play mode:** what happens at the end of a region (section 5.3).
 
@@ -162,8 +163,8 @@ Administration of users and guest access: later phase, not in the v0.1 navigatio
 | Make and revoke own API tokens | yes | yes | no |
 | Change own password | yes | yes | no |
 | Manage recordings (rename, metadata, delete) | no | yes | no |
-| Mix stems; export a stem package | yes | yes | yes |
-| Import, analyse and delete stems | no | yes | no |
+| Mix stems; choose the stem set; export a stem package | yes | yes | yes |
+| Split, create regions, import and delete stems | no | yes | no |
 | Manage users, switch guest access | no | yes | no |
 
 A guest has the rights of a user without signing in and exists only while the admin has enabled guest access. The rows "manage recordings", "export bookmarks", "import bookmarks", "API tokens" and "change own password" are [V] (the product rules do not name them); importing needs the same right as editing labels and regions, and a guest has no account to hold tokens or a password. The UI receives **effective capabilities**; disallowed actions do not appear. Real authorization is outside this document.
@@ -264,7 +265,8 @@ The mixer is the second view of the selected recording, next to the player in th
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────┐
-│ Recording title          [Stems ● on]   [Analyse] [Import] [Export]  │
+│ Recording title                                                      │
+│ [Stems ● on] [Set ▾][🗑] [Split ▾] [Create regions] [Import] [Export] │
 ├───────────────────────┬──────────────────────────────────────────────┤
 │ Drums  ───●── [S][M]  │ ▁▃▇▂▁▃▇▂ waveform │                         │
 │ Bass   ─────● [S][M]  │ ▂▂▃▃▂▂▃▃          │                         │
@@ -279,8 +281,11 @@ The mixer is the second view of the selected recording, next to the player in th
 - [B] Left of each waveform: name, volume control, **Solo** and **Mute** toggles. With any solo only soloed stems sound; mute wins over solo. A silent lane is dimmed and says why.
 - [B] The switch "Stems" chooses between the stem mix and the original recording. Off: the lane controls stay visible but inactive, with a hint that the original plays.
 - [B] Switch and lane values are shared state (section 7.1) and are stored with the recording.
-- [B] Without stems the mixer shows an empty state with the allowed actions "Analyse" (only where an analysis program is set up) and "Import".
-- [V] Analysis shows its progress; failure is reported in words. Import and analysis replace existing stems only after a confirmation.
+- [B] A recording keeps one stem set per model until it is deleted. The set picker shows which set plays and changes it for everybody; changing it resets the mix. The mixer shows and exports the selected set.
+- [B] "Split" offers the models, each named with its stems; a model whose set exists is shown disabled. "Create regions" turns the song structure of the selected set into regions. Both appear only where an analysis program is set up.
+- [B] Without stems the mixer shows an empty state with the allowed actions "Split" and "Import".
+- [V] Splitting and creating regions show their progress; failure is reported in words. Deleting a set, and importing while sets exist, ask for confirmation first; the text says what is replaced or removed and what stays.
+- [V] A set from a package that names no model is called "Imported".
 - [V] Mobile: lane controls above each waveform; S and M keep 48 px targets.
 
 ## 6. Waveform – component contract
@@ -600,7 +605,8 @@ Rules [V]:
 | `ToastNotice` | info/success/warning/error | non-blocking feedback |
 | `MixerLane` | audible/silent/inactive | one stem: controls and waveform |
 | `StemControls` | normal/disabled | volume, solo, mute of one stem |
-| `StemSetActions` | empty/ready/analysing/error | analyse, import, export, delete |
+| `StemSetPicker` | one/several sets, disabled | choose the selected stem set, delete it |
+| `StemSetActions` | empty/ready/analysing/error | split by model, create regions, import, export |
 
 ### 11.1 Component contract form [V]
 
@@ -698,7 +704,9 @@ Scenarios for UI acceptance tests; test data suffices, no real audio or server i
 | UI-AC-34 | Change the own password successfully | The person is signed out and sees the sign-in screen with the note; the new password signs in, the old one does not |
 | UI-AC-35 | Open the mixer for a recording with stems | One lane per stem with volume, solo and mute; one playhead through all lanes |
 | UI-AC-36 | Solo and mute stems; switch "Stems" off | Silent lanes are marked in words; off, the controls are inactive and the original is announced |
-| UI-AC-37 | Open the mixer without stems as a user without management rights | An empty state, no "Analyse" or "Import" |
+| UI-AC-37 | Open the mixer without stems as a user without management rights | An empty state, no "Split" or "Import" |
+| UI-AC-38 | Split a recording that already has stems with another model | Both sets are kept, the new one is selected, the used models are disabled under "Split" |
+| UI-AC-39 | Choose another stem set, then delete it | The mixer shows the chosen set with a reset mix; deleting asks first and another set is shown |
 
 These are target criteria, not statements about existing code.
 
@@ -734,7 +742,7 @@ These are target criteria, not statements about existing code.
 - **D-26:** API tokens are made, listed and revoked in a dialog of the account menu; the token text is shown exactly once (section 9.6).
 - **D-27:** every account changes its own password in a dialog of the account menu, with its current password; afterwards the person is signed out everywhere, this device included, and signs in with the new password (section 9.7).
 
-- **D-28:** a recording with stems has a mixer view next to the player: one waveform lane per stem with volume, solo and mute, one playhead; a switch chooses between stem mix and original; the mix is shared and stored with the recording (section 5.7).
+- **D-28:** a recording with stems has a mixer view next to the player: one waveform lane per stem with volume, solo and mute, one playhead; a switch chooses between stem mix and original; each model's stem set is kept and one is selected; the mix is shared and stored with the recording (section 5.7).
 
 ### 15.2 Proposals to validate [V]
 
