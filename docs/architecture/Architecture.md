@@ -88,7 +88,7 @@ The Flutter project holds only presentation: feature folders (for example librar
 | `UserRepository` | Store users, roles and password hashes |
 | `PasswordHasher` | Hash and verify passwords with a suitable algorithm |
 | `SessionTokens` | Issue and verify authentication tokens |
-| `StemRepository` | Store the stem set of a recording and its mix |
+| `StemRepository` | Store the stem sets of a recording, which one is selected, and its mix |
 | `StemSeparator` | Run the configured external analysis program that writes a stem package (ADR-015) |
 | `PlaybackBroadcast` | Distribute the shared playback state and changes to connected clients |
 | `Clock` | Controllable time source |
@@ -97,7 +97,7 @@ The Flutter project holds only presentation: feature folders (for example librar
 
 ## 4. Shared playback state
 
-The server holds one playback state: current recording, position, run/pause, speed, tuning, key, play range, play mode and the output volume. The play range is the region being played; the play mode (to the end of the recording, to the end of the region, loop) decides what happens at its end (ADR-010). Speed, tuning and key are stored with the recording and restored when it is loaded; analysis results are never overwritten by them. The volume belongs to the room, not to a recording; the server applies it to the sound card's mixer or, without one, as gain (ADR-009). A recording with stems also has a mix (stems on or off; volume, mute and solo per stem), stored with it; the server sums the stems before time stretching (ADR-015). Clients send intents (for example "seek", "play region", "set play mode", "set speed"). The server validates the permission and the intent, applies it, and publishes the new state to all clients. Clients render the published state and do not keep a divergent copy.
+The server holds one playback state: current recording, position, run/pause, speed, tuning, key, play range, play mode and the output volume. The play range is the region being played; the play mode (to the end of the recording, to the end of the region, loop) decides what happens at its end (ADR-010). Speed, tuning and key are stored with the recording and restored when it is loaded; analysis results are never overwritten by them. The volume belongs to the room, not to a recording; the server applies it to the sound card's mixer or, without one, as gain (ADR-009). A recording with stems also has a selected stem set and a mix (stems on or off; volume, mute and solo per stem), stored with it; the server sums the stems before time stretching (ADR-015). Clients send intents (for example "seek", "play region", "set play mode", "set speed"). The server validates the permission and the intent, applies it, and publishes the new state to all clients. Clients render the published state and do not keep a divergent copy.
 
 Scrubbing sends a throttled stream of position intents that all clients follow continuously; the server plays short audible pieces at the scrubbed position (ADR-011). Every update carries the complete state with a strictly increasing revision, so joining, reconnecting and lost messages need no separate catch-up. Position is transmitted as a reference point (position plus server time) so clients can extrapolate while playing.
 
