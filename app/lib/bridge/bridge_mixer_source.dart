@@ -36,11 +36,11 @@ class BridgeMixerSource implements MixerSource {
   }
 
   @override
-  Future<void> split(int recordingId, int stemCount) => _reasoned(
+  Future<void> split(int recordingId, SplitModel model) => _reasoned(
     () => rust.analyseStems(
       serverUrl: serverUrl,
       recordingId: BigInt.from(recordingId),
-      stemCount: stemCount,
+      model: model.name,
     ),
   );
 

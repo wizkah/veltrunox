@@ -1,4 +1,5 @@
 import '../../shared_ui/app_language.dart';
+import 'stem_models.dart';
 
 /// User-visible texts of the mixer.
 abstract final class MixerTexts {
@@ -14,14 +15,25 @@ abstract final class MixerTexts {
   static String get loading =>
       tr('Segmente werden geladen …', 'Loading stems …');
   static String get split => tr('Aufteilen', 'Split');
-  static String get fourStems => tr(
-    '4 Segmente: Schlagzeug, Bass, Gesang, Rest',
-    '4 stems: drums, bass, vocals, other',
-  );
-  static String get sixStems => tr(
-    '6 Segmente: zusätzlich Gitarre und Klavier',
-    '6 stems: also guitar and piano',
-  );
+  static String splitModel(SplitModel model) {
+    final four = tr('4 Segmente', '4 stems');
+    final six = tr(
+      '6 Segmente, mit Gitarre und Klavier',
+      '6 stems, with guitar and piano',
+    );
+    return switch (model) {
+      SplitModel.demucs4 => 'Demucs: $four',
+      SplitModel.demucs6 => 'Demucs: $six',
+      SplitModel.bs4 => 'BS-RoFormer: $four',
+      SplitModel.sw6 => 'BS-RoFormer: $six',
+      SplitModel.mel4 => 'Mel-Band RoFormer: $four',
+      SplitModel.vocals => tr(
+        'Mel-Band RoFormer: Gesang und Rest',
+        'Mel-Band RoFormer: vocals and the rest',
+      ),
+    };
+  }
+
   static String splitting(int percent) => percent == 0
       ? tr('Wird aufgeteilt …', 'Splitting …')
       : tr('Wird aufgeteilt ($percent %)', 'Splitting ($percent %)');

@@ -19,9 +19,8 @@ abstract interface class MixerSource {
   /// Without stems if the recording has none or they cannot be read.
   Future<StemOverview> stems(int recordingId);
 
-  /// Starts splitting the recording into [stemCount] stems, 4 or 6; the job
-  /// shows in [stems].
-  Future<void> split(int recordingId, int stemCount);
+  /// Starts splitting the recording with [model]; the job shows in [stems].
+  Future<void> split(int recordingId, SplitModel model);
 
   /// Creates regions from the structure of the stems: at once if it is known,
   /// else by a job that shows in [stems].

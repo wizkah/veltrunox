@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 # Installs the analysis program into a Veltrunox data directory, where the server finds it.
-# Needs uv. Usage: install.sh DATA_DIR
+# Needs uv. Usage: install.sh DATA_DIR [ROFORMER_DIR]
+# ROFORMER_DIR holds the models download_roformer.sh fetched; it is linked, not copied.
 # For the macOS app: install.sh "$HOME/Library/Application Support/Veltrunox"
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-target="${1:?usage: install.sh DATA_DIR}/analysis"
+target="${1:?usage: install.sh DATA_DIR [ROFORMER_DIR]}/analysis"
+roformer="${2:+$(cd "$2" && pwd)}"
 mkdir -p "$target"
 uv venv --python 3.11 "$target/venv"
 uv pip install --python "$target/venv/bin/python" -r "$here/requirements.txt"
-cp "$here/analyze.py" "$here/openvino_demucs.py" "$target/"
+cp "$here/analyze.py" "$here/guard.py" "$here/openvino_demucs.py" "$here/roformer.py" "$target/"
+if [ -n "$roformer" ]; then
+  ln -sfn "$roformer" "$target/roformer"
+fi
 
 # Intel's conversion of Demucs v4, at a fixed revision and checked against known sums.
 models=https://huggingface.co/Intel/demucs-openvino/resolve/efb3d2bc54f93899b13b72b12c57001e19f09ae2

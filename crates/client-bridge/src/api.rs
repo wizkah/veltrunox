@@ -29,7 +29,7 @@ use veltrunox_client_app::{
 use veltrunox_core::{
     AnalysisProgress, ApiTokenId, BookmarkId, BookmarkName, Bpm, Capability, EntryRef, Intent,
     InvalidValue, KeyMode, KeyShift, LibraryEntry, Millis, PasswordPolicy, PlayMode, Reason,
-    RecordingId, RecordingTitle, Refusal, Role, Speed, SplitStems, TargetSpeed, TimeRange,
+    RecordingId, RecordingTitle, Refusal, Role, Speed, SplitModel, TargetSpeed, TimeRange,
     TokenScope, TuningHz, UserId, Version, Volume, speed_for_target_tempo,
 };
 
@@ -229,13 +229,13 @@ pub async fn recording_stems(
 pub async fn analyse_stems(
     server_url: String,
     recording_id: u64,
-    stem_count: u8,
+    model: String,
 ) -> Result<(), RecordingActionError> {
-    let stems = SplitStems::from_count(stem_count).ok_or_else(|| RecordingActionError::Failed {
-        detail: format!("cannot split into {stem_count} stems"),
+    let model = SplitModel::from_id(&model).ok_or_else(|| RecordingActionError::Failed {
+        detail: format!("there is no separation model {model}"),
     })?;
     link(&server_url)
-        .request_stem_analysis(RecordingId::new(recording_id), stems)
+        .request_stem_analysis(RecordingId::new(recording_id), model)
         .await
         .map_err(action_failure)
 }

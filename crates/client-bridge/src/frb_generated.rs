@@ -107,17 +107,14 @@ fn wire__crate__api__analyse_stems_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_server_url = <String>::sse_decode(&mut deserializer);
             let api_recording_id = <u64>::sse_decode(&mut deserializer);
-            let api_stem_count = <u8>::sse_decode(&mut deserializer);
+            let api_model = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, crate::api::RecordingActionError>(
                     (move || async move {
-                        let output_ok = crate::api::analyse_stems(
-                            api_server_url,
-                            api_recording_id,
-                            api_stem_count,
-                        )
-                        .await?;
+                        let output_ok =
+                            crate::api::analyse_stems(api_server_url, api_recording_id, api_model)
+                                .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,

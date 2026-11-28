@@ -16,30 +16,48 @@ const AT_END_MS: u64 = 500;
 /// Regions whose ends differ by at most this are taken to be the same.
 const SAME_RANGE_MS: u64 = 1_000;
 
-/// Into how many stems the analysis splits a recording.
+/// The models the analysis can split a recording with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum SplitStems {
-    /// Drums, bass, vocals and the rest.
+pub enum SplitModel {
+    /// Demucs: drums, bass, vocals and the rest.
     #[default]
-    Four,
-    /// Guitar and piano on their own as well.
-    Six,
+    DemucsFour,
+    /// Demucs: guitar and piano on their own as well.
+    DemucsSix,
+    /// BS-RoFormer, four stems.
+    RoformerFour,
+    /// BS-RoFormer, six stems.
+    RoformerSix,
+    /// Mel-Band RoFormer, four stems.
+    MelBandFour,
+    /// Mel-Band RoFormer: vocals and the rest.
+    Vocals,
 }
 
-impl SplitStems {
-    pub const fn count(self) -> u8 {
+impl SplitModel {
+    pub const ALL: [Self; 6] = [
+        Self::DemucsFour,
+        Self::DemucsSix,
+        Self::RoformerFour,
+        Self::RoformerSix,
+        Self::MelBandFour,
+        Self::Vocals,
+    ];
+
+    /// Its name in requests and for the analysis program.
+    pub const fn id(self) -> &'static str {
         match self {
-            Self::Four => 4,
-            Self::Six => 6,
+            Self::DemucsFour => "demucs4",
+            Self::DemucsSix => "demucs6",
+            Self::RoformerFour => "bs4",
+            Self::RoformerSix => "sw6",
+            Self::MelBandFour => "mel4",
+            Self::Vocals => "vocals",
         }
     }
 
-    pub const fn from_count(count: u8) -> Option<Self> {
-        match count {
-            4 => Some(Self::Four),
-            6 => Some(Self::Six),
-            _ => None,
-        }
+    pub fn from_id(id: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|model| model.id() == id)
     }
 }
 

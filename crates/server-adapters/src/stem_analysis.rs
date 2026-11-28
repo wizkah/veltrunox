@@ -12,14 +12,14 @@ use std::{
     thread,
     time::Duration,
 };
-use veltrunox_core::{RecordingId, SplitStems};
+use veltrunox_core::{RecordingId, SplitModel};
 use veltrunox_server_app::{
     MediaCatalog, PlaybackBroadcast, PlaybackService, RecordingRepository, StemRepository,
     StemSeparator, StemService,
 };
 
-/// The configured program: `PROGRAM INPUT OUTPUT.zip TITLE` splits into four
-/// stems, with `--stems 6` after it into six; `PROGRAM --structure OUTPUT.json --stem NAME=FILE ...` finds the structure; `progress N` lines on its standard
+/// The configured program: `PROGRAM INPUT OUTPUT.zip TITLE` splits with its
+/// default model, `demucs4`; `--model NAME` after it names another; `PROGRAM --structure OUTPUT.json --stem NAME=FILE ...` finds the structure; `progress N` lines on its standard
 /// output.
 pub struct ProgramSeparator(PathBuf);
 
@@ -34,15 +34,15 @@ impl StemSeparator for ProgramSeparator {
         &self,
         audio: &Path,
         title: &str,
-        stems: SplitStems,
+        model: SplitModel,
         package: &Path,
         report: &dyn Fn(u8),
     ) -> Result<(), String> {
         let mut command = Command::new(&self.0);
         command.arg(audio).arg(package).arg(title);
-        // Four is what a program does without being told.
-        if stems != SplitStems::Four {
-            command.arg("--stems").arg(stems.count().to_string());
+        // The default is what a program does without being told.
+        if model != SplitModel::default() {
+            command.arg("--model").arg(model.id());
         }
         self.run(command, report)
     }
@@ -112,7 +112,7 @@ fn progress_of(output: ChildStdout) -> mpsc::Receiver<u8> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StemTask {
     /// Splits the recording into stems.
-    Split(SplitStems),
+    Split(SplitModel),
     /// Creates regions from the structure found in the stems.
     Regions,
 }
@@ -165,7 +165,7 @@ impl StemJobs {
                 set(&shared, &context, id, Some(running(0)));
                 let report = |percent| set(&shared, &context, id, Some(running(percent)));
                 let outcome = match task {
-                    StemTask::Split(stems) => split(&*separator, &context, id, stems, &report),
+                    StemTask::Split(model) => split(&*separator, &context, id, model, &report),
                     StemTask::Regions => create_regions(&*separator, &context, id, &report),
                 };
                 let failed = outcome.err().map(|code| Job {
@@ -234,7 +234,7 @@ fn split(
     separator: &dyn StemSeparator,
     context: &JobContext,
     id: RecordingId,
-    stems: SplitStems,
+    model: SplitModel,
     report: &dyn Fn(u8),
 ) -> Result<(), &'static str> {
     let audio = context
@@ -252,7 +252,7 @@ fn split(
         .title;
     let output = context.store.temporary_file("zip");
     separator
-        .separate(&audio, title.as_str(), stems, output.path(), report)
+        .separate(&audio, title.as_str(), model, output.path(), report)
         .map_err(failed("stems_analysis_failed"))?;
     let package = context
         .store
@@ -322,7 +322,13 @@ mod tests {
 
     fn run(program: &Path) -> Result<(), String> {
         let unused = Path::new("unused");
-        ProgramSeparator::new(program).separate(unused, "title", SplitStems::Four, unused, &|_| {})
+        ProgramSeparator::new(program).separate(
+            unused,
+            "title",
+            SplitModel::DemucsFour,
+            unused,
+            &|_| {},
+        )
     }
 
     #[test]
@@ -336,15 +342,16 @@ mod tests {
     }
 
     #[test]
-    fn six_stems_are_asked_for_by_an_argument() {
-        let program = script("arguments", r#"test "$4 $5" = "--stems 6""#);
+    fn another_model_is_asked_for_by_an_argument() {
+        let program = script("arguments", r#"test "$4 $5" = "--model sw6""#);
         let unused = Path::new("unused");
         let separator = ProgramSeparator::new(&program);
-        let six = separator.separate(unused, "title", SplitStems::Six, unused, &|_| {});
-        let four = separator.separate(unused, "title", SplitStems::Four, unused, &|_| {});
+        let split = |model| separator.separate(unused, "title", model, unused, &|_| {});
+        let named = split(SplitModel::RoformerSix);
+        let default = split(SplitModel::DemucsFour);
         std::fs::remove_file(program).unwrap();
-        assert_eq!(six, Ok(()));
-        assert!(four.is_err());
+        assert_eq!(named, Ok(()));
+        assert!(default.is_err());
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Splitting offers four stems or six (also guitar and piano): a choice at “Split” in the mixer, `POST /api/v1/recordings/{id}/stems/analysis?stems=6`, and `--stems 6` for the analysis program. The analysis program now runs Intel's OpenVINO conversion of Demucs v4 on the CPU, with a workaround for OpenVINO computing 1-D transposed convolutions wrongly on Apple Silicon; run `tools/analysis/install.sh` again after updating.
+- “Split” in the mixer offers a choice of model: Demucs (four stems, or six with guitar and piano), BS-RoFormer (four or six) and Mel-Band RoFormer (four, or vocals and the rest); `POST /api/v1/recordings/{id}/stems/analysis?model=NAME` and `--model NAME` for the analysis program. Demucs now runs from Intel's OpenVINO conversion on the CPU, with a workaround for OpenVINO computing 1-D transposed convolutions wrongly on Apple Silicon. A guard kills an analysis before it exhausts memory or the system disk. Run `tools/analysis/install.sh` again after updating; RoFormer models are fetched with `tools/analysis/download_roformer.sh`.
 - Fixed: times followed no language. Positions with fractions of a second now use a decimal comma in German and a decimal point in English.
 - Dependency checks: `deny.toml` for `cargo deny check` (advisories, licences, sources) and Dependabot updates (security updates only for the Python analysis program).
 - Fixed: pressing play could show the playhead at the end although playback ran from the right place. The client kept an outdated clock offset after the server's clock had moved (restart, sleep); it now replaces a contradicting measurement and measures again before play.

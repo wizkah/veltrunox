@@ -4,6 +4,7 @@ import '../../design/tokens/app_geometry.dart';
 import '../../shared_ui/action_button.dart';
 import 'mixer_texts.dart';
 import 'split_menu_button.dart';
+import 'stem_models.dart';
 
 /// The switch between stems and original, and what can be done with the stem
 /// set. An action without a callback is not shown (missing right or no stems);
@@ -24,8 +25,8 @@ class StemActionsBar extends StatelessWidget {
   final bool stemsEnabled;
   final ValueChanged<bool>? onEnabled;
 
-  /// Told into how many stems.
-  final ValueChanged<int>? onSplit;
+  /// Told which model to split with.
+  final ValueChanged<SplitModel>? onSplit;
   final VoidCallback? onCreateRegions;
   final VoidCallback? onImport;
   final VoidCallback? onExport;

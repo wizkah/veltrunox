@@ -5,7 +5,7 @@ use reqwest::header::CONTENT_TYPE;
 use veltrunox_client_app::{
     ImportedPackage, LinkError, RecordingWaveform, StemJob, StemLink, StemOverview, StemSummary,
 };
-use veltrunox_core::{RecordingId, SplitStems};
+use veltrunox_core::{RecordingId, SplitModel};
 use veltrunox_protocol::{
     ImportedStemsDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH, STEM_PACKAGES_PATH, STEM_REGIONS_PATH,
     STEM_WAVEFORM_PATH, STEMS_PATH, StemAnalysisDto, StemListDto,
@@ -51,10 +51,10 @@ impl StemLink for HttpServerLink {
     async fn request_stem_analysis(
         &self,
         recording: RecordingId,
-        stems: SplitStems,
+        model: SplitModel,
     ) -> Result<(), LinkError> {
         let url = self.url(STEM_ANALYSIS_PATH, recording.value());
-        let request = self.post(format!("{url}?stems={}", stems.count()));
+        let request = self.post(format!("{url}?model={}", model.id()));
         Self::account_call(request).await.map(|_| ())
     }
 

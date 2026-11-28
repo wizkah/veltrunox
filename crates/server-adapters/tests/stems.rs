@@ -12,7 +12,7 @@ use std::sync::Arc;
 use support::TestClient;
 use veltrunox_client_adapters::HttpServerLink;
 use veltrunox_client_app::{LinkError, StemJob, StemLink, StemOverview};
-use veltrunox_core::{Intent, RecordingId, SplitStems};
+use veltrunox_core::{Intent, RecordingId, SplitModel};
 use veltrunox_server_adapters::{
     AppState, SqliteStore, StemStore, SystemClock, UploadStore, router,
 };
@@ -65,7 +65,7 @@ impl StemSeparator for Prepared {
         &self,
         _audio: &Path,
         _title: &str,
-        _stems: SplitStems,
+        _model: SplitModel,
         package: &Path,
         report: &dyn Fn(u8),
     ) -> Result<(), String> {
@@ -338,7 +338,7 @@ async fn an_analysis_job_gives_the_recording_what_the_program_wrote() {
     let id = RecordingId::new(server.id);
 
     assert!(link.fetch_stems(id).await.unwrap().analysis_available);
-    link.request_stem_analysis(id, SplitStems::Four)
+    link.request_stem_analysis(id, SplitModel::DemucsFour)
         .await
         .unwrap();
     let done = wait_for_job(&link, id).await;
@@ -346,7 +346,7 @@ async fn an_analysis_job_gives_the_recording_what_the_program_wrote() {
     assert_eq!(done.stems.len(), 2);
 
     // A second run adds no region twice; a failing one keeps the stems.
-    link.request_stem_analysis(id, SplitStems::Four)
+    link.request_stem_analysis(id, SplitModel::DemucsFour)
         .await
         .unwrap();
     wait_for_job(&link, id).await;
@@ -358,7 +358,7 @@ async fn an_analysis_job_gives_the_recording_what_the_program_wrote() {
     assert_eq!(json_of(&bookmarks)["regions"].as_array().unwrap().len(), 2);
 
     separator.package.lock().unwrap().clear();
-    link.request_stem_analysis(id, SplitStems::Four)
+    link.request_stem_analysis(id, SplitModel::DemucsFour)
         .await
         .unwrap();
     let failed = wait_for_job(&link, id).await;
@@ -418,7 +418,7 @@ async fn without_a_program_nothing_can_be_analysed() {
     let id = RecordingId::new(server.id);
     assert!(!link.fetch_stems(id).await.unwrap().analysis_available);
     assert!(
-        link.request_stem_analysis(id, SplitStems::Four)
+        link.request_stem_analysis(id, SplitModel::DemucsFour)
             .await
             .is_err()
     );

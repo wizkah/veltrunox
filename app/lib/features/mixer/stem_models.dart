@@ -52,3 +52,6 @@ class ImportedStems {
   final int stems;
   final int regionsAdded;
 }
+
+/// The models a recording can be split with; the name is the one of the server.
+enum SplitModel { demucs4, demucs6, bs4, sw6, mel4, vocals }

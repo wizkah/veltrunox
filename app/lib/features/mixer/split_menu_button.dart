@@ -2,23 +2,21 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../shared_ui/action_button.dart';
 import 'mixer_texts.dart';
+import 'stem_models.dart';
 
-/// "Split" with the choice of how many stems. Without a callback it is disabled.
+/// "Split" with the choice of the model. Without a callback it is disabled.
 class SplitMenuButton extends StatelessWidget {
   const SplitMenuButton({required this.onSplit, super.key});
 
-  final ValueChanged<int>? onSplit;
+  final ValueChanged<SplitModel>? onSplit;
 
   @override
   Widget build(BuildContext context) => MenuAnchor(
     menuChildren: [
-      for (final (count, label) in [
-        (4, MixerTexts.fourStems),
-        (6, MixerTexts.sixStems),
-      ])
+      for (final model in SplitModel.values)
         MenuItemButton(
-          onPressed: onSplit == null ? null : () => onSplit!(count),
-          child: Text(label),
+          onPressed: onSplit == null ? null : () => onSplit!(model),
+          child: Text(MixerTexts.splitModel(model)),
         ),
     ],
     builder: (context, menu, _) => ActionButton(

@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../features/markers/marker_controller.dart';
 import '../features/mixer/mixer_source.dart';
+import '../features/mixer/stem_models.dart';
 import '../features/mixer/mixer_texts.dart';
 import '../shared_ui/confirm_dialog.dart';
 import '../shared_ui/server_reason.dart';
@@ -54,8 +55,8 @@ class StemSetActions {
     });
   }
 
-  Future<void> split(int stemCount) => _run(() async {
-    await _source.split(recordingId, stemCount);
+  Future<void> split(SplitModel model) => _run(() async {
+    await _source.split(recordingId, model);
     return null;
   });
 

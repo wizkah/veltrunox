@@ -1,34 +1,45 @@
 #!/usr/bin/env python3
 """Stem separation and song structure analysis for Veltrunox (ADR-015).
 
-    analyze.py INPUT OUTPUT.zip TITLE [--stems 4|6]
+    analyze.py INPUT OUTPUT.zip TITLE [--model NAME]
     analyze.py INPUT OUTPUT.zip TITLE --from-results DIR
     analyze.py --structure OUTPUT.json --stem NAME=FILE ...
 
-The first form separates INPUT into drums, bass, vocals and the rest, or with --stems 6
-also guitar and piano, and writes a stem package: manifest.json plus one Ogg Vorbis
+The first form separates INPUT with the model NAME (see MODELS; demucs4 if not said) and
+writes a stem package: manifest.json plus one Ogg Vorbis
 file per stem, at the sample rate of INPUT. With --from-results nothing is separated; DIR
 holds stems/*.wav and possibly analysis.json of an earlier run. With --structure the song
 structure is found from the stems drums, bass and vocals, with all further stems together
 as the rest, and written as JSON.
-Prints "progress N" lines.
+Prints "progress N" lines. The work runs in a second process that guard.py kills before it
+can take the machine down.
 """
 import argparse
 import hashlib
 import json
+import os
 import random
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
+
+import guard
 
 # The order in which a package lists them.
 STEMS = ("drums", "bass", "vocals", "other", "guitar", "piano")
 # What the structure model takes.
 STRUCTURE_STEMS = STEMS[:4]
-MODELS_DIRECTORY = Path(__file__).resolve().parent / "models"
+HERE = Path(__file__).resolve().parent
+MODELS_DIRECTORY = HERE / "models"
+# Directory with a directory per RoFormer model, as download_roformer.sh makes it.
+ROFORMER_DIRECTORY = HERE / "roformer"
+# Demucs by the number of its stems, and the RoFormer models by their directory.
+DEMUCS = {"demucs4": 4, "demucs6": 6}
+MODELS = (*DEMUCS, "bs4", "sw6", "mel4", "vocals")
 # Ogg Vorbis quality; 6 is about 190 kbit/s for stereo.
 QUALITY = "6"
 
@@ -69,35 +80,50 @@ def decoded(source, work):
     return torch.from_numpy(samples.reshape(-1, 2).T.copy())
 
 
-def separate(source, work, stem_count):
-    """Runs Demucs; returns the directory with the stem WAV files."""
+def separation_progress(fraction):
+    progress(5 + int(fraction * 80))
+
+
+def with_demucs(mix, stem_count):
+    """Returns {name: [channels, samples]}."""
     from demucs_infer.apply import apply_model
-    from demucs_infer.audio import save_audio
     from openvino_demucs import OpenVinoDemucs
 
-    mix = decoded(source, work)
-    progress(5)
     model = OpenVinoDemucs(MODELS_DIRECTORY, stem_count)
     level = mix.mean(0)
     mean, deviation = level.mean(), level.std() + 1e-8
     length = mix.shape[-1]
-    done = [5]
+    done = [0]
 
     def piece(state):
         fraction = min(state.get("segment_offset", 0) / length, 1)
-        percent = 5 + int(fraction * 80)
-        if percent > done[0]:
-            done[0] = percent
-            progress(percent)
+        if fraction > done[0]:
+            done[0] = fraction
+            separation_progress(fraction)
 
     # apply_model shifts the input by a random amount; the same input shall give the same.
     random.seed(0)
     separated = apply_model(model, ((mix - mean) / deviation)[None], callback=piece)[0]
+    return dict(zip(model.sources, separated * deviation + mean))
+
+
+def separate(source, work, model):
+    """Splits the recording; returns the directory with the stem WAV files."""
+    from demucs_infer.audio import save_audio
+
+    mix = decoded(source, work)
+    progress(5)
+    if model in DEMUCS:
+        waves = with_demucs(mix, DEMUCS[model])
+    else:
+        import roformer
+
+        waves = roformer.separate(ROFORMER_DIRECTORY / model, mix, separation_progress)
     progress(85)
     stems = work / "stems"
     stems.mkdir()
-    for name, wave in zip(model.sources, separated * deviation + mean):
-        save_audio(wave, str(stems / f"{name}.wav"), model.samplerate)
+    for name, wave in waves.items():
+        save_audio(wave, str(stems / f"{name}.wav"), 44100)
     return stems
 
 
@@ -215,7 +241,7 @@ def main():
     parser.add_argument("input", type=Path, nargs="?")
     parser.add_argument("output", type=Path, nargs="?")
     parser.add_argument("title", nargs="?")
-    parser.add_argument("--stems", type=int, choices=(4, 6), default=4)
+    parser.add_argument("--model", choices=MODELS, default="demucs4")
     parser.add_argument("--from-results", type=Path)
     parser.add_argument("--structure", type=Path, metavar="OUTPUT.json")
     parser.add_argument("--stem", action="append", default=[], metavar="NAME=FILE")
@@ -238,12 +264,23 @@ def main():
                 analysis = json.loads(found.read_text()) if found.exists() else None
                 stems = options.from_results / "stems"
             else:
-                analysis, stems = None, separate(options.input, work, options.stems)
+                analysis, stems = None, separate(options.input, work, options.model)
             write_package(
                 options.input, options.output, options.title, analysis, stems, work
             )
     progress(99)
 
 
+def guarded():
+    """Runs this program again as a process that is watched."""
+    # The directory of temporary files goes away even if that process is killed.
+    with tempfile.TemporaryDirectory() as temporary:
+        environment = {**os.environ, "VELTRUNOX_GUARDED": "1", "TMPDIR": temporary}
+        return guard.run([sys.executable, __file__, *sys.argv[1:]], environment)
+
+
 if __name__ == "__main__":
-    main()
+    if os.environ.get("VELTRUNOX_GUARDED"):
+        main()
+    else:
+        sys.exit(guarded())
