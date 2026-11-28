@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Packages written by the analysis program name their model, so an import shows it instead of “Imported”. The stem set list in the mixer uses the normal text size.
 - The architecture, ADR-015 and the design specification (section 5.7) describe one stem set per model and the choice of model.
 - A recording keeps one stem set per model: splitting again with another model adds a set instead of being unavailable. The mixer chooses which set plays (`PUT /api/v1/recordings/{id}/stems/selected`, right of playback control; resets the mix) and deletes the shown one (`DELETE …/stems?model=NAME`). Packages name their model; a package replaces only the set of that model. Stems stored before appear as “Imported” (database migration on first start).
 - “Split” in the mixer offers a choice of model: Demucs (four stems, or six with guitar and piano), BS-RoFormer (four or six) and Mel-Band RoFormer (four, or vocals and the rest); `POST /api/v1/recordings/{id}/stems/analysis?model=NAME` and `--model NAME` for the analysis program. Demucs now runs from Intel's OpenVINO conversion on the CPU, with a workaround for OpenVINO computing 1-D transposed convolutions wrongly on Apple Silicon. A guard kills an analysis before it exhausts memory or the system disk. Run `tools/analysis/install.sh` again after updating; RoFormer models are fetched with `tools/analysis/download_roformer.sh`.

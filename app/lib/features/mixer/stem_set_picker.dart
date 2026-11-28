@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../design/tokens/app_colors.dart';
 import '../../design/tokens/app_geometry.dart';
 import '../../shared_ui/app_icon_button.dart';
 import 'mixer_texts.dart';
@@ -26,6 +27,8 @@ class StemSetPicker extends StatelessWidget {
     children: [
       Flexible(
         child: DropdownButton<String>(
+          style: Theme.of(context).textTheme.bodyMedium,
+          dropdownColor: AppColors.surfaceRaised,
           value: selected,
           isExpanded: true,
           onChanged: onSelect == null

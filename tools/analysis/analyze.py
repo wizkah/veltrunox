@@ -8,7 +8,8 @@
 The first form separates INPUT with the model NAME (see MODELS; demucs4 if not said) and
 writes a stem package: manifest.json plus one Ogg Vorbis
 file per stem, at the sample rate of INPUT. With --from-results nothing is separated; DIR
-holds stems/*.wav and possibly analysis.json of an earlier run. With --structure the song
+holds stems/*.wav and possibly analysis.json of an earlier run (--model NAME says which model
+made them). The package names its model. With --structure the song
 structure is found from the stems drums, bass and vocals, with all further stems together
 as the rest, and written as JSON.
 Prints "progress N" lines. The work runs in a second process that guard.py kills before it
@@ -207,7 +208,7 @@ def structure_of(analysis):
     }
 
 
-def manifest_of(source, title, analysis, names):
+def manifest_of(source, title, model, analysis, names):
     manifest = {
         "format_version": 1,
         "recording": {
@@ -216,12 +217,14 @@ def manifest_of(source, title, analysis, names):
         },
         "stems": [{"name": name, "file": f"stems/{name}.ogg"} for name in names],
     }
+    if model:
+        manifest["model"] = model
     if analysis:
         manifest["analysis"] = structure_of(analysis)
     return manifest
 
 
-def write_package(source, target, title, analysis, stems, work):
+def write_package(source, target, title, model, analysis, stems, work):
     rate = sample_rate(source)
     names = [name for name in STEMS if (stems / f"{name}.wav").exists()]
     with zipfile.ZipFile(target, "w", zipfile.ZIP_STORED) as package:
@@ -233,7 +236,8 @@ def write_package(source, target, title, analysis, stems, work):
             )
             package.write(encoded, f"stems/{name}.ogg")
             progress(85 + count * 13 // len(names))
-        package.writestr("manifest.json", json.dumps(manifest_of(source, title, analysis, names)))
+        manifest = manifest_of(source, title, model, analysis, names)
+        package.writestr("manifest.json", json.dumps(manifest))
 
 
 def main():
@@ -241,7 +245,7 @@ def main():
     parser.add_argument("input", type=Path, nargs="?")
     parser.add_argument("output", type=Path, nargs="?")
     parser.add_argument("title", nargs="?")
-    parser.add_argument("--model", choices=MODELS, default="demucs4")
+    parser.add_argument("--model", choices=MODELS)
     parser.add_argument("--from-results", type=Path)
     parser.add_argument("--structure", type=Path, metavar="OUTPUT.json")
     parser.add_argument("--stem", action="append", default=[], metavar="NAME=FILE")
@@ -259,14 +263,23 @@ def main():
         elif options.title is None:
             parser.error("INPUT OUTPUT.zip TITLE are required")
         else:
+            # Unknown for earlier results unless --model says it.
+            model = options.model
             if options.from_results:
                 found = options.from_results / "analysis.json"
                 analysis = json.loads(found.read_text()) if found.exists() else None
                 stems = options.from_results / "stems"
             else:
-                analysis, stems = None, separate(options.input, work, options.model)
+                model = model or "demucs4"
+                analysis, stems = None, separate(options.input, work, model)
             write_package(
-                options.input, options.output, options.title, analysis, stems, work
+                options.input,
+                options.output,
+                options.title,
+                model,
+                analysis,
+                stems,
+                work,
             )
     progress(99)
 
