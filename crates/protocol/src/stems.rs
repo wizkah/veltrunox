@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 pub const STEM_PACKAGES_PATH: &str = "/api/v1/stem-packages";
 /// The stems of one recording (`GET` lists them, `DELETE` removes them).
 pub const STEMS_PATH: &str = "/api/v1/recordings/{id}/stems";
-/// Starts the analysis of one recording into stems (`POST`).
+/// Starts the analysis of one recording into stems (`POST`); `?stems=6` asks for six
+/// instead of four.
 pub const STEM_ANALYSIS_PATH: &str = "/api/v1/recordings/{id}/stems/analysis";
 /// Creates regions from the structure of the stems of one recording (`POST`).
 pub const STEM_REGIONS_PATH: &str = "/api/v1/recordings/{id}/stems/regions";

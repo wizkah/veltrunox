@@ -14,6 +14,14 @@ abstract final class MixerTexts {
   static String get loading =>
       tr('Segmente werden geladen …', 'Loading stems …');
   static String get split => tr('Aufteilen', 'Split');
+  static String get fourStems => tr(
+    '4 Segmente: Schlagzeug, Bass, Gesang, Rest',
+    '4 stems: drums, bass, vocals, other',
+  );
+  static String get sixStems => tr(
+    '6 Segmente: zusätzlich Gitarre und Klavier',
+    '6 stems: also guitar and piano',
+  );
   static String splitting(int percent) => percent == 0
       ? tr('Wird aufgeteilt …', 'Splitting …')
       : tr('Wird aufgeteilt ($percent %)', 'Splitting ($percent %)');

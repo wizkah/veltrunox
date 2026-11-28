@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 """Stem separation and song structure analysis for Veltrunox (ADR-015).
 
-    analyze.py INPUT OUTPUT.zip TITLE
+    analyze.py INPUT OUTPUT.zip TITLE [--stems 4|6]
     analyze.py INPUT OUTPUT.zip TITLE --from-results DIR
     analyze.py --structure OUTPUT.json --stem NAME=FILE ...
 
-The first form separates INPUT and writes a stem package: manifest.json plus one Ogg Vorbis
+The first form separates INPUT into drums, bass, vocals and the rest, or with --stems 6
+also guitar and piano, and writes a stem package: manifest.json plus one Ogg Vorbis
 file per stem, at the sample rate of INPUT. With --from-results nothing is separated; DIR
 holds stems/*.wav and possibly analysis.json of an earlier run. With --structure the song
-structure is found from the stems drums, bass, vocals and other, and written as JSON.
+structure is found from the stems drums, bass and vocals, with all further stems together
+as the rest, and written as JSON.
 Prints "progress N" lines.
 """
 import argparse
 import hashlib
 import json
-import os
+import random
 import re
 import shutil
 import subprocess
@@ -22,7 +24,11 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-STEMS = ("drums", "bass", "vocals", "other")
+# The order in which a package lists them.
+STEMS = ("drums", "bass", "vocals", "other", "guitar", "piano")
+# What the structure model takes.
+STRUCTURE_STEMS = STEMS[:4]
+MODELS_DIRECTORY = Path(__file__).resolve().parent / "models"
 # Ogg Vorbis quality; 6 is about 190 kbit/s for stereo.
 QUALITY = "6"
 
@@ -52,44 +58,56 @@ def run_ffmpeg(*arguments):
     subprocess.run([ffmpeg(), "-v", "error", "-y", *map(str, arguments)], check=True)
 
 
-def separate(source, work):
-    """Runs Demucs; returns the directory with the stem WAV files."""
+def decoded(source, work):
+    """The recording as the model takes it: [channels, samples] at 44100 Hz."""
+    import numpy
     import torch
-    from allin1_infer import stems as providers
 
-    wav = work / "input.wav"
-    run_ffmpeg("-i", source, "-ar", "44100", "-ac", "2", "-c:a", "pcm_s16le", wav)
+    raw = work / "input.f32"
+    run_ffmpeg("-i", source, "-ar", "44100", "-ac", "2", "-f", "f32le", raw)
+    samples = numpy.fromfile(raw, dtype=numpy.float32)
+    return torch.from_numpy(samples.reshape(-1, 2).T.copy())
+
+
+def separate(source, work, stem_count):
+    """Runs Demucs; returns the directory with the stem WAV files."""
+    from demucs_infer.apply import apply_model
+    from demucs_infer.audio import save_audio
+    from openvino_demucs import OpenVinoDemucs
+
+    mix = decoded(source, work)
     progress(5)
+    model = OpenVinoDemucs(MODELS_DIRECTORY, stem_count)
+    level = mix.mean(0)
+    mean, deviation = level.mean(), level.std() + 1e-8
+    length = mix.shape[-1]
+    done = [5]
 
-    provider = providers.DemucsProvider(device="cpu")
-    if torch.backends.mps.is_available():
-        # all-in-one-infer rejects "mps" when resolving devices; Demucs itself runs on it.
-        provider.device = "mps"
-        patch_istft_for_mps()
-    report_separation(providers, 5, 85)
-    return Path(provider.get_stems(wav, work / "stems"))
+    def piece(state):
+        fraction = min(state.get("segment_offset", 0) / length, 1)
+        percent = 5 + int(fraction * 80)
+        if percent > done[0]:
+            done[0] = percent
+            progress(percent)
+
+    # apply_model shifts the input by a random amount; the same input shall give the same.
+    random.seed(0)
+    separated = apply_model(model, ((mix - mean) / deviation)[None], callback=piece)[0]
+    progress(85)
+    stems = work / "stems"
+    stems.mkdir()
+    for name, wave in zip(model.sources, separated * deviation + mean):
+        save_audio(wave, str(stems / f"{name}.wav"), model.samplerate)
+    return stems
 
 
-def report_separation(providers, start, end):
-    """Demucs works through the recording piece by piece; report each finished piece."""
-    apply_model = providers.apply_model
-
-    def reporting(model, mix, **keywords):
-        length = mix.shape[-1]
-        done = [start]
-
-        def piece(state):
-            fraction = min(state.get("segment_offset", 0) / length, 1)
-            percent = start + int(fraction * (end - start))
-            if percent > done[0]:
-                done[0] = percent
-                progress(percent)
-
-        result = apply_model(model, mix, callback=piece, **keywords)
-        progress(end)
-        return result
-
-    providers.apply_model = reporting
+def mixed_down(files, target):
+    """Writes the sum of the files as one WAV file."""
+    inputs = [part for file in files for part in ("-i", file)]
+    mix = [] if len(files) == 1 else [
+        "-filter_complex", f"amix=inputs={len(files)}:normalize=0"
+    ]
+    run_ffmpeg(*inputs, *mix, "-ar", "44100", "-ac", "2", "-c:a", "pcm_s16le", target)
 
 
 def find_structure(stem_files, work):
@@ -100,11 +118,10 @@ def find_structure(stem_files, work):
 
     demix = work / "demix" / "htdemucs" / "input"
     demix.mkdir(parents=True)
-    for count, name in enumerate(STEMS, 1):
-        run_ffmpeg(
-            "-i", stem_files[name], "-ar", "44100", "-ac", "2", "-c:a", "pcm_s16le",
-            demix / f"{name}.wav",
-        )
+    rest = [file for name, file in stem_files.items() if name not in STRUCTURE_STEMS[:3]]
+    for count, name in enumerate(STRUCTURE_STEMS, 1):
+        files = rest if name == "other" else [stem_files[name]]
+        mixed_down(files, demix / f"{name}.wav")
         progress(count * 3)
     # The models take the stems only; the path just names the run.
     source = work / "input.wav"
@@ -144,19 +161,6 @@ def find_structure(stem_files, work):
     }
 
 
-def patch_istft_for_mps():
-    """demucs-infer 4.4.0 computes the inverse STFT of MPS tensors on the CPU and does not
-    move the result back."""
-    import demucs_infer.htdemucs as htdemucs
-
-    original = htdemucs.ispectro
-
-    def moved_back(z, *arguments, **keywords):
-        return original(z, *arguments, **keywords).to(z.device)
-
-    htdemucs.ispectro = moved_back
-
-
 def structure_of(analysis):
     def millis(seconds):
         return round(seconds * 1000)
@@ -177,14 +181,14 @@ def structure_of(analysis):
     }
 
 
-def manifest_of(source, title, analysis):
+def manifest_of(source, title, analysis, names):
     manifest = {
         "format_version": 1,
         "recording": {
             "content_hash": hashlib.sha256(source.read_bytes()).hexdigest(),
             "title": title,
         },
-        "stems": [{"name": name, "file": f"stems/{name}.ogg"} for name in STEMS],
+        "stems": [{"name": name, "file": f"stems/{name}.ogg"} for name in names],
     }
     if analysis:
         manifest["analysis"] = structure_of(analysis)
@@ -193,16 +197,17 @@ def manifest_of(source, title, analysis):
 
 def write_package(source, target, title, analysis, stems, work):
     rate = sample_rate(source)
+    names = [name for name in STEMS if (stems / f"{name}.wav").exists()]
     with zipfile.ZipFile(target, "w", zipfile.ZIP_STORED) as package:
-        for count, name in enumerate(STEMS, 1):
+        for count, name in enumerate(names, 1):
             encoded = work / f"{name}.ogg"
             run_ffmpeg(
                 "-i", stems / f"{name}.wav", "-ar", rate, "-c:a", "libvorbis",
                 "-q:a", QUALITY, encoded,
             )
             package.write(encoded, f"stems/{name}.ogg")
-            progress(85 + count * 3)
-        package.writestr("manifest.json", json.dumps(manifest_of(source, title, analysis)))
+            progress(85 + count * 13 // len(names))
+        package.writestr("manifest.json", json.dumps(manifest_of(source, title, analysis, names)))
 
 
 def main():
@@ -210,16 +215,17 @@ def main():
     parser.add_argument("input", type=Path, nargs="?")
     parser.add_argument("output", type=Path, nargs="?")
     parser.add_argument("title", nargs="?")
+    parser.add_argument("--stems", type=int, choices=(4, 6), default=4)
     parser.add_argument("--from-results", type=Path)
     parser.add_argument("--structure", type=Path, metavar="OUTPUT.json")
     parser.add_argument("--stem", action="append", default=[], metavar="NAME=FILE")
     options = parser.parse_args()
-    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
     with tempfile.TemporaryDirectory() as temporary:
         work = Path(temporary)
         if options.structure:
             files = dict(entry.split("=", 1) for entry in options.stem)
-            missing = [name for name in STEMS if name not in files]
+            # The rest may be spread over several stems.
+            missing = [name for name in STRUCTURE_STEMS if name not in files]
             if missing:
                 parser.error(f"missing stems: {', '.join(missing)}")
             found = structure_of(find_structure(files, work))
@@ -232,7 +238,7 @@ def main():
                 analysis = json.loads(found.read_text()) if found.exists() else None
                 stems = options.from_results / "stems"
             else:
-                analysis, stems = None, separate(options.input, work)
+                analysis, stems = None, separate(options.input, work, options.stems)
             write_package(
                 options.input, options.output, options.title, analysis, stems, work
             )

@@ -2,7 +2,7 @@
 
 use crate::{LinkError, RecordingWaveform};
 use std::future::Future;
-use veltrunox_core::RecordingId;
+use veltrunox_core::{RecordingId, SplitStems};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StemSummary {
@@ -51,6 +51,7 @@ pub trait StemLink {
     fn request_stem_analysis(
         &self,
         recording: RecordingId,
+        stems: SplitStems,
     ) -> impl Future<Output = Result<(), LinkError>>;
     /// Asks the server to create regions from the structure of the stems.
     fn request_stem_regions(

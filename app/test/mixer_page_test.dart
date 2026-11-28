@@ -20,7 +20,7 @@ class _NoWaveforms implements MixerSource {
   Future<StemOverview> stems(int recordingId) async => const StemOverview();
 
   @override
-  Future<void> split(int recordingId) async {}
+  Future<void> split(int recordingId, int stemCount) async {}
 
   @override
   Future<void> createRegions(int recordingId) async {}
@@ -118,7 +118,7 @@ void main() {
   testWidgets('splitting is offered until there are stems, no deleting', (
     tester,
   ) async {
-    Future<void> bar({VoidCallback? split, VoidCallback? regions}) =>
+    Future<void> bar({ValueChanged<int>? split, VoidCallback? regions}) =>
         tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -130,8 +130,14 @@ void main() {
             ),
           ),
         );
-    await bar(split: () {});
+    final asked = <int>[];
+    await bar(split: asked.add);
     expect(find.text('Aufteilen'), findsOneWidget);
+    await tester.tap(find.text('Aufteilen'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('6 Segmente'));
+    await tester.pumpAndSettle();
+    expect(asked, [6]);
     expect(find.text('Regionen erstellen'), findsNothing);
     await bar(regions: () {});
     expect(find.text('Aufteilen'), findsNothing);

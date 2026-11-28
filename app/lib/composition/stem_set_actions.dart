@@ -54,8 +54,8 @@ class StemSetActions {
     });
   }
 
-  Future<void> split() => _run(() async {
-    await _source.split(recordingId);
+  Future<void> split(int stemCount) => _run(() async {
+    await _source.split(recordingId, stemCount);
     return null;
   });
 

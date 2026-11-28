@@ -12,7 +12,7 @@ use std::sync::Arc;
 use support::TestClient;
 use veltrunox_client_adapters::HttpServerLink;
 use veltrunox_client_app::{LinkError, StemJob, StemLink, StemOverview};
-use veltrunox_core::{Intent, RecordingId};
+use veltrunox_core::{Intent, RecordingId, SplitStems};
 use veltrunox_server_adapters::{
     AppState, SqliteStore, StemStore, SystemClock, UploadStore, router,
 };
@@ -65,6 +65,7 @@ impl StemSeparator for Prepared {
         &self,
         _audio: &Path,
         _title: &str,
+        _stems: SplitStems,
         package: &Path,
         report: &dyn Fn(u8),
     ) -> Result<(), String> {
@@ -337,13 +338,17 @@ async fn an_analysis_job_gives_the_recording_what_the_program_wrote() {
     let id = RecordingId::new(server.id);
 
     assert!(link.fetch_stems(id).await.unwrap().analysis_available);
-    link.request_stem_analysis(id).await.unwrap();
+    link.request_stem_analysis(id, SplitStems::Four)
+        .await
+        .unwrap();
     let done = wait_for_job(&link, id).await;
     assert_eq!(done.job, StemJob::None);
     assert_eq!(done.stems.len(), 2);
 
     // A second run adds no region twice; a failing one keeps the stems.
-    link.request_stem_analysis(id).await.unwrap();
+    link.request_stem_analysis(id, SplitStems::Four)
+        .await
+        .unwrap();
     wait_for_job(&link, id).await;
     let (_, bookmarks) = get(format!(
         "{}/api/v1/recordings/{}/bookmarks",
@@ -353,7 +358,9 @@ async fn an_analysis_job_gives_the_recording_what_the_program_wrote() {
     assert_eq!(json_of(&bookmarks)["regions"].as_array().unwrap().len(), 2);
 
     separator.package.lock().unwrap().clear();
-    link.request_stem_analysis(id).await.unwrap();
+    link.request_stem_analysis(id, SplitStems::Four)
+        .await
+        .unwrap();
     let failed = wait_for_job(&link, id).await;
     assert_eq!(
         failed.job,
@@ -410,7 +417,11 @@ async fn without_a_program_nothing_can_be_analysed() {
     let link = HttpServerLink::new(&server.url);
     let id = RecordingId::new(server.id);
     assert!(!link.fetch_stems(id).await.unwrap().analysis_available);
-    assert!(link.request_stem_analysis(id).await.is_err());
+    assert!(
+        link.request_stem_analysis(id, SplitStems::Four)
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]

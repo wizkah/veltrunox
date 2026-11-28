@@ -10,14 +10,16 @@ use crate::{
 use axum::{
     Json, Router,
     body::Body,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{StatusCode, header},
     response::IntoResponse,
     routing::{get, post},
 };
 use futures_util::StreamExt;
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
+use veltrunox_core::SplitStems;
 use veltrunox_core::{Capability, Reason, RecordingId, Refusal};
 use veltrunox_protocol::{
     ImportedStemsDto, PackageRecordingDto, STEM_ANALYSIS_PATH, STEM_PACKAGE_PATH,
@@ -180,12 +182,34 @@ async fn stems(
     }))
 }
 
+#[derive(Deserialize)]
+struct AnalyseQuery {
+    /// Into how many stems; four if not said.
+    stems: Option<u8>,
+}
+
+impl AnalyseQuery {
+    fn split(&self) -> Result<SplitStems, ApiError> {
+        let Some(count) = self.stems else {
+            return Ok(SplitStems::default());
+        };
+        SplitStems::from_count(count).ok_or_else(|| {
+            ApiError::Refused(
+                StatusCode::BAD_REQUEST,
+                Reason::coded("stems_count_unsupported", "split into 4 or 6 stems"),
+            )
+        })
+    }
+}
+
 async fn analyse(
     State(app): State<AppState>,
     caller: Caller,
     Path(recording): Path<u64>,
+    Query(query): Query<AnalyseQuery>,
 ) -> Result<StatusCode, ApiError> {
     caller.require(Capability::ManageRecordings)?;
+    let stems = query.split()?;
     let jobs = app.stem_jobs.clone().ok_or_else(no_program)?;
     let id = RecordingId::new(recording);
     let known = blocking(move || {
@@ -198,7 +222,7 @@ async fn analyse(
     if !known {
         return Err(ApiError::NotFound);
     }
-    jobs.enqueue(id, StemTask::Split);
+    jobs.enqueue(id, StemTask::Split(stems));
     Ok(StatusCode::ACCEPTED)
 }
 

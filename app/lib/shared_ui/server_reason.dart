@@ -194,6 +194,10 @@ String? _text(ServerReason reason) => switch (reason.code) {
     'Das Analyseprogramm ist fehlgeschlagen.',
     'The analysis program failed.',
   ),
+  'stems_count_unsupported' => tr(
+    'Aufteilen geht in 4 oder 6 Segmente.',
+    'Splitting makes 4 or 6 stems.',
+  ),
   'bookmark_not_found' => tr(
     'Die Markierung oder Aufnahme wurde nicht gefunden.',
     'The marker or recording was not found.',

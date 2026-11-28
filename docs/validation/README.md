@@ -314,3 +314,14 @@ Environment: macOS, Apple M3, 8 GB; debug server, release web build in the built
 Update after splitting and region creation were separated and the clock offset fix: Rust workspace tests, Flutter analysis and tests (348), web build and the 16 Playwright tests passed (the reconnect run was not repeated). One real run of the new program on a recording from the user's bounces: splitting about 28 s and creating regions about 20 s, both with progress in small steps. Not checked: the new mixer buttons and the library mark by eye, the new jobs through the server with the real program, the playhead fix in the running application, the macOS build.
 
 Limits: nothing was **heard** (the server had no audio device); the section boundaries and labels were not checked by ear; the macOS application was built but not started; file dialogs for packages, the install script, rights of non-admins for stem actions, the Raspberry Pi and memory use were not checked. Original and stems are decoded by different decoders (analysis: ffmpeg); a small offset between them for MP3 originals is possible and unmeasured.
+
+## Four or six stems with Demucs on OpenVINO (2026-11-28)
+
+Environment: macOS, Apple M3, 8 GB; OpenVINO 2026.4.1, Intel's conversion of Demucs v4 at revision `efb3d2bc`.
+
+- OpenVINO computes the converted model's 1-D transposed convolutions wrongly on this machine (reproduced with a single operation, about -3 dB against PyTorch; the 2-D form agrees to more than 128 dB). The analysis program rewrites them.
+- With the rewrite, four stems of a 30 s excerpt agree with the original `htdemucs` in PyTorch to 39–48 dB per stem.
+- Installed with `install.sh` into an empty directory; one 194.6 s song split into four stems (54 s) and six (58 s), peak memory footprint 4.6 and 5.2 GB; region detection ran on the six stems.
+- Rust workspace tests and Clippy, Flutter analysis and tests passed.
+
+Limits: nothing was heard; the six-stem model was not compared with the original (on this song its piano and "other" stems are nearly silent); the choice at "Split" was exercised in a widget test, not in a running app; Intel processors, Linux and the macOS application were not checked.

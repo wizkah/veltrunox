@@ -85,6 +85,7 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiAnalyseStems({
     required String serverUrl,
     required BigInt recordingId,
+    required int stemCount,
   });
 
   Future<SharingInfo> crateHostApiApplySharing({required SharingChoice choice});
@@ -381,6 +382,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<void> crateApiAnalyseStems({
     required String serverUrl,
     required BigInt recordingId,
+    required int stemCount,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -388,6 +390,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(serverUrl, serializer);
           sse_encode_u_64(recordingId, serializer);
+          sse_encode_u_8(stemCount, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -400,7 +403,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_recording_action_error,
         ),
         constMeta: kCrateApiAnalyseStemsConstMeta,
-        argValues: [serverUrl, recordingId],
+        argValues: [serverUrl, recordingId, stemCount],
         apiImpl: this,
       ),
     );
@@ -408,7 +411,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiAnalyseStemsConstMeta => const TaskConstMeta(
     debugName: "analyse_stems",
-    argNames: ["serverUrl", "recordingId"],
+    argNames: ["serverUrl", "recordingId", "stemCount"],
   );
 
   @override

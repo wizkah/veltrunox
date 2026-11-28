@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use veltrunox_core::{
     ApiTokenId, BookmarkId, BookmarkName, Bookmarks, InvalidValue, Label, Millis, NewBookmarks,
     PasswordPolicy, PlaybackSettings, PlaybackState, Recording, RecordingAnalysis, RecordingId,
-    RecordingTitle, Region, Role, StemName, TimeRange, TokenName, TokenScope, UserId, UserName,
-    Version, Waveform,
+    RecordingTitle, Region, Role, SplitStems, StemName, TimeRange, TokenName, TokenScope, UserId,
+    UserName, Version, Waveform,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -90,6 +90,7 @@ pub trait StemSeparator: Send + Sync {
         &self,
         audio: &Path,
         title: &str,
+        stems: SplitStems,
         package: &Path,
         report: &dyn Fn(u8),
     ) -> Result<(), String>;

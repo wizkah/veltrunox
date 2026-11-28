@@ -44,9 +44,11 @@ Future<StemOverviewItem> recordingStems({
 Future<void> analyseStems({
   required String serverUrl,
   required BigInt recordingId,
+  required int stemCount,
 }) => RustLib.instance.api.crateApiAnalyseStems(
   serverUrl: serverUrl,
   recordingId: recordingId,
+  stemCount: stemCount,
 );
 
 Future<void> createStemRegions({

@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../design/tokens/app_geometry.dart';
 import '../../shared_ui/action_button.dart';
 import 'mixer_texts.dart';
+import 'split_menu_button.dart';
 
 /// The switch between stems and original, and what can be done with the stem
 /// set. An action without a callback is not shown (missing right or no stems);
@@ -22,7 +23,9 @@ class StemActionsBar extends StatelessWidget {
 
   final bool stemsEnabled;
   final ValueChanged<bool>? onEnabled;
-  final VoidCallback? onSplit;
+
+  /// Told into how many stems.
+  final ValueChanged<int>? onSplit;
   final VoidCallback? onCreateRegions;
   final VoidCallback? onImport;
   final VoidCallback? onExport;
@@ -50,13 +53,7 @@ class StemActionsBar extends StatelessWidget {
             ],
           ),
         ),
-      if (onSplit != null)
-        ActionButton(
-          label: MixerTexts.split,
-          icon: Icons.call_split,
-          kind: ActionKind.secondary,
-          onPressed: busy ? null : onSplit,
-        ),
+      if (onSplit != null) SplitMenuButton(onSplit: busy ? null : onSplit),
       if (onCreateRegions != null)
         ActionButton(
           label: MixerTexts.createRegions,

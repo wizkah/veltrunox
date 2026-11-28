@@ -16,6 +16,33 @@ const AT_END_MS: u64 = 500;
 /// Regions whose ends differ by at most this are taken to be the same.
 const SAME_RANGE_MS: u64 = 1_000;
 
+/// Into how many stems the analysis splits a recording.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SplitStems {
+    /// Drums, bass, vocals and the rest.
+    #[default]
+    Four,
+    /// Guitar and piano on their own as well.
+    Six,
+}
+
+impl SplitStems {
+    pub const fn count(self) -> u8 {
+        match self {
+            Self::Four => 4,
+            Self::Six => 6,
+        }
+    }
+
+    pub const fn from_count(count: u8) -> Option<Self> {
+        match count {
+            4 => Some(Self::Four),
+            6 => Some(Self::Six),
+            _ => None,
+        }
+    }
+}
+
 /// How one stem sounds in the mix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StemChannel {
