@@ -330,9 +330,10 @@ Limits: nothing was heard; the six-stem model was not compared with the original
 
 Environment: as above; openmirlab `bs-roformer-infer` e3ad851 and `melband-roformer-infer` 02099e6, CPU.
 
-- `bs4`, `sw6`, `mel4` and `vocals` load without missing or unexpected weights and split a 60 s excerpt through the installed program; `bs4` and `vocals` took about 105 s, `mel4` 183 s.
+- `bs4`, `sw6`, `mel4` and `vocals` load without missing or unexpected weights and split a 60 s excerpt through the installed program; `bs4` and `vocals` took about 105 s, `mel4` 264 s.
+- `mel4` first gave wrong stems: its `skip_connection` setting was dropped silently. With the connections added, settings the network does not know are refused.
 - Vocals, drums and bass of the RoFormer stems agree with Demucs to 11–16 dB (a plausibility check, not a quality measure).
-- The guard killed a test program past its limit and two model runs when macOS reported critical memory pressure (full-length chunks; the program now uses at most 8 s).
+- The guard killed a test program past its limit and two model runs when macOS reported critical memory pressure (full-length chunks; the program now uses at most 8 s, 4 s for `mel4`). With a 5 GB limit all four models finished.
 - Rust Clippy, Flutter analysis and tests passed; in the full Rust test run `repeated_failures_delay_even_the_right_password` has failed, and passes when run with only its file.
 
 Limits: nothing was heard; no full song with a RoFormer model; memory of the RoFormer runs was not recorded for the whole run; the Split menu was exercised in a widget test only.

@@ -41,7 +41,8 @@ Song structure needs drums, bass and vocals, so there are no regions for `vocals
 ## Resources
 
 On an Apple M3 with 8 GB, Demucs splits a 3-minute song in about a minute. The RoFormer models
-run on the CPU in chunks of at most 8 s and take several times as long. Splitting needs up to
+run on the CPU in chunks of at most 8 s (`mel4`: 4 s) and take several times as long, `mel4`
+about four minutes per minute of audio. Splitting needs up to
 about 5 GB of memory; it does not fit a Raspberry Pi. `guard.py` watches every run and kills it
 when it needs more than three quarters of the physical memory (or
 `VELTRUNOX_ANALYSIS_MEMORY_GB`), when the system reports critical memory pressure, or when the

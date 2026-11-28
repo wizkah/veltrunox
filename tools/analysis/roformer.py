@@ -2,6 +2,7 @@
 
 Each model is a directory with `model.ckpt` and `config.yaml`, in the form of
 Music-Source-Separation-Training. The network code is openmirlab's."""
+import contextlib
 import inspect
 
 import torch
@@ -11,6 +12,9 @@ SAMPLE_RATE = 44100
 # The attention's memory grows with the square of the chunk; longer chunks than this do not
 # fit an 8 GB machine.
 LONGEST_CHUNK = 8 * SAMPLE_RATE
+# A model file this large leaves less room for the chunk.
+LARGE_MODEL_BYTES = 2 * 1024**3
+LONGEST_CHUNK_OF_A_LARGE_MODEL = 4 * SAMPLE_RATE
 
 
 class Loader(yaml.SafeLoader):
@@ -23,14 +27,58 @@ Loader.add_constructor(
 )
 
 
+@contextlib.contextmanager
+def without_initialisation():
+    """Linear layers keep their memory untouched: every weight is replaced by the model
+    file, and filling them first would take as much memory again."""
+    initialise = torch.nn.Linear.reset_parameters
+    torch.nn.Linear.reset_parameters = lambda _layer: None
+    try:
+        yield
+    finally:
+        torch.nn.Linear.reset_parameters = initialise
+
+
+def add_skip_connections(network):
+    """Every block also gets what all blocks before it put out, as in the training code's
+    `skip_connection`, which openmirlab's networks leave out. For one chunk at a time."""
+    earlier = []
+    for number, (over_time, over_frequency) in enumerate(network.layers):
+
+        def before(_module, arguments, number=number):
+            if number == 0:
+                earlier.clear()
+                return None
+            # Kept as [time, bands, features]; here it is [bands, time, features].
+            return (arguments[0] + sum(earlier).transpose(0, 1),)
+
+        over_time.register_forward_pre_hook(before)
+        over_frequency.register_forward_hook(
+            lambda _module, _arguments, output: earlier.append(output)
+        )
+
+
 def network_of(config):
     if "num_bands" in config["model"]:
         from mel_band_roformer.mel_band_roformer import MelBandRoformer as network
     else:
         from bs_roformer.bs_roformer import BSRoformer as network
-    # Some settings only matter for training.
     known = inspect.signature(network.__init__).parameters
-    return network(**{k: v for k, v in config["model"].items() if k in known})
+    settings = {k: v for k, v in config["model"].items() if k in known}
+    # A setting the network does not know would change the result unnoticed. Left aside are
+    # those for training, those switched off and the one added below.
+    unknown = [
+        name
+        for name, value in config["model"].items()
+        if name not in known and value and name not in ("use_torch_checkpoint", "skip_connection")
+    ]
+    if unknown:
+        raise SystemExit(f"the model needs settings that are not supported: {unknown}")
+    with without_initialisation():
+        made = network(**settings)
+    if config["model"].get("skip_connection") and "skip_connection" not in known:
+        add_skip_connections(made)
+    return made
 
 
 def load(directory):
@@ -85,7 +133,9 @@ def separate(directory, mix, report):
     network, names, config = load(directory)
     # The network gives back whole hops only.
     hop = config["model"].get("stft_hop_length", 512)
-    chunk = min(config["audio"]["chunk_size"], LONGEST_CHUNK) // hop * hop
+    large = (directory / "model.ckpt").stat().st_size > LARGE_MODEL_BYTES
+    longest = LONGEST_CHUNK_OF_A_LARGE_MODEL if large else LONGEST_CHUNK
+    chunk = min(config["audio"]["chunk_size"], longest) // hop * hop
     stems = dict(zip(names, in_chunks(network, mix, chunk, report)))
     if len(stems) == 1:
         stems["other"] = mix - next(iter(stems.values()))
