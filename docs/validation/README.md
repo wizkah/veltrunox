@@ -347,3 +347,12 @@ Environment: as above; debug server on a throwaway data directory, release web b
 - In the browser: split a 20 s excerpt with Demucs (4 stems), then with the vocals model; the Demucs entry was disabled for a second split; switched between the sets and deleted one, the other remained.
 
 Limits: nothing was heard; switching during playback, a second client, and the macOS application were not checked.
+
+## Splitting in the macOS application (2026-11-28)
+
+Environment: macOS, Apple M3, 8 GB; release build of the application on an external disk; analysis program installed on the same disk and linked into the data directory.
+
+- Migrating the application's own database kept its three stem sets as `imported`.
+- A recording split with the six-stem BS-RoFormer (`sw6`) in the application got a second set with six stems, which became the selected one; the imported set with four stems stayed. The user reported that it worked.
+
+Limits: nothing was reported about how the stems sound, switching between sets, creating regions or the package file dialogs; time and memory of the run were not measured.
